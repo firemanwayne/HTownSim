@@ -101,6 +101,7 @@ namespace HTownSim.Runtime
         private const float WalkClipSpeed = 1.3f;
 
         private const string PaletteMaterialPrefix = "PixelColors";
+        private const string SeparateWheelPrefix = "Wheel_";
         private static readonly string[] WheelNames = { "FL", "FR", "BL", "BR" };
         private static readonly Color[] PaintTints =
         {
@@ -246,6 +247,12 @@ namespace HTownSim.Runtime
             public float Cruise;
 
             public float Pull;
+
+            /// <summary>Half the vehicle's length, used for following gaps and stop lines; longer for buses and trucks.</summary>
+            public float HalfLength = CarHalfLength;
+
+            /// <summary>+1 drives in the right-hand lane, -1 in the left-hand lane; only one-way streets (dashed centre line, two lanes) use -1.</summary>
+            public float LaneSide = 1f;
 
             public float TurnCooldown;
 
@@ -532,7 +539,7 @@ namespace HTownSim.Runtime
 
         private static float Lane(Axis axis)
         {
-            return axis.OneWay ? 0f : Mathf.Max(1.5f, (axis.HalfWidth - RoadEdge) / 2f);
+            return Mathf.Max(1.5f, (axis.HalfWidth - RoadEdge) / 2f);
         }
 
         /// <summary>Right-hand traffic: +1 means the +X (or +Z) side is on the driver's right.</summary>
@@ -591,7 +598,9 @@ namespace HTownSim.Runtime
                     continue;
                 }
 
-                var point = PointOn(axis, axis.Fixed + RightSign(axis, direction) * Lane(axis), along, RoadY);
+                var laneSide = axis.OneWay && Random.value < 0.5f ? -1f : 1f;
+
+                var point = PointOn(axis, axis.Fixed + RightSign(axis, direction) * laneSide * Lane(axis), along, RoadY);
 
                 var distance = Vector3.Distance(point, _player.position);
 
@@ -601,6 +610,8 @@ namespace HTownSim.Runtime
                 }
 
                 car.Axis = axis;
+
+                car.LaneSide = laneSide;
 
                 car.Direction = direction;
 
@@ -676,7 +687,9 @@ namespace HTownSim.Runtime
                 bounds = LocalBounds(instance.transform, root);
             }
 
-            var scale = ModelLength / Mathf.Max(bounds.size.z, 0.01f);
+            var length = LengthFor(model.name);
+
+            var scale = length / Mathf.Max(bounds.size.z, 0.01f);
 
             instance.transform.localScale = Vector3.one * scale;
 
@@ -686,11 +699,20 @@ namespace HTownSim.Runtime
 
             bounds = LocalBounds(instance.transform, root);
 
+            car.HalfLength = length / 2f;
+
+            if (car.Collider is BoxCollider box)
+            {
+                box.size = new Vector3(bounds.size.x + 0.1f, bounds.size.y, bounds.size.z + 0.1f);
+
+                box.center = new Vector3(0f, bounds.size.y / 2f, 0f);
+            }
+
             var wheels = new List<Transform>();
 
             foreach (var child in instance.GetComponentsInChildren<Transform>(true))
             {
-                if (System.Array.IndexOf(WheelNames, child.name) >= 0)
+                if (System.Array.IndexOf(WheelNames, child.name) >= 0 || child.name.StartsWith(SeparateWheelPrefix))
                 {
                     wheels.Add(child);
                 }
@@ -727,6 +749,37 @@ namespace HTownSim.Runtime
             car.Paint = paint.ToArray();
 
             car.BrakeLights = BuildBrakeLights(root, bounds);
+        }
+
+        /// <summary>Real-world length in metres for a vehicle model, picked from its name; unknown models use the default car length.</summary>
+        private static float LengthFor(string modelName)
+        {
+            if (modelName.Contains("Bus"))
+            {
+                return 8.5f;
+            }
+
+            if (modelName.Contains("Truck_color") && !modelName.Contains("Pick") || modelName.Contains("Container"))
+            {
+                return 8f;
+            }
+
+            if (modelName.Contains("Ambulance"))
+            {
+                return 6f;
+            }
+
+            if (modelName.Contains("Pick"))
+            {
+                return 5.4f;
+            }
+
+            if (modelName.Contains("SUV"))
+            {
+                return 4.9f;
+            }
+
+            return modelName.Contains("Vehicle_") ? 4.5f : ModelLength;
         }
 
         /// <summary>Two small emissive red lamps across the rear of the car, shown only while braking.</summary>
@@ -861,7 +914,7 @@ namespace HTownSim.Runtime
 
             var yielding = yieldNow || car.YieldHold > 0f;
 
-            car.Pull = Mathf.MoveTowards(car.Pull, yielding ? PullDistance(axis) : 0f, 3f * dt);
+            car.Pull = Mathf.MoveTowards(car.Pull, yielding ? PullDistance(axis) + (car.LaneSide < 0f ? 2f * Lane(axis) : 0f) : 0f, 3f * dt);
 
             if (yielding && (playerDistance < StopRange || !yieldNow))
             {
@@ -894,7 +947,7 @@ namespace HTownSim.Runtime
                 TryTurn(car, previous);
             }
 
-            var lateral = Lane(car.Axis) + car.Pull;
+            var lateral = car.LaneSide * Lane(car.Axis) + car.Pull;
 
             var across = car.Axis.Fixed + RightSign(car.Axis, car.Direction) * lateral;
 
@@ -975,7 +1028,7 @@ namespace HTownSim.Runtime
 
                 if (other.Knocked)
                 {
-                    best = Mathf.Min(best, GapToBody(other.Transform.position - position, heading));
+                    best = Mathf.Min(best, GapToBody(other.Transform.position - position, heading, car.HalfLength));
 
                     continue;
                 }
@@ -985,7 +1038,7 @@ namespace HTownSim.Runtime
                     continue;
                 }
 
-                var gap = (other.Along - car.Along) * car.Direction - 4.6f;
+                var gap = (other.Along - car.Along) * car.Direction - (car.HalfLength + other.HalfLength);
 
                 if (gap > -1f && gap < best)
                 {
@@ -993,13 +1046,13 @@ namespace HTownSim.Runtime
                 }
             }
 
-            return Mathf.Min(best, GapToBody(_player.position - position, heading));
+            return Mathf.Min(best, GapToBody(_player.position - position, heading, car.HalfLength));
         }
 
         /// <summary>Distance to a body in this car's lane ahead, given the vector to it, or a large number when it is behind or off to the side.</summary>
-        private static float GapToBody(Vector3 toBody, Vector3 heading)
+        private static float GapToBody(Vector3 toBody, Vector3 heading, float halfLength)
         {
-            var ahead = Vector3.Dot(toBody, heading) - CarHalfLength - 2.2f;
+            var ahead = Vector3.Dot(toBody, heading) - halfLength - 2.2f;
 
             var lateral = Mathf.Abs(Vector3.Dot(toBody, Vector3.Cross(Vector3.up, heading)));
 
@@ -1034,7 +1087,7 @@ namespace HTownSim.Runtime
             {
                 var stopLine = crossing.Fixed - car.Direction * (crossing.HalfWidth + 1.6f);
 
-                var distance = (stopLine - car.Along) * car.Direction - CarHalfLength;
+                var distance = (stopLine - car.Along) * car.Direction - car.HalfLength;
 
                 if (distance < -1f || distance > 45f)
                 {
@@ -1109,6 +1162,8 @@ namespace HTownSim.Runtime
                     var oldAxis = car.Axis;
 
                     car.Axis = crossing;
+
+                    car.LaneSide = crossing.OneWay && Random.value < 0.5f ? -1f : 1f;
 
                     car.Direction = crossing.OneWay ? 1 : Random.value < 0.5f ? -1 : 1;
 

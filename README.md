@@ -115,3 +115,8 @@ Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-backgrou
 - **Trees:** every street tree (about 2,470) is a SimplePoly City tree (round, cube or fir) at the original oak position, under `StreetTrees`. The oak primitives are gone, and trees within 9 m of the station bay were removed to keep the cab view clear.
 - **Sky:** `SkyDecor` puts the Synty Simple Sky dome on the camera with 40 drifting low-poly clouds. It uses the fog-free `HTownSim/SkyUnlit` shader, so scene fog does not wash it out. Cloud cover, tint and darkness follow `EnvironmentWeather` (clear, overcast, rain). Offset the UV on `Generated/SkyDome.mat` and `SkyCloud.mat` to change the time of day.
 - **Props and people:** POLYGON city pack props sit on the sidewalks beside the street lamps, and pedestrians are City People characters playing walk clips.
+
+## Traffic fleet and lanes
+
+- **Fleet:** traffic cars cycle through 20 models: the Stylized Vehicles pack plus SimplePoly City cars, SUVs, pickups, taxis, box and dump trucks, a container truck and a bus. Each is scaled to a real length (`TrafficSystem.LengthFor`), spaced by its own half-length, and has its own collision box, rolling wheels and brake lights.
+- **Lanes:** two-way streets keep to the right of the painted center line. On one-way streets (dashed center line) cars now take the middle of either lane beside the dash instead of straddling it.

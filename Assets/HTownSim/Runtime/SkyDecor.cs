@@ -19,6 +19,11 @@ namespace HTownSim.Runtime
         private const float WrapRadius = 600f;
         private const float ClearCloudFraction = 0.45f;
 
+        /// <summary>Layer the dome and clouds live on, hidden from every camera except the main one so they stay off the minimap.</summary>
+        private const int SkyLayer = 30;
+
+        private const int FramesBetweenCameraChecks = 45;
+
         [SerializeField] private GameObject _dome = null!;
 
         [SerializeField] private GameObject[] _cloudPrefabs = new GameObject[0];
@@ -78,6 +83,10 @@ namespace HTownSim.Runtime
 
                 _clouds[i] = cloud;
             }
+
+            _camera = Camera.main != null ? Camera.main.transform : null;
+
+            HideFromOtherCameras();
         }
 
         private static void Dress(GameObject target, Material material)
@@ -92,6 +101,8 @@ namespace HTownSim.Runtime
                 }
 
                 renderer.sharedMaterials = materials;
+
+                renderer.gameObject.layer = SkyLayer;
 
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -117,6 +128,11 @@ namespace HTownSim.Runtime
                 {
                     return;
                 }
+            }
+
+            if (Time.frameCount % FramesBetweenCameraChecks == 0)
+            {
+                HideFromOtherCameras();
             }
 
             var origin = _camera.position;
@@ -150,6 +166,18 @@ namespace HTownSim.Runtime
                 if (new Vector2(offset.x, offset.z).magnitude > WrapRadius)
                 {
                     cloud.position = new Vector3(origin.x - WrapRadius * 0.95f, cloud.position.y, origin.z + Random.Range(-WrapRadius * 0.6f, WrapRadius * 0.6f));
+                }
+            }
+        }
+
+        /// <summary>Removes the sky layer from the culling mask of every camera except the main one (the minimap camera is created at runtime).</summary>
+        private void HideFromOtherCameras()
+        {
+            foreach (var other in FindObjectsByType<Camera>(FindObjectsInactive.Include))
+            {
+                if (other.transform != _camera)
+                {
+                    other.cullingMask &= ~(1 << SkyLayer);
                 }
             }
         }
