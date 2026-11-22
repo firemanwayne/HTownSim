@@ -6,7 +6,8 @@ namespace HTownSim.Runtime
 {
     /// <summary>
     /// Spatial city sound on top of the weather system's ambient bed: engine and tyre noise on the nearest civilian cars,
-    /// car horns, distant sirens and birdsong. All clips are synthesized, so no audio files are needed.
+    /// car horns, distant sirens and birdsong. Car engines and horns use recorded clips from Resources/TrafficAudio when
+    /// present (idle and drive loops are crossfaded by speed); everything else, and the fallback, is synthesized.
     /// Follows the F7 ambience mute and the same shelter muffling as the bed.
     /// </summary>
     internal sealed class CityAmbience : MonoBehaviour
@@ -29,6 +30,10 @@ namespace HTownSim.Runtime
         private const float BirdMinInterval = 3f;
         private const float BirdMaxInterval = 9f;
         private const float BirdRange = 35f;
+        private const string IdleResource = "TrafficAudio/Idle";
+        private const string DriveResource = "TrafficAudio/Drive";
+        private const string HornResource = "TrafficAudio/Horn";
+        private const float DriveVolume = 0.6f;
         private const float ShelterGain = 0.28f;
         private const float SirenPriorityGain = 0.5f;
 
@@ -39,7 +44,11 @@ namespace HTownSim.Runtime
         private AudioClip _hornClip = null!;
         private AudioClip _sirenClip = null!;
         private AudioClip[] _birdClips = new AudioClip[0];
+        private AudioClip[] _idleClips = new AudioClip[0];
+        private AudioClip[] _driveClips = new AudioClip[0];
+        private AudioClip[] _hornClips = new AudioClip[0];
         private readonly AudioSource[] _carSources = new AudioSource[CarVoices];
+        private readonly AudioSource[] _driveSources = new AudioSource[CarVoices];
         private readonly int[] _carAssigned = new int[CarVoices];
         private readonly List<TrafficSystem.NearCar> _near = new List<TrafficSystem.NearCar>();
         private AudioSource _oneShot = null!;
@@ -65,13 +74,21 @@ namespace HTownSim.Runtime
 
             _hornClip = MakeHorn();
 
+            _idleClips = LoadOrFallback(IdleResource, _engineClip);
+
+            _driveClips = LoadOrFallback(DriveResource, _engineClip);
+
+            _hornClips = LoadOrFallback(HornResource, _hornClip);
+
             _sirenClip = MakeDistantSiren();
 
             _birdClips = new[] { MakeBird(3100f, 4200f, 0.11f, 1), MakeBird(2500f, 3300f, 0.18f, 2), MakeBird(4200f, 3600f, 0.08f, 3) };
 
             for (var i = 0; i < CarVoices; i++)
             {
-                _carSources[i] = NewSource("CarVoice" + i, _engineClip, true);
+                _carSources[i] = NewSource("CarVoice" + i, _idleClips[i % _idleClips.Length], true);
+
+                _driveSources[i] = NewSource("CarDrive" + i, _driveClips[i % _driveClips.Length], true);
 
                 _carAssigned[i] = -1;
             }
@@ -87,6 +104,14 @@ namespace HTownSim.Runtime
             _nextSiren = Random.Range(10f, SirenMinInterval);
 
             _nextBird = Random.Range(1f, BirdMinInterval);
+        }
+
+        /// <summary>Loads every clip under a Resources folder, or the synthesized stand-in when none are imported.</summary>
+        private static AudioClip[] LoadOrFallback(string folder, AudioClip fallback)
+        {
+            var clips = Resources.LoadAll<AudioClip>(folder);
+
+            return clips.Length > 0 ? clips : new[] { fallback };
         }
 
         private AudioSource NewSource(string sourceName, AudioClip clip, bool loop)
@@ -210,18 +235,26 @@ namespace HTownSim.Runtime
                 {
                     source.volume = Mathf.Lerp(source.volume, 0f, blend);
 
+                    _driveSources[v].volume = Mathf.Lerp(_driveSources[v].volume, 0f, blend);
+
                     continue;
                 }
 
                 var car = _near[index];
 
+                var drive = _driveSources[v];
+
                 source.transform.position = car.Position;
+
+                drive.transform.position = car.Position;
 
                 var speed01 = Mathf.Clamp01(car.Speed / FullSpeed);
 
-                source.volume = Mathf.Lerp(source.volume, Mathf.Lerp(IdleVolume, MovingVolume, speed01) * gain, blend);
+                source.volume = Mathf.Lerp(source.volume, IdleVolume * 3f * (1f - speed01) * gain, blend);
 
-                source.pitch = Mathf.Lerp(source.pitch, 0.8f + speed01 * 0.9f, blend);
+                drive.volume = Mathf.Lerp(drive.volume, DriveVolume * speed01 * gain, blend);
+
+                drive.pitch = Mathf.Lerp(drive.pitch, 0.85f + speed01 * 0.35f, blend);
             }
         }
 
@@ -279,7 +312,9 @@ namespace HTownSim.Runtime
 
             horn.transform.position = car.Position;
 
-            horn.clip = _hornClip;
+            var hornClip = _hornClips[Random.Range(0, _hornClips.Length)];
+
+            horn.clip = hornClip;
 
             horn.spatialBlend = 1f;
 
@@ -295,7 +330,7 @@ namespace HTownSim.Runtime
 
             horn.Play();
 
-            Destroy(horn.gameObject, _hornClip.length + 0.2f);
+            Destroy(horn.gameObject, hornClip.length / horn.pitch + 0.2f);
         }
 
         /// <summary>A short birdsong phrase from a random point in the nearby trees.</summary>

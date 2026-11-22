@@ -95,6 +95,15 @@ namespace HTownSim.Runtime
 
         private const float ModelLength = 4.4f;
 
+        private const string PaletteMaterialPrefix = "PixelColors";
+        private static readonly string[] WheelNames = { "FL", "FR", "BL", "BR" };
+        private static readonly Color[] PaintTints =
+        {
+            new Color(1f, 1f, 1f), new Color(1f, 0.55f, 0.5f), new Color(0.6f, 0.75f, 1f), new Color(0.65f, 0.95f, 0.7f),
+            new Color(1f, 0.88f, 0.5f), new Color(0.78f, 0.78f, 0.82f), new Color(0.45f, 0.45f, 0.5f), new Color(0.85f, 0.65f, 1f),
+        };
+        private Material? _brakeMaterial;
+
         [SerializeField] private Material[] _shirtPaints = new Material[0];
 
         [SerializeField] private Material[] _skinPaints = new Material[0];
@@ -203,6 +212,18 @@ namespace HTownSim.Runtime
             public Transform Transform = null!;
 
             public Renderer? Body;
+
+            /// <summary>Wheel pivots of the attached model, rolled by distance travelled.</summary>
+            public Transform[] Wheels = new Transform[0];
+
+            public float WheelRadius = 0.33f;
+
+            /// <summary>Per-car copies of the palette material, tinted for paint variety.</summary>
+            public Material[] Paint = new Material[0];
+
+            public Renderer[] BrakeLights = new Renderer[0];
+
+            public bool BrakeOn;
 
             public Axis Axis = null!;
 
@@ -316,12 +337,15 @@ namespace HTownSim.Runtime
 
                 if (_carModels.Length > 0)
                 {
-                    AttachModel(go.transform, _carModels[i % _carModels.Length]);
-
                     bodyRenderer = null;
                 }
 
                 var car = new Car { Transform = go.transform, Body = bodyRenderer, Id = i, Rb = go.GetComponent<Rigidbody>(), Collider = go.GetComponent<Collider>() };
+
+                if (_carModels.Length > 0)
+                {
+                    AttachModel(car, _carModels[i % _carModels.Length]);
+                }
 
                 _cars.Add(car);
 
@@ -573,6 +597,13 @@ namespace HTownSim.Runtime
                     car.Body.sharedMaterial = _carPaints[Random.Range(0, _carPaints.Length)];
                 }
 
+                var tint = PaintTints[Random.Range(0, PaintTints.Length)];
+
+                foreach (var paint in car.Paint)
+                {
+                    paint.SetColor("_BaseColor", tint);
+                }
+
                 var scale = new Vector3(1f, Random.Range(0.95f, 1.25f), Random.Range(0.92f, 1.2f));
 
                 car.Transform.localScale = scale;
@@ -587,15 +618,17 @@ namespace HTownSim.Runtime
             return false;
         }
 
-        /// <summary>Hides the primitive car parts and parents a scaled, grounded copy of a model under the template clone.</summary>
-        private static void AttachModel(Transform car, GameObject model)
+        /// <summary>Hides the primitive car parts, parents a scaled and grounded copy of a model under the car, and finds its wheels, paint and brake lights.</summary>
+        private void AttachModel(Car car, GameObject model)
         {
-            foreach (var renderer in car.GetComponentsInChildren<Renderer>(true))
+            var root = car.Transform;
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
             {
                 renderer.enabled = false;
             }
 
-            var instance = Instantiate(model, car);
+            var instance = Instantiate(model, root);
 
             instance.name = "Model";
 
@@ -610,22 +643,112 @@ namespace HTownSim.Runtime
 
             instance.transform.localScale = Vector3.one;
 
-            var bounds = LocalBounds(instance.transform, car);
+            var bounds = LocalBounds(instance.transform, root);
 
             if (bounds.size.x > bounds.size.z)
             {
                 instance.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
 
-                bounds = LocalBounds(instance.transform, car);
+                bounds = LocalBounds(instance.transform, root);
             }
 
             var scale = ModelLength / Mathf.Max(bounds.size.z, 0.01f);
 
             instance.transform.localScale = Vector3.one * scale;
 
-            bounds = LocalBounds(instance.transform, car);
+            bounds = LocalBounds(instance.transform, root);
 
             instance.transform.localPosition = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+
+            bounds = LocalBounds(instance.transform, root);
+
+            var wheels = new List<Transform>();
+
+            foreach (var child in instance.GetComponentsInChildren<Transform>(true))
+            {
+                if (System.Array.IndexOf(WheelNames, child.name) >= 0)
+                {
+                    wheels.Add(child);
+                }
+            }
+
+            car.Wheels = wheels.ToArray();
+
+            if (wheels.Count > 0)
+            {
+                var wheelBounds = LocalBounds(wheels[0], root);
+
+                car.WheelRadius = Mathf.Max(0.15f, wheelBounds.size.y / 2f);
+            }
+
+            var paint = new List<Material>();
+
+            foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
+            {
+                var materials = renderer.sharedMaterials;
+
+                for (var m = 0; m < materials.Length; m++)
+                {
+                    if (materials[m] != null && materials[m].name.StartsWith(PaletteMaterialPrefix))
+                    {
+                        materials[m] = new Material(materials[m]);
+
+                        paint.Add(materials[m]);
+                    }
+                }
+
+                renderer.sharedMaterials = materials;
+            }
+
+            car.Paint = paint.ToArray();
+
+            car.BrakeLights = BuildBrakeLights(root, bounds);
+        }
+
+        /// <summary>Two small emissive red lamps across the rear of the car, shown only while braking.</summary>
+        private Renderer[] BuildBrakeLights(Transform root, Bounds bounds)
+        {
+            if (_brakeMaterial == null)
+            {
+                _brakeMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "BrakeLight" };
+
+                _brakeMaterial.SetColor("_BaseColor", new Color(0.6f, 0f, 0f));
+
+                _brakeMaterial.EnableKeyword("_EMISSION");
+
+                _brakeMaterial.SetColor("_EmissionColor", new Color(3.5f, 0.1f, 0.05f));
+            }
+
+            var lights = new Renderer[2];
+
+            for (var i = 0; i < 2; i++)
+            {
+                var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+                Destroy(lamp.GetComponent<Collider>());
+
+                lamp.name = "BrakeLight";
+
+                lamp.transform.SetParent(root, false);
+
+                var side = i == 0 ? -1f : 1f;
+
+                lamp.transform.localPosition = new Vector3(bounds.center.x + side * bounds.extents.x * 0.62f, bounds.min.y + bounds.size.y * 0.42f, bounds.min.z - 0.01f);
+
+                lamp.transform.localScale = new Vector3(0.3f, 0.12f, 0.05f);
+
+                var renderer = lamp.GetComponent<Renderer>();
+
+                renderer.sharedMaterial = _brakeMaterial;
+
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                renderer.enabled = false;
+
+                lights[i] = renderer;
+            }
+
+            return lights;
         }
 
         private static Bounds LocalBounds(Transform model, Transform space)
@@ -732,6 +855,8 @@ namespace HTownSim.Runtime
                 target = Mathf.Min(target, CreepSpeed);
             }
 
+            var braking = target < car.Speed - 0.05f || target < 0.5f;
+
             car.Speed = Mathf.MoveTowards(car.Speed, target, (target < car.Speed ? 11f : 3.2f) * dt);
 
             var previous = car.Along;
@@ -756,6 +881,36 @@ namespace HTownSim.Runtime
             var blend = 1f - Mathf.Exp(-9f * dt);
 
             car.Transform.SetPositionAndRotation(Vector3.Lerp(position, targetPosition, blend), Quaternion.Slerp(car.Transform.rotation, targetRotation, blend));
+
+            AnimateCar(car, braking, dt);
+        }
+
+        /// <summary>Rolls the wheels by distance travelled and lights the brake lights while the car is slowing or stopped.</summary>
+        private static void AnimateCar(Car car, bool braking, float dt)
+        {
+            if (car.Wheels.Length > 0)
+            {
+                var degrees = car.Speed * dt / car.WheelRadius * Mathf.Rad2Deg;
+
+                var axle = car.Transform.right;
+
+                foreach (var wheel in car.Wheels)
+                {
+                    wheel.Rotate(axle, degrees, Space.World);
+                }
+            }
+
+            if (braking == car.BrakeOn)
+            {
+                return;
+            }
+
+            car.BrakeOn = braking;
+
+            foreach (var light in car.BrakeLights)
+            {
+                light.enabled = braking;
+            }
         }
 
         private void Despawn(Car car)
