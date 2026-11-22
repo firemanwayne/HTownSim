@@ -55,6 +55,15 @@ namespace HTownSim.Runtime
         private int _firstSiteIndex;
         /// <summary>Cached vehicle collision and initial pose.</summary>
         private CharacterController _controller = null!;
+        /// <summary>Traffic that reacts to collisions; registers itself at startup.</summary>
+        internal TrafficSystem? Traffic { get; set; }
+
+        /// <summary>Collision bookkeeping: the collider and point the controller last touched, the impact speed that counts as a crash and the share of speed kept after knocking a car away.</summary>
+        private Collider? _lastHit;
+        private Vector3 _lastHitPoint;
+        private const float MinimumImpactSpeed = 1.5f;
+        private const float ImpactRetainedSpeed = 0.35f;
+        private const float MaximumCrashNormalY = 0.6f;
         /// <summary>Grows and spreads the fire and thickens its smoke.</summary>
         private FireSpread _spread = null!;
         private Vector3 _spawn;
@@ -571,12 +580,44 @@ namespace HTownSim.Runtime
 
             transform.Rotate(0f, input.x * _speed * 4f * Time.deltaTime, 0f);
 
+            var impactSpeed = _speed;
+
+            _lastHit = null;
+
             var flags = _controller.Move((transform.forward * _speed + Vector3.down * 3f) * Time.deltaTime);
 
-            if ((flags & CollisionFlags.Sides) != 0)
+            if ((flags & CollisionFlags.Sides) == 0)
             {
-                _speed = 0f;
+                return;
             }
+
+            // A vehicle that the traffic system knocks away costs the engine only part of its speed; anything else stops it.
+            var knocked = _lastHit != null && Traffic != null && Mathf.Abs(impactSpeed) >= MinimumImpactSpeed && Traffic.TryImpact(_lastHit, _lastHitPoint, transform.forward * impactSpeed);
+
+            _speed = knocked ? impactSpeed * ImpactRetainedSpeed : 0f;
+        }
+
+        /// <summary>Remembers what the controller last touched this frame so Drive can tell vehicles from walls.</summary>
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            // The road under the wheels reports a hit every frame; only side-facing contacts can be a crash.
+            if (Mathf.Abs(hit.normal.y) > MaximumCrashNormalY)
+            {
+                return;
+            }
+
+            _lastHit = hit.collider;
+
+            _lastHitPoint = hit.point;
+        }
+
+        /// <summary>Signed forward speed in metres per second (negative in reverse).</summary>
+        internal float SignedSpeed => _speed;
+
+        /// <summary>Scales the current speed, used when the engine ploughs through something soft.</summary>
+        internal void ScaleSpeed(float factor)
+        {
+            _speed *= Mathf.Clamp01(factor);
         }
 
         /// <summary>Applies water only within reach and with a clear line to the incident.</summary>

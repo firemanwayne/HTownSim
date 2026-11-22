@@ -35,6 +35,50 @@ namespace HTownSim.Runtime
 
         private const float SidewalkY = 0.2f;
 
+        /// <summary>Siren yielding: cars within YieldRange slow and pull over, stop inside StopRange, hold for YieldHoldSeconds after the engine passes, and wait before intersections the engine is closing on.</summary>
+        private const float YieldRange = 90f;
+
+        private const float StopRange = 60f;
+
+        private const float YieldNearRange = 35f;
+
+        private const float YieldHoldSeconds = 3f;
+
+        private const float CreepSpeed = 3f;
+
+        private const float IntersectionClearRange = 80f;
+
+        private const float MinimumPull = 0.6f;
+
+        private const float MaximumPull = 3.2f;
+
+        private const float CurbClearance = 1.2f;
+
+        /// <summary>Collision tuning: how hard a struck car is thrown relative to the engine's speed, its mass, how long it is left wrecked, and how long pedestrians stay down.</summary>
+        private const float CarKnockFactor = 1.15f;
+
+        private const float CarKnockSpeedLimit = 20f;
+
+        private const float CarMass = 1400f;
+
+        private const float WreckSeconds = 20f;
+
+        private const float WreckRestSeconds = 6f;
+
+        private const float IgnoreEngineSeconds = 0.6f;
+
+        private const float PedestrianMass = 75f;
+
+        private const float PedestrianDownSeconds = 6f;
+
+        private const float PedestrianHitSpeed = 1f;
+
+        private const float EngineHalfWidth = 1.9f;
+
+        private const float EngineRear = -4.5f;
+
+        private const float EngineFront = 4.6f;
+
         /// <summary>Things the scene builder wires up.</summary>
         [SerializeField] private Transform _player = null!;
 
@@ -100,6 +144,12 @@ namespace HTownSim.Runtime
 
         private readonly List<Pedestrian> _pedestrians = new List<Pedestrian>();
 
+        private readonly Dictionary<Collider, Car> _carByCollider = new Dictionary<Collider, Car>();
+
+        private CharacterController _playerController = null!;
+
+        private AudioClip _impactClip = null!;
+
         private float _clock;
 
         private SignalState _lastEw = (SignalState)(-1);
@@ -156,6 +206,21 @@ namespace HTownSim.Runtime
             public int Id;
 
             public bool Active;
+
+            public Rigidbody Rb = null!;
+
+            public Collider Collider = null!;
+
+            /// <summary>True while the car has left its path and is a free physics body after being struck.</summary>
+            public bool Knocked;
+
+            public float KnockTime;
+
+            public float Rest;
+
+            public float IgnoreTimer;
+
+            public float YieldHold;
         }
 
         private sealed class Pedestrian
@@ -187,6 +252,11 @@ namespace HTownSim.Runtime
             public float Max;
 
             public bool Active;
+
+            /// <summary>True while the pedestrian is a tumbling physics body after being struck.</summary>
+            public bool Knocked;
+
+            public float KnockTime;
         }
 
         /// <summary>Builds the street model and the agent pools.</summary>
@@ -209,6 +279,12 @@ namespace HTownSim.Runtime
                 axis.Crossings.Sort((a, b) => a.Fixed.CompareTo(b.Fixed));
             }
 
+            _playerController = _player.GetComponent<CharacterController>();
+
+            _response.Traffic = this;
+
+            _impactClip = CreateImpactClip();
+
             _carTemplate.SetActive(false);
 
             _pedestrianTemplate.SetActive(false);
@@ -219,7 +295,11 @@ namespace HTownSim.Runtime
 
                 go.SetActive(false);
 
-                _cars.Add(new Car { Transform = go.transform, Body = go.transform.Find("Body").GetComponent<Renderer>(), Id = i });
+                var car = new Car { Transform = go.transform, Body = go.transform.Find("Body").GetComponent<Renderer>(), Id = i, Rb = go.GetComponent<Rigidbody>(), Collider = go.GetComponent<Collider>() };
+
+                _cars.Add(car);
+
+                _carByCollider[car.Collider] = car;
             }
 
             for (var i = 0; i < PedestrianCount; i++)
@@ -493,6 +573,13 @@ namespace HTownSim.Runtime
 
         private void StepCar(Car car, float dt)
         {
+            if (car.Knocked)
+            {
+                StepKnocked(car, dt);
+
+                return;
+            }
+
             var axis = car.Axis;
 
             var heading = Heading(axis, car.Direction);
@@ -514,11 +601,15 @@ namespace HTownSim.Runtime
 
             var free = float.MaxValue;
 
-            var yielding = _response.SirenActive && playerDistance < 55f && (Vector3.Dot(toPlayer, heading) < 0f || playerDistance < 22f);
+            var yieldNow = _response.SirenActive && playerDistance < YieldRange && (Vector3.Dot(toPlayer, heading) < 0f || playerDistance < YieldNearRange);
 
-            car.Pull = Mathf.MoveTowards(car.Pull, yielding ? 1.6f : 0f, 2f * dt);
+            car.YieldHold = yieldNow ? YieldHoldSeconds : Mathf.Max(0f, car.YieldHold - dt);
 
-            if (yielding && playerDistance < 40f)
+            var yielding = yieldNow || car.YieldHold > 0f;
+
+            car.Pull = Mathf.MoveTowards(car.Pull, yielding ? PullDistance(axis) : 0f, 3f * dt);
+
+            if (yielding && (playerDistance < StopRange || !yieldNow))
             {
                 free = 0f;
             }
@@ -528,6 +619,11 @@ namespace HTownSim.Runtime
             free = Mathf.Min(free, GapToIntersectionObstacle(car));
 
             var target = free < 5f ? 0f : Mathf.Min(car.Cruise, free * 1.1f);
+
+            if (yielding)
+            {
+                target = Mathf.Min(target, CreepSpeed);
+            }
 
             car.Speed = Mathf.MoveTowards(car.Speed, target, (target < car.Speed ? 11f : 3.2f) * dt);
 
@@ -557,6 +653,23 @@ namespace HTownSim.Runtime
 
         private void Despawn(Car car)
         {
+            if (car.Knocked)
+            {
+                car.Knocked = false;
+
+                Physics.IgnoreCollision(car.Collider, _playerController, false);
+
+                car.Rb.linearVelocity = Vector3.zero;
+
+                car.Rb.angularVelocity = Vector3.zero;
+
+                car.Rb.isKinematic = true;
+
+                car.Rb.constraints = RigidbodyConstraints.None;
+
+                car.Rb.interpolation = RigidbodyInterpolation.None;
+            }
+
             car.Active = false;
 
             car.Transform.gameObject.SetActive(false);
@@ -569,7 +682,19 @@ namespace HTownSim.Runtime
 
             foreach (var other in _cars)
             {
-                if (!other.Active || other == car || other.Axis != car.Axis || other.Direction != car.Direction)
+                if (!other.Active || other == car)
+                {
+                    continue;
+                }
+
+                if (other.Knocked)
+                {
+                    best = Mathf.Min(best, GapToBody(other.Transform.position - position, heading));
+
+                    continue;
+                }
+
+                if (other.Axis != car.Axis || other.Direction != car.Direction)
                 {
                     continue;
                 }
@@ -582,18 +707,36 @@ namespace HTownSim.Runtime
                 }
             }
 
-            var toPlayer = _player.position - position;
+            return Mathf.Min(best, GapToBody(_player.position - position, heading));
+        }
 
-            var ahead = Vector3.Dot(toPlayer, heading) - CarHalfLength - 2.2f;
+        /// <summary>Distance to a body in this car's lane ahead, given the vector to it, or a large number when it is behind or off to the side.</summary>
+        private static float GapToBody(Vector3 toBody, Vector3 heading)
+        {
+            var ahead = Vector3.Dot(toBody, heading) - CarHalfLength - 2.2f;
 
-            var lateral = Mathf.Abs(Vector3.Dot(toPlayer, Vector3.Cross(Vector3.up, heading)));
+            var lateral = Mathf.Abs(Vector3.Dot(toBody, Vector3.Cross(Vector3.up, heading)));
 
-            if (ahead > -1f && ahead < best && lateral < 2.8f)
+            return ahead > -1f && lateral < 2.8f ? ahead : float.MaxValue;
+        }
+
+        /// <summary>How far a yielding car pulls toward the curb: the free room between its lane and the kerb, within sensible limits.</summary>
+        private static float PullDistance(Axis axis)
+        {
+            return Mathf.Clamp(axis.HalfWidth - RoadEdge - CurbClearance - Lane(axis), MinimumPull, MaximumPull);
+        }
+
+        /// <summary>True while the engine, with its siren on, is close enough to an intersection that cross and turning traffic should hold back.</summary>
+        private bool EngineClosingOn(Axis axis, Axis crossing)
+        {
+            if (!_response.SirenActive)
             {
-                best = ahead;
+                return false;
             }
 
-            return best;
+            var centre = PointOn(axis, axis.Fixed, crossing.Fixed, _player.position.y);
+
+            return Vector3.Distance(centre, _player.position) < IntersectionClearRange;
         }
 
         /// <summary>Applies signals and cross-traffic yielding at the next intersection ahead.</summary>
@@ -610,6 +753,11 @@ namespace HTownSim.Runtime
                 if (distance < -1f || distance > 45f)
                 {
                     continue;
+                }
+
+                if (distance < 30f && distance < best && EngineClosingOn(car.Axis, crossing))
+                {
+                    best = distance;
                 }
 
                 if (IsSignalised(car.Axis, crossing))
@@ -810,11 +958,25 @@ namespace HTownSim.Runtime
 
             var distance = toPlayer.magnitude;
 
+            if (ped.Knocked)
+            {
+                StepKnockedPedestrian(ped, dt, distance);
+
+                return;
+            }
+
             if (distance > DespawnDistance)
             {
                 ped.Active = false;
 
                 ped.Transform.gameObject.SetActive(false);
+
+                return;
+            }
+
+            if (Mathf.Abs(_response.SignedSpeed) > PedestrianHitSpeed && InEngineFootprint(position))
+            {
+                KnockPedestrian(ped, _player.forward * _response.SignedSpeed);
 
                 return;
             }
@@ -856,6 +1018,210 @@ namespace HTownSim.Runtime
             var point = PointOn(ped.Axis, ped.Axis.Fixed + ped.Side * (ped.Axis.HalfWidth - SidewalkInset), ped.Along, SidewalkY + bob);
 
             ped.Transform.SetPositionAndRotation(point, Quaternion.LookRotation(Heading(ped.Axis, ped.Direction)));
+        }
+
+        // ------------------------------------------------------------------ collisions
+
+        /// <summary>Called by the engine when it hits something at speed. Returns true when a civilian car was knocked away, so the engine keeps part of its speed.</summary>
+        internal bool TryImpact(Collider collider, Vector3 point, Vector3 velocity)
+        {
+            if (!_carByCollider.TryGetValue(collider, out var car) || !car.Active)
+            {
+                return false;
+            }
+
+            KnockCar(car, point, velocity);
+
+            PlayImpact(point, velocity.magnitude);
+
+            return true;
+        }
+
+        /// <summary>Hands a struck car to the physics engine: it slides, spins and rebounds off buildings until it is recycled.</summary>
+        private void KnockCar(Car car, Vector3 point, Vector3 velocity)
+        {
+            var body = car.Rb;
+
+            if (car.Knocked)
+            {
+                body.linearVelocity = Vector3.ClampMagnitude(body.linearVelocity + velocity * 0.6f, CarKnockSpeedLimit);
+            }
+            else
+            {
+                car.Knocked = true;
+
+                car.KnockTime = 0f;
+
+                car.Rest = 0f;
+
+                body.isKinematic = false;
+
+                body.mass = CarMass;
+
+                body.linearDamping = 0.15f;
+
+                body.angularDamping = 1.5f;
+
+                body.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+                body.interpolation = RigidbodyInterpolation.Interpolate;
+
+                body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+
+                var thrown = Vector3.ClampMagnitude(velocity * CarKnockFactor, CarKnockSpeedLimit);
+
+                thrown.y = 0f;
+
+                body.linearVelocity = thrown;
+
+                var offset = point - car.Transform.position;
+
+                offset.y = 0f;
+
+                var spin = thrown.sqrMagnitude > 0.01f ? Mathf.Clamp(Vector3.Cross(offset, thrown.normalized).y * 0.8f, -3f, 3f) : 0f;
+
+                body.angularVelocity = new Vector3(0f, spin, 0f);
+            }
+
+            Physics.IgnoreCollision(car.Collider, _playerController, true);
+
+            car.IgnoreTimer = IgnoreEngineSeconds;
+        }
+
+        /// <summary>Tracks a wrecked car and recycles it once it has been still for a while, is far away or has been down too long.</summary>
+        private void StepKnocked(Car car, float dt)
+        {
+            car.KnockTime += dt;
+
+            if (car.IgnoreTimer > 0f)
+            {
+                car.IgnoreTimer -= dt;
+
+                if (car.IgnoreTimer <= 0f)
+                {
+                    Physics.IgnoreCollision(car.Collider, _playerController, false);
+                }
+            }
+
+            var distance = Vector3.Distance(car.Transform.position, _player.position);
+
+            car.Rest = car.Rb.linearVelocity.magnitude < 0.4f ? car.Rest + dt : 0f;
+
+            if (distance > DespawnDistance || car.KnockTime > WreckSeconds || (car.Rest > WreckRestSeconds && distance > StopRange))
+            {
+                Despawn(car);
+            }
+        }
+
+        /// <summary>True when a point lies inside the engine's body, so a walker there has been run over.</summary>
+        private bool InEngineFootprint(Vector3 point)
+        {
+            var local = _player.InverseTransformPoint(point);
+
+            return Mathf.Abs(local.x) < EngineHalfWidth && local.z > EngineRear && local.z < EngineFront && Mathf.Abs(local.y) < 2.5f;
+        }
+
+        /// <summary>Launches a struck pedestrian as a tumbling rigid body that ignores the engine's controller.</summary>
+        private void KnockPedestrian(Pedestrian ped, Vector3 velocity)
+        {
+            ped.Knocked = true;
+
+            ped.KnockTime = 0f;
+
+            var go = ped.Transform.gameObject;
+
+            var body = go.AddComponent<Rigidbody>();
+
+            body.mass = PedestrianMass;
+
+            var capsule = go.AddComponent<CapsuleCollider>();
+
+            capsule.radius = 0.28f;
+
+            capsule.height = 1.7f;
+
+            capsule.center = new Vector3(0f, 0.85f, 0f);
+
+            Physics.IgnoreCollision(capsule, _playerController, true);
+
+            var launched = velocity * 0.95f + new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f));
+
+            launched.y = 3f + velocity.magnitude * 0.25f;
+
+            body.linearVelocity = launched;
+
+            body.angularVelocity = Random.onUnitSphere * 6f;
+
+            _response.ScaleSpeed(0.92f);
+
+            PlayImpact(ped.Transform.position, velocity.magnitude * 0.5f);
+        }
+
+        /// <summary>Leaves a struck pedestrian down for a few seconds, then removes the physics and recycles them.</summary>
+        private void StepKnockedPedestrian(Pedestrian ped, float dt, float distance)
+        {
+            ped.KnockTime += dt;
+
+            if (ped.KnockTime < PedestrianDownSeconds && distance <= DespawnDistance)
+            {
+                return;
+            }
+
+            var go = ped.Transform.gameObject;
+
+            Destroy(go.GetComponent<CapsuleCollider>());
+
+            Destroy(go.GetComponent<Rigidbody>());
+
+            ped.Knocked = false;
+
+            ped.Active = false;
+
+            go.SetActive(false);
+        }
+
+        /// <summary>Plays the thump at the point of impact, louder for harder hits.</summary>
+        private void PlayImpact(Vector3 point, float speed)
+        {
+            AudioSource.PlayClipAtPoint(_impactClip, point, Mathf.Clamp(0.25f + speed / 16f, 0.25f, 1f));
+        }
+
+        /// <summary>Synthesizes a short low thump: filtered noise plus a decaying low sine.</summary>
+        private static AudioClip CreateImpactClip()
+        {
+            const int rate = 22050;
+
+            var samples = new float[(int)(rate * 0.6f)];
+
+            var random = new System.Random(7);
+
+            var low = 0f;
+
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var time = i / (float)rate;
+
+                low += ((float)random.NextDouble() * 2f - 1f - low) * 0.08f;
+
+                var envelope = Mathf.Exp(-time * 9f);
+
+                samples[i] = Mathf.Clamp((low * 1.6f + Mathf.Sin(2f * Mathf.PI * 58f * time) * 0.7f + Mathf.Sin(2f * Mathf.PI * 110f * time) * 0.25f) * envelope * 0.8f, -0.95f, 0.95f);
+            }
+
+            var clip = AudioClip.Create("TrafficImpact", samples.Length, 1, rate, false);
+
+            clip.SetData(samples, 0);
+
+            return clip;
+        }
+
+        /// <summary>Releases the generated impact sound.</summary>
+        private void OnDestroy()
+        {
+            if (_impactClip != null)
+            {
+                Destroy(_impactClip);
+            }
         }
 
         // ------------------------------------------------------------------ debug
