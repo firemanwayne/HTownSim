@@ -1,6 +1,8 @@
 #nullable enable
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 namespace HTownSim.Runtime
 {
@@ -95,6 +97,9 @@ namespace HTownSim.Runtime
 
         private const float ModelLength = 4.4f;
 
+        /// <summary>Ground speed in metres per second that the walk clips were authored for; playback is scaled by speed over this.</summary>
+        private const float WalkClipSpeed = 1.3f;
+
         private const string PaletteMaterialPrefix = "PixelColors";
         private static readonly string[] WheelNames = { "FL", "FR", "BL", "BR" };
         private static readonly Color[] PaintTints =
@@ -103,6 +108,11 @@ namespace HTownSim.Runtime
             new Color(1f, 0.88f, 0.5f), new Color(0.78f, 0.78f, 0.82f), new Color(0.45f, 0.45f, 0.5f), new Color(0.85f, 0.65f, 1f),
         };
         private Material? _brakeMaterial;
+
+        /// <summary>Optional humanoid pedestrian models; when set, each pedestrian wears one and plays a walk clip.</summary>
+        [SerializeField] private GameObject[] _pedestrianModels = new GameObject[0];
+
+        [SerializeField] private AnimationClip[] _pedestrianWalkClips = new AnimationClip[0];
 
         [SerializeField] private Material[] _shirtPaints = new Material[0];
 
@@ -289,6 +299,13 @@ namespace HTownSim.Runtime
 
             public bool Active;
 
+            /// <summary>True when a humanoid model with a walk clip replaces the primitive body.</summary>
+            public bool Rigged;
+
+            public PlayableGraph Graph;
+
+            public AnimationClipPlayable Clip;
+
             /// <summary>True while the pedestrian is a tumbling physics body after being struck.</summary>
             public bool Knocked;
 
@@ -360,14 +377,21 @@ namespace HTownSim.Runtime
 
                 var t = go.transform;
 
-                _pedestrians.Add(new Pedestrian
+                var pedestrian = new Pedestrian
                 {
                     Transform = t,
                     LegLeft = t.Find("LegL"),
                     LegRight = t.Find("LegR"),
                     ArmLeft = t.Find("ArmL"),
                     ArmRight = t.Find("ArmR"),
-                });
+                };
+
+                if (_pedestrianModels.Length > 0 && _pedestrianWalkClips.Length > 0)
+                {
+                    AttachPedestrianModel(pedestrian, i);
+                }
+
+                _pedestrians.Add(pedestrian);
             }
 
             ApplySignals(force: true);
@@ -1141,6 +1165,11 @@ namespace HTownSim.Runtime
 
                 ped.Active = true;
 
+                if (ped.Rigged)
+                {
+                    ped.Clip.SetTime(Random.value * ped.Clip.GetAnimationClip().length);
+                }
+
                 ped.Transform.position = point;
 
                 ped.Transform.gameObject.SetActive(true);
@@ -1265,21 +1294,106 @@ namespace HTownSim.Runtime
 
             ped.Phase += speed * dt * 4.2f;
 
-            var swing = Mathf.Sin(ped.Phase) * 32f;
+            var bob = 0f;
 
-            ped.LegLeft.localRotation = Quaternion.Euler(swing, 0f, 0f);
+            if (ped.Rigged)
+            {
+                AnimatePedestrian(ped, speed);
+            }
+            else
+            {
+                var swing = Mathf.Sin(ped.Phase) * 32f;
 
-            ped.LegRight.localRotation = Quaternion.Euler(-swing, 0f, 0f);
+                ped.LegLeft.localRotation = Quaternion.Euler(swing, 0f, 0f);
 
-            ped.ArmLeft.localRotation = Quaternion.Euler(-swing * 0.8f, 0f, 0f);
+                ped.LegRight.localRotation = Quaternion.Euler(-swing, 0f, 0f);
 
-            ped.ArmRight.localRotation = Quaternion.Euler(swing * 0.8f, 0f, 0f);
+                ped.ArmLeft.localRotation = Quaternion.Euler(-swing * 0.8f, 0f, 0f);
 
-            var bob = Mathf.Abs(Mathf.Sin(ped.Phase)) * 0.04f;
+                ped.ArmRight.localRotation = Quaternion.Euler(swing * 0.8f, 0f, 0f);
+
+                bob = Mathf.Abs(Mathf.Sin(ped.Phase)) * 0.04f;
+            }
 
             var point = PointOn(ped.Axis, ped.Axis.Fixed + ped.Side * (ped.Axis.HalfWidth - SidewalkInset), ped.Along, SidewalkY + bob);
 
             ped.Transform.SetPositionAndRotation(point, Quaternion.LookRotation(Heading(ped.Axis, ped.Direction)));
+        }
+
+        /// <summary>Hides the primitive body and parents a humanoid model driven by a looping walk clip through a playable graph.</summary>
+        private void AttachPedestrianModel(Pedestrian ped, int index)
+        {
+            foreach (var renderer in ped.Transform.GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.enabled = false;
+            }
+
+            var instance = Instantiate(_pedestrianModels[index % _pedestrianModels.Length], ped.Transform);
+
+            instance.name = "Model";
+
+            instance.transform.localPosition = Vector3.zero;
+
+            instance.transform.localRotation = Quaternion.identity;
+
+            foreach (var behaviour in instance.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                DestroyImmediate(behaviour);
+            }
+
+            foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+            {
+                DestroyImmediate(collider);
+            }
+
+            var animator = instance.GetComponentInChildren<Animator>();
+
+            if (animator == null || animator.avatar == null)
+            {
+                Destroy(instance);
+
+                foreach (var renderer in ped.Transform.GetComponentsInChildren<Renderer>(true))
+                {
+                    renderer.enabled = true;
+                }
+
+                return;
+            }
+
+            animator.runtimeAnimatorController = null;
+
+            animator.applyRootMotion = false;
+
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+
+            ped.Graph = PlayableGraph.Create("Pedestrian" + index);
+
+            var output = AnimationPlayableOutput.Create(ped.Graph, "Walk", animator);
+
+            ped.Clip = AnimationClipPlayable.Create(ped.Graph, _pedestrianWalkClips[index % _pedestrianWalkClips.Length]);
+
+            ped.Clip.SetDuration(1e9);
+
+            output.SetSourcePlayable(ped.Clip);
+
+            ped.Graph.Play();
+
+            ped.Rigged = true;
+        }
+
+        /// <summary>Scales the walk clip to the pedestrian's ground speed and wraps its time so it loops.</summary>
+        private static void AnimatePedestrian(Pedestrian ped, float speed)
+        {
+            ped.Clip.SetSpeed(speed / WalkClipSpeed);
+
+            var length = ped.Clip.GetAnimationClip().length;
+
+            var time = ped.Clip.GetTime();
+
+            if (time >= length)
+            {
+                ped.Clip.SetTime(time % length);
+            }
         }
 
         // ------------------------------------------------------------------ collisions
@@ -1422,6 +1536,11 @@ namespace HTownSim.Runtime
 
             ped.KnockTime = 0f;
 
+            if (ped.Rigged)
+            {
+                ped.Clip.SetSpeed(0f);
+            }
+
             var go = ped.Transform.gameObject;
 
             var body = go.AddComponent<Rigidbody>();
@@ -1511,6 +1630,19 @@ namespace HTownSim.Runtime
 
         /// <summary>Releases the generated impact sound.</summary>
         private void OnDestroy()
+        {
+            foreach (var ped in _pedestrians)
+            {
+                if (ped.Rigged && ped.Graph.IsValid())
+                {
+                    ped.Graph.Destroy();
+                }
+            }
+
+            ReleaseClips();
+        }
+
+        private void ReleaseClips()
         {
             if (_impactClip != null)
             {
