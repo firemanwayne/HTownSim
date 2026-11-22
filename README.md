@@ -109,3 +109,9 @@ Guidance used: Unity CLI `integration-advanced.md`, `common-workflows.md`, `buil
 Windows build succeeded on 2026-11-21: `Builds/Windows/HTownSim.exe` (667,136 bytes), complete player output 136,462,165 bytes, zero build errors. The build reported 512 shader warnings, including 460 ConvGeneric inference variant warnings, other installed-package shader warnings and a stripped debug shader. These were not silently suppressed. Gameplay was tested in the Editor; the standalone executable has not been play-tested or performance-profiled. Keep the executable with its adjacent data folder and DLLs.
 
 Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-background restored to false; Pipeline auto-tick is enabled. Cinemachine and TMP essentials were added. Unity also serialized render-pipeline/settings updates during the build. Preview: `Documentation/Images/StationPreview.png`.
+
+## Trees and sky
+
+- **Trees:** every street tree (about 2,470) is a SimplePoly City tree (round, cube or fir) at the original oak position, under `StreetTrees`. The oak primitives are gone, and trees within 9 m of the station bay were removed to keep the cab view clear.
+- **Sky:** `SkyDecor` puts the Synty Simple Sky dome on the camera with 40 drifting low-poly clouds. It uses the fog-free `HTownSim/SkyUnlit` shader, so scene fog does not wash it out. Cloud cover, tint and darkness follow `EnvironmentWeather` (clear, overcast, rain). Offset the UV on `Generated/SkyDome.mat` and `SkyCloud.mat` to change the time of day.
+- **Props and people:** POLYGON city pack props sit on the sidewalks beside the street lamps, and pedestrians are City People characters playing walk clips.

@@ -67,6 +67,12 @@ namespace HTownSim.Runtime
         internal bool IsSheltered => _sheltered;
 
         /// <summary>Master gain for other ambient sound layers: zero when F7 has muted ambience, lower indoors.</summary>
+        /// <summary>How overcast the weather is, 0 (clear) to 1, for the sky.</summary>
+        internal float CloudAmount => _cloud;
+
+        /// <summary>How hard it is raining, 0 to 1, for the sky.</summary>
+        internal float RainAmount => _rainAmount;
+
         internal float AmbientGain => _ambientMuted ? 0f : _ambientVolume / DefaultAmbientVolume * (_sheltered ? 0.28f : 1f);
 
         /// <summary>Caches the authored lighting and creates four reusable audio voices.</summary>
