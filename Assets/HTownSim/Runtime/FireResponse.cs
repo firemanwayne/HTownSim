@@ -50,6 +50,9 @@ namespace HTownSim.Runtime
         private int _siteIndex;
         /// <summary>Name of the dispatch panel background that hides with the incident text, and its visibility (key I).</summary>
         private const string DispatchPanelName = "DispatchPanel";
+        private const string HeaderName = "HudLabel";
+        private const string ControlsHintMarker = "WASD";
+        private const string InfoHint = "     I  INFO";
         private bool _infoVisible = true;
         /// <summary>The randomly chosen site of the first call; R retries this same incident.</summary>
         private int _firstSiteIndex;
@@ -204,7 +207,23 @@ namespace HTownSim.Runtime
 
             RestartFire();
 
+            AddInfoKeyHint();
+
             Invoke(nameof(PlayDispatch), 0.8f);
+        }
+
+        /// <summary>Appends the info-panel key to the on-screen controls line, which is baked into the scene.</summary>
+        private void AddInfoKeyHint()
+        {
+            foreach (var text in _status.transform.parent.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.text.Contains(ControlsHintMarker) && !text.text.Contains(InfoHint))
+                {
+                    text.text += InfoHint;
+
+                    return;
+                }
+            }
         }
 
         /// <summary>Shows or hides the dispatch panel (its background, incident status and telemetry text). Text keeps updating while hidden.</summary>
@@ -217,6 +236,13 @@ namespace HTownSim.Runtime
             if (panel != null)
             {
                 panel.gameObject.SetActive(visible);
+            }
+
+            var header = _status.transform.parent.Find(HeaderName);
+
+            if (header != null)
+            {
+                header.gameObject.SetActive(visible);
             }
 
             _status.gameObject.SetActive(visible);
