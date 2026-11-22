@@ -8,6 +8,7 @@ Shader "HTownSim/WorldTriplanar"
         _BumpScale("Normal Strength", Float) = 1
         _TileSize("Tile Size (metres)", Float) = 4
         _DetailStrength("Detail Strength", Range(0,2)) = 1
+        _MacroStrength("Large-scale tonal variation", Range(0,1)) = 0.35
         _Smoothness("Smoothness", Range(0,1)) = 0.3
         _Metallic("Metallic", Range(0,1)) = 0
     }
@@ -43,6 +44,7 @@ Shader "HTownSim/WorldTriplanar"
                 float _BumpScale;
                 float _TileSize;
                 float _DetailStrength;
+                float _MacroStrength;
                 float _Smoothness;
                 float _Metallic;
             CBUFFER_END
@@ -53,6 +55,7 @@ Shader "HTownSim/WorldTriplanar"
                 UNITY_DOTS_INSTANCED_PROP(float, _BumpScale)
                 UNITY_DOTS_INSTANCED_PROP(float, _TileSize)
                 UNITY_DOTS_INSTANCED_PROP(float, _DetailStrength)
+                UNITY_DOTS_INSTANCED_PROP(float, _MacroStrength)
                 UNITY_DOTS_INSTANCED_PROP(float, _Smoothness)
                 UNITY_DOTS_INSTANCED_PROP(float, _Metallic)
             UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
@@ -67,6 +70,21 @@ Shader "HTownSim/WorldTriplanar"
                 half fogFactor : TEXCOORD2;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
+
+            float Hash21(float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
+            }
+
+            float ValueNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                f = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(Hash21(i), Hash21(i + float2(1, 0)), f.x), lerp(Hash21(i + float2(0, 1)), Hash21(i + float2(1, 1)), f.x), f.y);
+            }
 
             Varyings vert(Attributes input)
             {
@@ -89,11 +107,12 @@ Shader "HTownSim/WorldTriplanar"
                 float bumpScale = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _BumpScale);
                 float tileSize = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _TileSize);
                 float detailStrength = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _DetailStrength);
+                float macroStrength = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _MacroStrength);
                 float smoothness = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _Smoothness);
                 float metallic = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _Metallic);
                 #else
                 float4 baseColor = _BaseColor; float bumpScale = _BumpScale; float tileSize = _TileSize;
-                float detailStrength = _DetailStrength; float smoothness = _Smoothness; float metallic = _Metallic;
+                float detailStrength = _DetailStrength; float macroStrength = _MacroStrength; float smoothness = _Smoothness; float metallic = _Metallic;
                 #endif
                 float3 n = normalize(i.normalWS);
                 float3 w = pow(abs(n), 6);
@@ -105,6 +124,11 @@ Shader "HTownSim/WorldTriplanar"
                                    + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb * w.y
                                    + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).rgb * w.z;
                 half3 detail = lerp(half3(1,1,1), albedoDetail * 2.0h, detailStrength);
+
+                // Large-scale tonal patches (resurfacing, wear, stains) so surfaces read as textured from a distance.
+                float2 macroUV = abs(n.y) > 0.5 ? i.positionWS.xz : (abs(n.x) > abs(n.z) ? i.positionWS.zy : i.positionWS.xy);
+                float macro = ValueNoise(macroUV / 19.0) * 0.55 + ValueNoise(macroUV / 5.3) * 0.3 + ValueNoise(macroUV / 1.7) * 0.15;
+                detail *= 1.0 + (macro - 0.5) * 2.0 * macroStrength;
 
                 // Whiteout-blended triplanar normal mapping.
                 half3 tx = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX), bumpScale);

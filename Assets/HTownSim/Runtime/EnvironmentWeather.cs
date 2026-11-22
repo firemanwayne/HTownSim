@@ -57,10 +57,9 @@ namespace HTownSim.Runtime
         private Color _ambientSky;
         private Color _ambientEquator;
         private Color _ambientGround;
-        private MaterialPropertyBlock[] _originalBlocks = new MaterialPropertyBlock[0];
         private Color[] _roadColors = new Color[0];
         private float[] _roadSmoothness = new float[0];
-        private MaterialPropertyBlock _roadBlock = null!;
+        private Material[] _roadMaterials = new Material[0];
         private Camera? _camera;
         /// <summary>Current target weather, exposed to menu code and verification.</summary>
         internal WeatherPreset Preset => _preset;
@@ -132,9 +131,7 @@ namespace HTownSim.Runtime
             _diesel.rolloffMode = AudioRolloffMode.Linear;
 
             // Native-backed objects must not be created in field initializers of a serialized MonoBehaviour.
-            _roadBlock = new MaterialPropertyBlock();
-
-            _originalBlocks = new MaterialPropertyBlock[_roads.Length];
+            _roadMaterials = new Material[_roads.Length];
 
             _roadColors = new Color[_roads.Length];
 
@@ -142,9 +139,7 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _roads.Length; i++)
             {
-                _originalBlocks[i] = new MaterialPropertyBlock();
-
-                _roads[i].GetPropertyBlock(_originalBlocks[i]);
+                _roadMaterials[i] = _roads[i].material;
 
                 _roadColors[i] = _roads[i].sharedMaterial.GetColor("_BaseColor");
 
@@ -255,13 +250,10 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _roads.Length; i++)
             {
-                _roads[i].GetPropertyBlock(_roadBlock);
+                // Per-renderer material instances: a MaterialPropertyBlock would replace the road shader's other settings.
+                _roadMaterials[i].SetColor("_BaseColor", Color.Lerp(_roadColors[i], _roadColors[i] * 0.62f, _rainAmount));
 
-                _roadBlock.SetColor("_BaseColor", Color.Lerp(_roadColors[i], _roadColors[i] * 0.62f, _rainAmount));
-
-                _roadBlock.SetFloat("_Smoothness", Mathf.Lerp(_roadSmoothness[i], 0.78f, _rainAmount));
-
-                _roads[i].SetPropertyBlock(_roadBlock);
+                _roadMaterials[i].SetFloat("_Smoothness", Mathf.Lerp(_roadSmoothness[i], 0.78f, _rainAmount));
             }
         }
 
@@ -366,11 +358,11 @@ namespace HTownSim.Runtime
 
             RenderSettings.ambientGroundColor = _ambientGround;
 
-            for (var i = 0; i < _originalBlocks.Length; i++)
+            foreach (var material in _roadMaterials)
             {
-                if (_roads[i] != null)
+                if (material != null)
                 {
-                    _roads[i].SetPropertyBlock(_originalBlocks[i]);
+                    Destroy(material);
                 }
             }
 

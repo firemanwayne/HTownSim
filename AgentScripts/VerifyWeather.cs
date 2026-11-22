@@ -58,11 +58,7 @@ public static class VerifyWeather
 
         Check(results, roads.Length > 0, "Wet-road renderers wired (" + roads.Length + ")");
 
-        var block = new MaterialPropertyBlock();
-
-        roads[0].GetPropertyBlock(block);
-
-        Check(results, block.GetFloat("_Smoothness") > 0.7f, "Road smoothness raised");
+        Check(results, roads[0].material.GetFloat("_Smoothness") > 0.7f, "Road smoothness raised");
 
         weather.GetType().GetMethod("SetWeather", Flags).Invoke(weather, new object[] { Enum.ToObject(weather.GetType().GetProperty("Preset", Flags).PropertyType, 0) });
 

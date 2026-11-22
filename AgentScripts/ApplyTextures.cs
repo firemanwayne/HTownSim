@@ -31,7 +31,11 @@ public static class ApplyTextures
 
         foreach (var recipe in recipes)
         {
-            Bake(recipe);
+            // Never overwrite an existing texture: the project ships ambientCG photo scans under these names.
+            if (!System.IO.File.Exists(Application.dataPath + "/HTownSim/Textures/" + recipe.Name + ".png"))
+            {
+                Bake(recipe);
+            }
         }
 
         AssetDatabase.Refresh();
@@ -43,23 +47,37 @@ public static class ApplyTextures
             throw new InvalidOperationException("Shader HTownSim/WorldTriplanar not found (compile error?).");
         }
 
-        Apply("Asphalt", "AsphaltDetail", shader, 6f, 1f, 1f);
-        Apply("LotAsphalt", "AsphaltDetail", shader, 6f, 1f, 1f);
-        Apply("Concrete", "ConcreteDetail", shader, 5f, 0.8f, 1f);
-        Apply("Granite", "ConcreteDetail", shader, 3f, 0.5f, 0.8f);
-        Apply("Limestone", "ConcreteDetail", shader, 4f, 0.6f, 0.9f);
-        Apply("Brick", "BrickDetail", shader, 3f, 1f, 1f);
-        Apply("Stucco", "StuccoDetail", shader, 3f, 0.8f, 1f);
-        Apply("SageStucco", "StuccoDetail", shader, 3f, 0.8f, 1f);
-        Apply("ParkGrass", "GrassDetail", shader, 4f, 0.8f, 1f);
-        Apply("LotGrass", "GrassDetail", shader, 4f, 0.8f, 1f);
+        Apply("Asphalt", "AsphaltDetail", shader, 10f, 1f, 2f, 0.8f);
+        Apply("LotAsphalt", "AsphaltDetail", shader, 10f, 1f, 2f, 0.7f);
+        Apply("Concrete", "ConcreteDetail", shader, 3f, 0.8f, 1.2f, 0.4f);
+        Apply("Granite", "ConcreteDetail", shader, 2f, 0.5f, 0.8f, 0.25f);
+        Apply("Limestone", "ConcreteDetail", shader, 2f, 0.6f, 0.9f, 0.25f);
+        Apply("Brick", "BrickDetail", shader, 2f, 1f, 1f, 0.25f);
+        Apply("Stucco", "StuccoDetail", shader, 2f, 0.8f, 1f, 0.3f);
+        Apply("SageStucco", "StuccoDetail", shader, 2f, 0.8f, 1f, 0.3f);
+        Apply("ParkGrass", "GrassDetail", shader, 3f, 0.8f, 1.2f, 0.5f);
+        Apply("LotGrass", "GrassDetail", shader, 3f, 0.8f, 1.2f, 0.5f);
+
+        // Detail is multiplied into the base colour, so a very dark asphalt hides it; keep the road base light enough to show grain.
+        SetBase("Asphalt", new Color(0.34f, 0.39f, 0.42f));
+
+        SetBase("LotAsphalt", new Color(0.38f, 0.43f, 0.45f));
 
         AssetDatabase.SaveAssets();
 
         return "Textures applied.";
     }
 
-    private static void Apply(string materialName, string textureName, Shader shader, float tile, float normal, float detail)
+    private static void SetBase(string materialName, Color color)
+    {
+        var material = AssetDatabase.LoadAssetAtPath<Material>(MaterialDir + materialName + ".mat");
+
+        material.SetColor("_BaseColor", color);
+
+        EditorUtility.SetDirty(material);
+    }
+
+    private static void Apply(string materialName, string textureName, Shader shader, float tile, float normal, float detail, float macro)
     {
         var path = MaterialDir + materialName + ".mat";
 
@@ -89,6 +107,8 @@ public static class ApplyTextures
         material.SetFloat("_BumpScale", normal);
 
         material.SetFloat("_DetailStrength", detail);
+
+        material.SetFloat("_MacroStrength", macro);
 
         material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TextureDir + textureName + ".png"));
 
