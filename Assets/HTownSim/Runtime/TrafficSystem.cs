@@ -183,6 +183,16 @@ namespace HTownSim.Runtime
             public readonly List<Axis> Crossings = new List<Axis>();
         }
 
+        /// <summary>A civilian car near a point, as seen by the sound system.</summary>
+        internal struct NearCar
+        {
+            public int Id;
+
+            public Vector3 Position;
+
+            public float Speed;
+        }
+
         private sealed class Car
         {
             public Transform Transform = null!;
@@ -280,6 +290,8 @@ namespace HTownSim.Runtime
             }
 
             _playerController = _player.GetComponent<CharacterController>();
+
+            gameObject.AddComponent<CityAmbience>().Initialize(this, _response);
 
             _response.Traffic = this;
 
@@ -1021,6 +1033,38 @@ namespace HTownSim.Runtime
         }
 
         // ------------------------------------------------------------------ collisions
+
+        /// <summary>Fills the list with the nearest active cars within range, closest first, for the sound system.</summary>
+        internal void CollectNearbyCars(Vector3 origin, int max, float range, List<NearCar> into)
+        {
+            into.Clear();
+
+            foreach (var car in _cars)
+            {
+                if (!car.Active)
+                {
+                    continue;
+                }
+
+                var distance = Vector3.Distance(car.Transform.position, origin);
+
+                if (distance > range)
+                {
+                    continue;
+                }
+
+                var speed = car.Knocked ? car.Rb.linearVelocity.magnitude : car.Speed;
+
+                into.Add(new NearCar { Id = car.Id, Position = car.Transform.position, Speed = speed });
+            }
+
+            into.Sort((a, b) => Vector3.SqrMagnitude(a.Position - origin).CompareTo(Vector3.SqrMagnitude(b.Position - origin)));
+
+            if (into.Count > max)
+            {
+                into.RemoveRange(max, into.Count - max);
+            }
+        }
 
         /// <summary>Called by the engine when it hits something at speed. Returns true when a civilian car was knocked away, so the engine keeps part of its speed.</summary>
         internal bool TryImpact(Collider collider, Vector3 point, Vector3 velocity)

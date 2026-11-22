@@ -35,6 +35,8 @@ namespace HTownSim.Runtime
         private float _cloud;
         private float _rainAmount;
         private float _emissionRemainder;
+        /// <summary>The inspector default for the ambient volume, used to normalise the gain handed to other sound layers.</summary>
+        private const float DefaultAmbientVolume = 0.55f;
         private bool _ambientMuted;
         private bool _sheltered;
         private float _shelterClock;
@@ -64,6 +66,9 @@ namespace HTownSim.Runtime
         internal WeatherPreset Preset => _preset;
         /// <summary>Whether a roof currently shelters the player's truck.</summary>
         internal bool IsSheltered => _sheltered;
+
+        /// <summary>Master gain for other ambient sound layers: zero when F7 has muted ambience, lower indoors.</summary>
+        internal float AmbientGain => _ambientMuted ? 0f : _ambientVolume / DefaultAmbientVolume * (_sheltered ? 0.28f : 1f);
 
         /// <summary>Caches the authored lighting and creates four reusable audio voices.</summary>
         private void Awake()
@@ -271,7 +276,7 @@ namespace HTownSim.Runtime
 
             var blend = 1 - Mathf.Exp(-Time.unscaledDeltaTime * 5);
 
-            _city.volume = Mathf.Lerp(_city.volume, ambience * 0.22f * shelter, blend);
+            _city.volume = Mathf.Lerp(_city.volume, ambience * 0.4f * shelter, blend);
 
             _wind.volume = Mathf.Lerp(_wind.volume, ambience * (0.035f + _cloud * 0.1f) * shelter, blend);
 

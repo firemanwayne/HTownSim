@@ -48,6 +48,10 @@ unity command script run --file AgentScripts/VerifyWeather.cs --entry VerifyWeat
 unity command script run --file AgentScripts/VerifyWeather.cs --entry VerifyWeather.Finish --project-path 'J:\Unity\projects\HTownSim'
 ```
 
+## City sound
+
+Besides the weather bed (city, wind, rain) the city has a spatial layer in `CityAmbience.cs`: engine and tyre noise follows the seven nearest civilian cars (pitch and volume rise with speed), nearby cars honk now and then, birds chirp from the trees and a faint siren passes far off. All clips are synthesized. The layer follows F7 (ambience off), is quieter indoors and under your own siren, and the city bed itself is louder than before.
+
 ## Surface textures
 
 Asphalt, lot asphalt, concrete, granite, limestone, brick, stucco and grass use `HTownSim/WorldTriplanar` (`Assets/HTownSim/Shaders`). It projects a tiling detail and normal map from world space in metres, so procedural boxes of any size are never stretched. Each material keeps its own colour and smoothness as a tint, so weather's wet-road effect still works. The detail and normal maps in `Assets/HTownSim/Textures` come from ambientCG CC0 photo scans (Asphalt031, Concrete049, Bricks105, Plaster007, Grass001, 1K), converted to mean-grey luminance so each material's own colour still sets the hue. The earlier procedural versions came from `AgentScripts/ApplyTextures.cs` (run `ApplyTextures.Run`), which can be re-run to rebake them or to re-apply them. Rebuilding the city with `BuildRealMidtown` recreates the materials, so run `ApplyTextures.Run` afterwards.
