@@ -90,6 +90,11 @@ namespace HTownSim.Runtime
 
         [SerializeField] private Material[] _carPaints = new Material[0];
 
+        /// <summary>Optional civilian car models; when set, each traffic car wears one instead of the primitive body.</summary>
+        [SerializeField] private GameObject[] _carModels = new GameObject[0];
+
+        private const float ModelLength = 4.4f;
+
         [SerializeField] private Material[] _shirtPaints = new Material[0];
 
         [SerializeField] private Material[] _skinPaints = new Material[0];
@@ -197,7 +202,7 @@ namespace HTownSim.Runtime
         {
             public Transform Transform = null!;
 
-            public Renderer Body = null!;
+            public Renderer? Body;
 
             public Axis Axis = null!;
 
@@ -307,7 +312,16 @@ namespace HTownSim.Runtime
 
                 go.SetActive(false);
 
-                var car = new Car { Transform = go.transform, Body = go.transform.Find("Body").GetComponent<Renderer>(), Id = i, Rb = go.GetComponent<Rigidbody>(), Collider = go.GetComponent<Collider>() };
+                var bodyRenderer = go.transform.Find("Body").GetComponent<Renderer>();
+
+                if (_carModels.Length > 0)
+                {
+                    AttachModel(go.transform, _carModels[i % _carModels.Length]);
+
+                    bodyRenderer = null;
+                }
+
+                var car = new Car { Transform = go.transform, Body = bodyRenderer, Id = i, Rb = go.GetComponent<Rigidbody>(), Collider = go.GetComponent<Collider>() };
 
                 _cars.Add(car);
 
@@ -554,7 +568,10 @@ namespace HTownSim.Runtime
 
                 car.Active = true;
 
-                car.Body.sharedMaterial = _carPaints[Random.Range(0, _carPaints.Length)];
+                if (car.Body is not null)
+                {
+                    car.Body.sharedMaterial = _carPaints[Random.Range(0, _carPaints.Length)];
+                }
 
                 var scale = new Vector3(1f, Random.Range(0.95f, 1.25f), Random.Range(0.92f, 1.2f));
 
@@ -568,6 +585,84 @@ namespace HTownSim.Runtime
             }
 
             return false;
+        }
+
+        /// <summary>Hides the primitive car parts and parents a scaled, grounded copy of a model under the template clone.</summary>
+        private static void AttachModel(Transform car, GameObject model)
+        {
+            foreach (var renderer in car.GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.enabled = false;
+            }
+
+            var instance = Instantiate(model, car);
+
+            instance.name = "Model";
+
+            foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+            {
+                Destroy(collider);
+            }
+
+            instance.transform.localPosition = Vector3.zero;
+
+            instance.transform.localRotation = Quaternion.identity;
+
+            instance.transform.localScale = Vector3.one;
+
+            var bounds = LocalBounds(instance.transform, car);
+
+            if (bounds.size.x > bounds.size.z)
+            {
+                instance.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+                bounds = LocalBounds(instance.transform, car);
+            }
+
+            var scale = ModelLength / Mathf.Max(bounds.size.z, 0.01f);
+
+            instance.transform.localScale = Vector3.one * scale;
+
+            bounds = LocalBounds(instance.transform, car);
+
+            instance.transform.localPosition = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+        }
+
+        private static Bounds LocalBounds(Transform model, Transform space)
+        {
+            var bounds = new Bounds(Vector3.zero, Vector3.zero);
+
+            var first = true;
+
+            foreach (var filter in model.GetComponentsInChildren<MeshFilter>())
+            {
+                if (filter.sharedMesh is null)
+                {
+                    continue;
+                }
+
+                var box = filter.sharedMesh.bounds;
+
+                for (var i = 0; i < 8; i++)
+                {
+                    var corner = box.center + Vector3.Scale(box.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+
+                    var point = space.InverseTransformPoint(filter.transform.TransformPoint(corner));
+
+                    if (first)
+                    {
+                        bounds = new Bounds(point, Vector3.zero);
+
+                        first = false;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(point);
+                    }
+                }
+            }
+
+            return bounds;
         }
 
         private bool CarNear(Vector3 point, float radius)
