@@ -1,0 +1,901 @@
+#nullable enable
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace HTownSim.Runtime
+{
+    /// <summary>
+    /// Ambient life for the city: cars that follow the real street grid (lanes, one-way streets, turns, signals on
+    /// Elgin Street, yielding to the engine's siren) and pedestrians on the sidewalks. Agents are spawned and recycled
+    /// around the player so density stays high where the player is while the rest of the city costs nothing.
+    /// </summary>
+    internal sealed class TrafficSystem : MonoBehaviour
+    {
+        private const int CarCount = 80;
+
+        private const int PedestrianCount = 100;
+
+        private const float SpawnMinimum = 40f;
+
+        private const float SpawnMaximum = 220f;
+
+        private const float DespawnDistance = 330f;
+
+        private const float RoadEdge = 2.4f;
+
+        private const float SidewalkInset = 1.4f;
+
+        private const float TurnChance = 0.3f;
+
+        private const float SignalCycle = 48f;
+
+        private const float CarHalfLength = 2.3f;
+
+        private const float RoadY = 0.06f;
+
+        private const float SidewalkY = 0.2f;
+
+        /// <summary>Things the scene builder wires up.</summary>
+        [SerializeField] private Transform _player = null!;
+
+        [SerializeField] private FireResponse _response = null!;
+
+        [SerializeField] private GameObject _carTemplate = null!;
+
+        [SerializeField] private GameObject _pedestrianTemplate = null!;
+
+        [SerializeField] private Material[] _carPaints = new Material[0];
+
+        [SerializeField] private Material[] _shirtPaints = new Material[0];
+
+        [SerializeField] private Material[] _skinPaints = new Material[0];
+
+        /// <summary>Street grid: centre and paved-plus-sidewalk width of every north-south (along Z) and east-west (along X) street.</summary>
+        [SerializeField] private float[] _nsCentre = new float[0];
+
+        [SerializeField] private float[] _nsWidth = new float[0];
+
+        [SerializeField] private bool[] _nsOneWay = new bool[0];
+
+        [SerializeField] private float[] _ewCentre = new float[0];
+
+        [SerializeField] private float[] _ewWidth = new float[0];
+
+        [SerializeField] private bool[] _ewOneWay = new bool[0];
+
+        [SerializeField] private Vector2 _boundsMin;
+
+        [SerializeField] private Vector2 _boundsMax;
+
+        /// <summary>Z of the signalised east-west street (Elgin Street).</summary>
+        [SerializeField] private float _signalZ;
+
+        [SerializeField] private Renderer[] _ewRed = new Renderer[0];
+
+        [SerializeField] private Renderer[] _ewAmber = new Renderer[0];
+
+        [SerializeField] private Renderer[] _ewGreen = new Renderer[0];
+
+        [SerializeField] private Renderer[] _nsRed = new Renderer[0];
+
+        [SerializeField] private Renderer[] _nsAmber = new Renderer[0];
+
+        [SerializeField] private Renderer[] _nsGreen = new Renderer[0];
+
+        [SerializeField] private Material? _redOn;
+
+        [SerializeField] private Material? _redOff;
+
+        [SerializeField] private Material? _amberOn;
+
+        [SerializeField] private Material? _amberOff;
+
+        [SerializeField] private Material? _greenOn;
+
+        [SerializeField] private Material? _greenOff;
+
+        private readonly List<Axis> _axes = new List<Axis>();
+
+        private readonly List<Car> _cars = new List<Car>();
+
+        private readonly List<Pedestrian> _pedestrians = new List<Pedestrian>();
+
+        private float _clock;
+
+        private SignalState _lastEw = (SignalState)(-1);
+
+        private SignalState _lastNs = (SignalState)(-1);
+
+        /// <summary>Traffic light colour.</summary>
+        private enum SignalState
+        {
+            Green,
+            Amber,
+            Red,
+        }
+
+        /// <summary>One street of the grid.</summary>
+        private sealed class Axis
+        {
+            public bool AlongZ;
+
+            public float Fixed;
+
+            public float HalfWidth;
+
+            public bool OneWay;
+
+            public float Min;
+
+            public float Max;
+
+            /// <summary>Streets that cross this one, sorted by their position along it.</summary>
+            public readonly List<Axis> Crossings = new List<Axis>();
+        }
+
+        private sealed class Car
+        {
+            public Transform Transform = null!;
+
+            public Renderer Body = null!;
+
+            public Axis Axis = null!;
+
+            public int Direction;
+
+            public float Along;
+
+            public float Speed;
+
+            public float Cruise;
+
+            public float Pull;
+
+            public float TurnCooldown;
+
+            public int Id;
+
+            public bool Active;
+        }
+
+        private sealed class Pedestrian
+        {
+            public Transform Transform = null!;
+
+            public Transform LegLeft = null!;
+
+            public Transform LegRight = null!;
+
+            public Transform ArmLeft = null!;
+
+            public Transform ArmRight = null!;
+
+            public Axis Axis = null!;
+
+            public float Side;
+
+            public float Along;
+
+            public int Direction;
+
+            public float Speed;
+
+            public float Phase;
+
+            public float Min;
+
+            public float Max;
+
+            public bool Active;
+        }
+
+        /// <summary>Builds the street model and the agent pools.</summary>
+        private void Start()
+        {
+            BuildAxes(_nsCentre, _nsWidth, _nsOneWay, true);
+
+            BuildAxes(_ewCentre, _ewWidth, _ewOneWay, false);
+
+            foreach (var axis in _axes)
+            {
+                foreach (var other in _axes)
+                {
+                    if (other.AlongZ != axis.AlongZ)
+                    {
+                        axis.Crossings.Add(other);
+                    }
+                }
+
+                axis.Crossings.Sort((a, b) => a.Fixed.CompareTo(b.Fixed));
+            }
+
+            _carTemplate.SetActive(false);
+
+            _pedestrianTemplate.SetActive(false);
+
+            for (var i = 0; i < CarCount; i++)
+            {
+                var go = Instantiate(_carTemplate, transform);
+
+                go.SetActive(false);
+
+                _cars.Add(new Car { Transform = go.transform, Body = go.transform.Find("Body").GetComponent<Renderer>(), Id = i });
+            }
+
+            for (var i = 0; i < PedestrianCount; i++)
+            {
+                var go = Instantiate(_pedestrianTemplate, transform);
+
+                go.SetActive(false);
+
+                var t = go.transform;
+
+                _pedestrians.Add(new Pedestrian
+                {
+                    Transform = t,
+                    LegLeft = t.Find("LegL"),
+                    LegRight = t.Find("LegR"),
+                    ArmLeft = t.Find("ArmL"),
+                    ArmRight = t.Find("ArmR"),
+                });
+            }
+
+            ApplySignals(force: true);
+
+            foreach (var car in _cars)
+            {
+                TrySpawnCar(car, true);
+            }
+
+            foreach (var ped in _pedestrians)
+            {
+                TrySpawnPedestrian(ped);
+            }
+        }
+
+        private void BuildAxes(float[] centres, float[] widths, bool[] oneWay, bool alongZ)
+        {
+            for (var i = 0; i < centres.Length; i++)
+            {
+                _axes.Add(new Axis
+                {
+                    AlongZ = alongZ,
+                    Fixed = centres[i],
+                    HalfWidth = widths[i] / 2f,
+                    OneWay = i < oneWay.Length && oneWay[i],
+                    Min = alongZ ? _boundsMin.y + 20f : _boundsMin.x + 20f,
+                    Max = alongZ ? _boundsMax.y - 20f : _boundsMax.x - 20f,
+                });
+            }
+        }
+
+        /// <summary>Advances signals, cars and pedestrians.</summary>
+        private void Update()
+        {
+            if (_response.IsPaused)
+            {
+                return;
+            }
+
+            var dt = Mathf.Min(Time.deltaTime, 0.05f);
+
+            _clock += dt;
+
+            ApplySignals(force: false);
+
+            var respawned = 0;
+
+            foreach (var car in _cars)
+            {
+                if (car.Active)
+                {
+                    StepCar(car, dt);
+                }
+                else if (respawned < 2 && TrySpawnCar(car, false))
+                {
+                    respawned++;
+                }
+            }
+
+            foreach (var ped in _pedestrians)
+            {
+                if (ped.Active)
+                {
+                    StepPedestrian(ped, dt);
+                }
+                else if (respawned < 4 && TrySpawnPedestrian(ped))
+                {
+                    respawned++;
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------ signals
+
+        private SignalState StateFor(bool eastWest)
+        {
+            var t = _clock % SignalCycle;
+
+            if (eastWest)
+            {
+                return t < 18f ? SignalState.Green : t < 21f ? SignalState.Amber : SignalState.Red;
+            }
+
+            return t < 24f ? SignalState.Red : t < 42f ? SignalState.Green : t < 45f ? SignalState.Amber : SignalState.Red;
+        }
+
+        private void ApplySignals(bool force)
+        {
+            var ew = StateFor(true);
+
+            var ns = StateFor(false);
+
+            if (force || ew != _lastEw)
+            {
+                SetLenses(_ewRed, _ewAmber, _ewGreen, ew);
+
+                _lastEw = ew;
+            }
+
+            if (force || ns != _lastNs)
+            {
+                SetLenses(_nsRed, _nsAmber, _nsGreen, ns);
+
+                _lastNs = ns;
+            }
+        }
+
+        private void SetLenses(Renderer[] red, Renderer[] amber, Renderer[] green, SignalState state)
+        {
+            Apply(red, state == SignalState.Red ? _redOn : _redOff);
+
+            Apply(amber, state == SignalState.Amber ? _amberOn : _amberOff);
+
+            Apply(green, state == SignalState.Green ? _greenOn : _greenOff);
+        }
+
+        private static void Apply(Renderer[] renderers, Material? material)
+        {
+            if (material is null)
+            {
+                return;
+            }
+
+            foreach (var renderer in renderers)
+            {
+                renderer.sharedMaterial = material;
+            }
+        }
+
+        private bool IsSignalised(Axis axis, Axis crossing)
+        {
+            var elgin = axis.AlongZ ? crossing : axis;
+
+            return !elgin.AlongZ && Mathf.Abs(elgin.Fixed - _signalZ) < 0.5f;
+        }
+
+        // ------------------------------------------------------------------ geometry helpers
+
+        private static float Lane(Axis axis)
+        {
+            return axis.OneWay ? 0f : Mathf.Max(1.5f, (axis.HalfWidth - RoadEdge) / 2f);
+        }
+
+        /// <summary>Right-hand traffic: +1 means the +X (or +Z) side is on the driver's right.</summary>
+        private static float RightSign(Axis axis, int direction)
+        {
+            return axis.AlongZ ? direction : -direction;
+        }
+
+        private static Vector3 Heading(Axis axis, int direction)
+        {
+            return axis.AlongZ ? new Vector3(0f, 0f, direction) : new Vector3(direction, 0f, 0f);
+        }
+
+        private static Vector3 PointOn(Axis axis, float across, float along, float y)
+        {
+            return axis.AlongZ ? new Vector3(across, y, along) : new Vector3(along, y, across);
+        }
+
+        private static float AlongOf(Axis axis, Vector3 point)
+        {
+            return axis.AlongZ ? point.z : point.x;
+        }
+
+        private static float AcrossOf(Axis axis, Vector3 point)
+        {
+            return axis.AlongZ ? point.x : point.z;
+        }
+
+        private static bool NearCrossing(Axis axis, float along, float margin)
+        {
+            foreach (var crossing in axis.Crossings)
+            {
+                if (Mathf.Abs(along - crossing.Fixed) < crossing.HalfWidth + margin)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // ------------------------------------------------------------------ cars
+
+        private bool TrySpawnCar(Car car, bool initial)
+        {
+            for (var attempt = 0; attempt < 14; attempt++)
+            {
+                var axis = _axes[Random.Range(0, _axes.Count)];
+
+                var direction = axis.OneWay ? 1 : Random.value < 0.5f ? -1 : 1;
+
+                var along = Random.Range(axis.Min, axis.Max);
+
+                if (NearCrossing(axis, along, 14f))
+                {
+                    continue;
+                }
+
+                var point = PointOn(axis, axis.Fixed + RightSign(axis, direction) * Lane(axis), along, RoadY);
+
+                var distance = Vector3.Distance(point, _player.position);
+
+                if (distance < SpawnMinimum || distance > SpawnMaximum || CarNear(point, 12f))
+                {
+                    continue;
+                }
+
+                car.Axis = axis;
+
+                car.Direction = direction;
+
+                car.Along = along;
+
+                car.Speed = 0f;
+
+                car.Cruise = Random.Range(6f, 11f);
+
+                car.Pull = 0f;
+
+                car.TurnCooldown = 1f;
+
+                car.Active = true;
+
+                car.Body.sharedMaterial = _carPaints[Random.Range(0, _carPaints.Length)];
+
+                var scale = new Vector3(1f, Random.Range(0.95f, 1.25f), Random.Range(0.92f, 1.2f));
+
+                car.Transform.localScale = scale;
+
+                car.Transform.SetPositionAndRotation(point, Quaternion.LookRotation(Heading(axis, direction)));
+
+                car.Transform.gameObject.SetActive(true);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool CarNear(Vector3 point, float radius)
+        {
+            foreach (var other in _cars)
+            {
+                if (other.Active && (other.Transform.position - point).sqrMagnitude < radius * radius)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void StepCar(Car car, float dt)
+        {
+            var axis = car.Axis;
+
+            var heading = Heading(axis, car.Direction);
+
+            var position = car.Transform.position;
+
+            var toPlayer = _player.position - position;
+
+            toPlayer.y = 0f;
+
+            var playerDistance = toPlayer.magnitude;
+
+            if (playerDistance > DespawnDistance || car.Along < axis.Min - 10f || car.Along > axis.Max + 10f)
+            {
+                Despawn(car);
+
+                return;
+            }
+
+            var free = float.MaxValue;
+
+            var yielding = _response.SirenActive && playerDistance < 55f && (Vector3.Dot(toPlayer, heading) < 0f || playerDistance < 22f);
+
+            car.Pull = Mathf.MoveTowards(car.Pull, yielding ? 1.6f : 0f, 2f * dt);
+
+            if (yielding && playerDistance < 40f)
+            {
+                free = 0f;
+            }
+
+            free = Mathf.Min(free, GapToVehicleAhead(car, heading, position));
+
+            free = Mathf.Min(free, GapToIntersectionObstacle(car));
+
+            var target = free < 5f ? 0f : Mathf.Min(car.Cruise, free * 1.1f);
+
+            car.Speed = Mathf.MoveTowards(car.Speed, target, (target < car.Speed ? 11f : 3.2f) * dt);
+
+            var previous = car.Along;
+
+            car.Along += car.Direction * car.Speed * dt;
+
+            car.TurnCooldown -= dt;
+
+            if (car.TurnCooldown <= 0f)
+            {
+                TryTurn(car, previous);
+            }
+
+            var lateral = Lane(car.Axis) + car.Pull;
+
+            var across = car.Axis.Fixed + RightSign(car.Axis, car.Direction) * lateral;
+
+            var targetPosition = PointOn(car.Axis, across, car.Along, RoadY);
+
+            var targetRotation = Quaternion.LookRotation(Heading(car.Axis, car.Direction));
+
+            var blend = 1f - Mathf.Exp(-9f * dt);
+
+            car.Transform.SetPositionAndRotation(Vector3.Lerp(position, targetPosition, blend), Quaternion.Slerp(car.Transform.rotation, targetRotation, blend));
+        }
+
+        private void Despawn(Car car)
+        {
+            car.Active = false;
+
+            car.Transform.gameObject.SetActive(false);
+        }
+
+        /// <summary>Distance to the nearest car or the player in this car's lane ahead, or a large number.</summary>
+        private float GapToVehicleAhead(Car car, Vector3 heading, Vector3 position)
+        {
+            var best = float.MaxValue;
+
+            foreach (var other in _cars)
+            {
+                if (!other.Active || other == car || other.Axis != car.Axis || other.Direction != car.Direction)
+                {
+                    continue;
+                }
+
+                var gap = (other.Along - car.Along) * car.Direction - 4.6f;
+
+                if (gap > -1f && gap < best)
+                {
+                    best = gap;
+                }
+            }
+
+            var toPlayer = _player.position - position;
+
+            var ahead = Vector3.Dot(toPlayer, heading) - CarHalfLength - 2.2f;
+
+            var lateral = Mathf.Abs(Vector3.Dot(toPlayer, Vector3.Cross(Vector3.up, heading)));
+
+            if (ahead > -1f && ahead < best && lateral < 2.8f)
+            {
+                best = ahead;
+            }
+
+            return best;
+        }
+
+        /// <summary>Applies signals and cross-traffic yielding at the next intersection ahead.</summary>
+        private float GapToIntersectionObstacle(Car car)
+        {
+            var best = float.MaxValue;
+
+            foreach (var crossing in car.Axis.Crossings)
+            {
+                var stopLine = crossing.Fixed - car.Direction * (crossing.HalfWidth + 1.6f);
+
+                var distance = (stopLine - car.Along) * car.Direction - CarHalfLength;
+
+                if (distance < -1f || distance > 45f)
+                {
+                    continue;
+                }
+
+                if (IsSignalised(car.Axis, crossing))
+                {
+                    var state = StateFor(!car.Axis.AlongZ);
+
+                    var mustStop = state == SignalState.Red || (state == SignalState.Amber && distance > car.Speed * car.Speed / 7f);
+
+                    if (mustStop && distance < best)
+                    {
+                        best = distance;
+                    }
+
+                    continue;
+                }
+
+                if (distance < 20f && CrossTrafficHasPriority(car, crossing) && distance < best)
+                {
+                    best = distance;
+                }
+            }
+
+            return best;
+        }
+
+        private bool CrossTrafficHasPriority(Car car, Axis crossing)
+        {
+            var myDistance = Mathf.Abs(crossing.Fixed - car.Along);
+
+            foreach (var other in _cars)
+            {
+                if (!other.Active || other.Axis != crossing)
+                {
+                    continue;
+                }
+
+                var theirDistance = Mathf.Abs(other.Along - car.Axis.Fixed);
+
+                var theirsFirst = theirDistance < myDistance || (Mathf.Approximately(theirDistance, myDistance) && other.Id < car.Id);
+
+                if (theirDistance < 14f && (theirsFirst || theirDistance < 6f))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void TryTurn(Car car, float previous)
+        {
+            foreach (var crossing in car.Axis.Crossings)
+            {
+                var crossed = (previous < crossing.Fixed) != (car.Along < crossing.Fixed);
+
+                if (!crossed)
+                {
+                    continue;
+                }
+
+                if (Random.value < TurnChance && car.Axis.Fixed > crossing.Min && car.Axis.Fixed < crossing.Max)
+                {
+                    var oldAxis = car.Axis;
+
+                    car.Axis = crossing;
+
+                    car.Direction = crossing.OneWay ? 1 : Random.value < 0.5f ? -1 : 1;
+
+                    car.Along = oldAxis.Fixed;
+
+                    car.TurnCooldown = 2f;
+                }
+
+                return;
+            }
+        }
+
+        // ------------------------------------------------------------------ pedestrians
+
+        private bool TrySpawnPedestrian(Pedestrian ped)
+        {
+            for (var attempt = 0; attempt < 14; attempt++)
+            {
+                var axis = _axes[Random.Range(0, _axes.Count)];
+
+                var along = Random.Range(axis.Min, axis.Max);
+
+                if (NearCrossing(axis, along, 1.5f))
+                {
+                    continue;
+                }
+
+                var side = Random.value < 0.5f ? -1f : 1f;
+
+                var point = PointOn(axis, axis.Fixed + side * (axis.HalfWidth - SidewalkInset), along, SidewalkY);
+
+                var distance = Vector3.Distance(point, _player.position);
+
+                if (distance < 25f || distance > SpawnMaximum - 40f)
+                {
+                    continue;
+                }
+
+                ped.Axis = axis;
+
+                ped.Side = side;
+
+                ped.Along = along;
+
+                ped.Direction = Random.value < 0.5f ? -1 : 1;
+
+                ped.Speed = Random.Range(1.1f, 1.7f);
+
+                ped.Phase = Random.value * 6.28f;
+
+                SegmentBounds(axis, along, out ped.Min, out ped.Max);
+
+                Dress(ped);
+
+                ped.Active = true;
+
+                ped.Transform.position = point;
+
+                ped.Transform.gameObject.SetActive(true);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private void Dress(Pedestrian ped)
+        {
+            if (_shirtPaints.Length > 0)
+            {
+                var torso = ped.Transform.Find("Torso");
+
+                if (torso != null)
+                {
+                    torso.GetComponent<Renderer>().sharedMaterial = _shirtPaints[Random.Range(0, _shirtPaints.Length)];
+                }
+            }
+
+            if (_skinPaints.Length > 0)
+            {
+                var skin = _skinPaints[Random.Range(0, _skinPaints.Length)];
+
+                foreach (var name in new[] { "Head" })
+                {
+                    var part = ped.Transform.Find(name);
+
+                    if (part != null)
+                    {
+                        part.GetComponent<Renderer>().sharedMaterial = skin;
+                    }
+                }
+
+                foreach (var arm in new[] { ped.ArmLeft, ped.ArmRight })
+                {
+                    arm.GetComponentInChildren<Renderer>().sharedMaterial = skin;
+                }
+            }
+        }
+
+        /// <summary>Limits a walker to the stretch of sidewalk between two intersections.</summary>
+        private static void SegmentBounds(Axis axis, float along, out float min, out float max)
+        {
+            min = axis.Min;
+
+            max = axis.Max;
+
+            foreach (var crossing in axis.Crossings)
+            {
+                var low = crossing.Fixed - crossing.HalfWidth - 0.3f;
+
+                var high = crossing.Fixed + crossing.HalfWidth + 0.3f;
+
+                if (high <= along)
+                {
+                    min = Mathf.Max(min, high);
+                }
+                else if (low >= along)
+                {
+                    max = Mathf.Min(max, low);
+
+                    break;
+                }
+            }
+        }
+
+        private void StepPedestrian(Pedestrian ped, float dt)
+        {
+            var position = ped.Transform.position;
+
+            var toPlayer = _player.position - position;
+
+            toPlayer.y = 0f;
+
+            var distance = toPlayer.magnitude;
+
+            if (distance > DespawnDistance)
+            {
+                ped.Active = false;
+
+                ped.Transform.gameObject.SetActive(false);
+
+                return;
+            }
+
+            var speed = ped.Speed;
+
+            if (distance < 6f)
+            {
+                var away = AlongOf(ped.Axis, position) - AlongOf(ped.Axis, _player.position);
+
+                ped.Direction = away >= 0f ? 1 : -1;
+
+                speed = 3.6f;
+            }
+
+            ped.Along += ped.Direction * speed * dt;
+
+            if (ped.Along < ped.Min || ped.Along > ped.Max)
+            {
+                ped.Along = Mathf.Clamp(ped.Along, ped.Min, ped.Max);
+
+                ped.Direction = -ped.Direction;
+            }
+
+            ped.Phase += speed * dt * 4.2f;
+
+            var swing = Mathf.Sin(ped.Phase) * 32f;
+
+            ped.LegLeft.localRotation = Quaternion.Euler(swing, 0f, 0f);
+
+            ped.LegRight.localRotation = Quaternion.Euler(-swing, 0f, 0f);
+
+            ped.ArmLeft.localRotation = Quaternion.Euler(-swing * 0.8f, 0f, 0f);
+
+            ped.ArmRight.localRotation = Quaternion.Euler(swing * 0.8f, 0f, 0f);
+
+            var bob = Mathf.Abs(Mathf.Sin(ped.Phase)) * 0.04f;
+
+            var point = PointOn(ped.Axis, ped.Axis.Fixed + ped.Side * (ped.Axis.HalfWidth - SidewalkInset), ped.Along, SidewalkY + bob);
+
+            ped.Transform.SetPositionAndRotation(point, Quaternion.LookRotation(Heading(ped.Axis, ped.Direction)));
+        }
+
+        // ------------------------------------------------------------------ debug
+
+        /// <summary>Number of cars currently active (used by the verification script).</summary>
+        internal int ActiveCars
+        {
+            get
+            {
+                var count = 0;
+
+                foreach (var car in _cars)
+                {
+                    if (car.Active)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+
+        /// <summary>Number of pedestrians currently active.</summary>
+        internal int ActivePedestrians
+        {
+            get
+            {
+                var count = 0;
+
+                foreach (var ped in _pedestrians)
+                {
+                    if (ped.Active)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+    }
+}
