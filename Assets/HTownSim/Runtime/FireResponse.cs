@@ -77,6 +77,7 @@ namespace HTownSim.Runtime
             new[] { "T", "NEXT TONE" },
             new[] { "H (HOLD)", "HORN" },
             new[] { "L", "LIGHTS" },
+            new[] { "Z  X  C", "LEFT  HAZARD  RIGHT" },
             new[] { "ESC", "PAUSE" },
             new[] { "R", "RETURN TO STATION" },
             new[] { "M", "MAP" },
@@ -115,6 +116,9 @@ namespace HTownSim.Runtime
         private int _tone;
         private GameObject? _incidentGroup;
         private float[] _beaconPhase = new float[0];
+        private bool _leftSignal;
+        private bool _rightSignal;
+        private bool _hazards;
         private ApparatusLights? _apparatus;
         /// <summary>Orbit rig and accumulated mouse angles.</summary>
         private CinemachineFollow _follow = null!;
@@ -138,6 +142,15 @@ namespace HTownSim.Runtime
 
         /// <summary>True while the player has the emergency lights switched on (manual, key L).</summary>
         internal bool LightsActive => _lightsEnabled && !_paused;
+
+        /// <summary>True while the left turn signal or the hazard flashers are on.</summary>
+        internal bool LeftSignalOn => (_leftSignal || _hazards) && !_paused;
+
+        /// <summary>True while the right turn signal or the hazard flashers are on.</summary>
+        internal bool RightSignalOn => (_rightSignal || _hazards) && !_paused;
+
+        /// <summary>True while the headlights (low beams and amber clearance lights) are on. They follow the emergency lights for now; this is the one place to give them their own switch.</summary>
+        internal bool HeadlightsActive => _lightsEnabled && !_paused;
 
         /// <summary>True while the siren is sounding, so traffic can pull over.</summary>
         internal bool SirenActive => _sirenEnabled && !_paused;
@@ -626,6 +639,33 @@ namespace HTownSim.Runtime
                 }
             }
 
+            if (keyboard.zKey.wasPressedThisFrame)
+            {
+                _leftSignal = !_leftSignal;
+
+                _rightSignal = false;
+
+                _hazards = false;
+            }
+
+            if (keyboard.cKey.wasPressedThisFrame)
+            {
+                _rightSignal = !_rightSignal;
+
+                _leftSignal = false;
+
+                _hazards = false;
+            }
+
+            if (keyboard.xKey.wasPressedThisFrame)
+            {
+                _hazards = !_hazards;
+
+                _leftSignal = false;
+
+                _rightSignal = false;
+            }
+
             if (keyboard.tKey.wasPressedThisFrame)
             {
                 SelectTone((_tone + 1) % ToneNames.Length, false);
@@ -1006,6 +1046,12 @@ namespace HTownSim.Runtime
             _sirenEnabled = false;
 
             _lightsEnabled = false;
+
+            _leftSignal = false;
+
+            _rightSignal = false;
+
+            _hazards = false;
 
             _siren.mute = true;
 

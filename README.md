@@ -129,3 +129,10 @@ Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-backgrou
 - **Ragdolls:** a pedestrian struck by the engine becomes a physics ragdoll (`RagdollBuilder`), then is cleaned up and recycled.
 - **Fire:** the incident fire uses the Vefects Free Fire VFX prefabs (`FireSpread`): big main fire, medium spreading fires, with a heavy smoke column that climbs, widens and drifts downwind as the fire grows.
 - **Parked cars** in the lots are the same imported car models as the traffic.
+
+## Truck front lights
+
+- **Front housings:** each side has two square lights on top, white (inner = high beam, outer = low beam), and two square red emergency lights below, like the real Houston engine. The lens meshes are rebuilt as individual squares (`CrewCab_FrontLens*`).
+- **Headlights:** low beams and the five amber roof clearance lights (`ClearanceLight0-4`) are steady while the lights are on (`HeadlightsActive`, one place to give them their own switch). The high beams wig-wag left and right, and the red lights flash independently.
+- **Turn signals:** `TurnSignal_L` and `TurnSignal_R` flash amber at about 1.5 Hz. `Z` left, `C` right, `X` hazards.
+- The lit lens materials now have emission enabled, so they glow.

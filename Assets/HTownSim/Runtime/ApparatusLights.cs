@@ -24,6 +24,29 @@ namespace HTownSim.Runtime
         /// </summary>
         private const string BarMeshPrefix = "EmergencyLighting_Lens";
 
+        /// <summary>
+        /// The front bumper lens pods, split into individual lights. Lower pods: the inner light is the high beam and the outer the
+        /// low beam. Upper pods: two red emergency lights each. Names end in _L or _R for the truck's side.
+        /// </summary>
+        private const string FrontLensPrefix = "FrontLens";
+
+        private const string LowBeamPrefix = "FrontLensLow";
+
+        /// <summary>Amber roof clearance lights: they come on with the headlights and stay steady.</summary>
+        private const string ClearancePrefix = "ClearanceLight";
+
+        /// <summary>Amber front turn signals (names end in _L or _R); they flash with the turn and hazard switches, not the emergency lights.</summary>
+        private const string TurnSignalPrefix = "TurnSignal";
+
+        private const float SignalHertz = 1.5f;
+
+        private const float SignalDuty = 0.5f;
+        private const string HighBeamPrefix = "FrontLensHigh";
+        private const string RightSuffix = "_R";
+
+        /// <summary>Wig-wag rate of the high beams, which alternate left and right while the emergency lights are on.</summary>
+        private const float WigWagHertz = 1.4f;
+
         private const int BarLenses = 48;
         private const int BarColumns = 12;
         private const int LensesPerColumn = 4;
@@ -66,6 +89,12 @@ namespace HTownSim.Runtime
 
         /// <summary>The flasher of the left (0) and right (1) halves of the roof light bar, or -1 when none was found.</summary>
         private readonly int[] _barFlasher = { -1, -1 };
+
+        /// <summary>True for lenses on the headlight circuit (low beams and clearance lights): steady, lit whenever the headlights are on.</summary>
+        private bool[] _steady = new bool[0];
+
+        /// <summary>-1 for a left turn signal lens, +1 for a right one, 0 for every other lens.</summary>
+        private int[] _signalSide = new int[0];
 
         /// <summary>How far each lens trails its flasher's phase, as a fraction of a cycle.</summary>
         private float[] _delay = new float[0];
@@ -126,6 +155,10 @@ namespace HTownSim.Runtime
 
             _delay = new float[_lenses.Length];
 
+            _steady = new bool[_lenses.Length];
+
+            _signalSide = new int[_lenses.Length];
+
             FindBarMaterials(out var redOn, out var redOff, out var whiteOn, out var whiteOff);
 
             var keys = new System.Collections.Generic.Dictionary<string, int>();
@@ -144,7 +177,41 @@ namespace HTownSim.Runtime
 
                 var start = _group[i] * GroupOffset;
 
-                if (bar >= 0)
+                var signal = bar < 0 && _lenses[i].name.StartsWith(TurnSignalPrefix);
+
+                var clearance = bar < 0 && _lenses[i].name.StartsWith(ClearancePrefix);
+
+                var front = bar < 0 && (_lenses[i].name.StartsWith(FrontLensPrefix) || clearance);
+
+                var baseHertz = side ? FlashHertz : FrontRearHertz;
+
+                if (signal)
+                {
+                    _signalSide[i] = _lenses[i].name.EndsWith(RightSuffix) ? 1 : -1;
+
+                    key = TurnSignalPrefix;
+
+                    baseHertz = SignalHertz;
+
+                    start = 0f;
+                }
+                else if (front)
+                {
+                    var lowBeam = _lenses[i].name.StartsWith(LowBeamPrefix);
+
+                    var highBeam = _lenses[i].name.StartsWith(HighBeamPrefix);
+
+                    _steady[i] = lowBeam || clearance;
+
+                    key = highBeam ? HighBeamPrefix : _lenses[i].name;
+
+                    _delay[i] = highBeam && _lenses[i].name.EndsWith(RightSuffix) ? 0.5f : 0f;
+
+                    baseHertz = highBeam ? WigWagHertz : FrontRearHertz;
+
+                    start = 0f;
+                }
+                else if (bar >= 0)
                 {
                     var column = bar / LensesPerColumn;
 
@@ -178,7 +245,7 @@ namespace HTownSim.Runtime
 
                     keys[key] = id;
 
-                    bases.Add(side ? FlashHertz : FrontRearHertz);
+                    bases.Add(baseHertz);
 
                     starts.Add(start);
                 }
@@ -443,6 +510,12 @@ namespace HTownSim.Runtime
         {
             var active = _response.LightsActive;
 
+            var headlights = _response.HeadlightsActive;
+
+            var leftSignal = _response.LeftSignalOn;
+
+            var rightSignal = _response.RightSignalOn;
+
             for (var g = 0; g < 2; g++)
             {
                 _poolPhase[g] = Mathf.Repeat(_poolPhase[g] + _poolHertz[g] * Time.deltaTime, 1f);
@@ -457,7 +530,16 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                var lit = active && Mathf.Repeat(_phase[_flasher[i]] - _delay[i], 1f) < DutyCycle;
+                bool lit;
+
+                if (_signalSide[i] != 0)
+                {
+                    lit = (_signalSide[i] < 0 ? leftSignal : rightSignal) && Mathf.Repeat(_phase[_flasher[i]], 1f) < SignalDuty;
+                }
+                else
+                {
+                    lit = _steady[i] ? headlights : active && Mathf.Repeat(_phase[_flasher[i]] - _delay[i], 1f) < DutyCycle;
+                }
 
                 if (lit == _lit[i])
                 {
