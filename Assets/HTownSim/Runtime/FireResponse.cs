@@ -42,6 +42,10 @@ namespace HTownSim.Runtime
         /// <summary>Seconds after containment before the next call, and the nearest a new call may be, in metres.</summary>
         /// <summary>Brightness of a lit emergency beacon.</summary>
         private const float BeaconIntensity = 160f;
+        private const float BeaconHertz = 1.8f;
+        private const float BeaconDuty = 0.45f;
+        private const float BeaconSpread = 0.07f;
+        private const float BeaconSpreadStep = 0.6180339f;
 
         private const float RoamCallDelay = 25f;
         private const float MinimumCallDistance = 150f;
@@ -110,6 +114,7 @@ namespace HTownSim.Runtime
         private AudioClip? _hornClip;
         private int _tone;
         private GameObject? _incidentGroup;
+        private float[] _beaconPhase = new float[0];
         /// <summary>Orbit rig and accumulated mouse angles.</summary>
         private CinemachineFollow _follow = null!;
         private Vector3 _initialCameraOffset;
@@ -672,9 +677,23 @@ namespace HTownSim.Runtime
 
             _spread.Tick(_paused ? 0f : Time.deltaTime, _heat, _water.enabled);
 
+            if (_beaconPhase.Length != _beacons.Length)
+            {
+                _beaconPhase = new float[_beacons.Length];
+
+                for (var i = 0; i < _beaconPhase.Length; i++)
+                {
+                    _beaconPhase[i] = i * 0.5f;
+                }
+            }
+
             for (var i = 0; i < _beacons.Length; i++)
             {
-                _beacons[i].intensity = _lightsEnabled && Mathf.Repeat(Time.time * 3f + i * 0.5f, 1f) < 0.45f ? BeaconIntensity : 0f;
+                var hertz = BeaconHertz * (1f + BeaconSpread * (Mathf.Repeat((i + 3) * BeaconSpreadStep, 1f) * 2f - 1f));
+
+                _beaconPhase[i] = Mathf.Repeat(_beaconPhase[i] + hertz * Time.deltaTime, 1f);
+
+                _beacons[i].intensity = _lightsEnabled && _beaconPhase[i] < BeaconDuty ? BeaconIntensity : 0f;
             }
 
             if (!_paused)

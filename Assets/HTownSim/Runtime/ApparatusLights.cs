@@ -9,14 +9,23 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class ApparatusLights : MonoBehaviour
     {
-        /// <summary>Flash rate in cycles per second (matches the beacon lights in <see cref="FireResponse"/>).</summary>
-        private const float FlashHertz = 3f;
+        /// <summary>Flash rate in cycles per second (about the same as the beacon lights in <see cref="FireResponse"/>).</summary>
+        private const float FlashHertz = 1.8f;
 
         /// <summary>Fraction of each cycle a lens is lit.</summary>
         private const float DutyCycle = 0.45f;
 
         /// <summary>Offset between the two groups, as a fraction of a cycle.</summary>
         private const float GroupOffset = 0.5f;
+
+        /// <summary>
+        /// How far each light's own flash rate may stray from <see cref="FlashHertz"/>, as a fraction. Every light runs at a
+        /// slightly different rate, so they drift in and out of step: mostly independent, now and then flashing together.
+        /// </summary>
+        private const float FlashSpread = 0.07f;
+
+        /// <summary>Spacing that scatters light indices evenly across the spread (the golden ratio fraction).</summary>
+        private const float SpreadStep = 0.6180339f;
 
         [SerializeField] private FireResponse _response = null!;
 
@@ -29,6 +38,14 @@ namespace HTownSim.Runtime
         [SerializeField] private int[] _group = new int[0];
 
         private bool[] _lit = new bool[0];
+
+        private float[] _phase = new float[0];
+
+        private float[] _hertz = new float[0];
+
+        private readonly float[] _poolPhase = new float[2];
+
+        private readonly float[] _poolHertz = new float[2];
 
         /// <summary>Distance ahead of the engine, and the size, of the flashing light pools painted on the road.</summary>
         private const float PoolForward = 10f;
@@ -64,6 +81,24 @@ namespace HTownSim.Runtime
         private void Awake()
         {
             _lit = new bool[_lenses.Length];
+
+            _phase = new float[_lenses.Length];
+
+            _hertz = new float[_lenses.Length];
+
+            for (var i = 0; i < _lenses.Length; i++)
+            {
+                _hertz[i] = FlashHertz * (1f + FlashSpread * (Mathf.Repeat(i * SpreadStep, 1f) * 2f - 1f));
+
+                _phase[i] = _group[i] * GroupOffset;
+            }
+
+            for (var g = 0; g < 2; g++)
+            {
+                _poolHertz[g] = FlashHertz * (1f + FlashSpread * (g == 0 ? -0.8f : 0.9f));
+
+                _poolPhase[g] = g * GroupOffset;
+            }
 
             BuildPools();
 
@@ -231,12 +266,16 @@ namespace HTownSim.Runtime
 
             for (var g = 0; g < 2; g++)
             {
-                _pools[g].enabled = active && Mathf.Repeat(Time.time * FlashHertz + g * GroupOffset, 1f) < DutyCycle;
+                _poolPhase[g] = Mathf.Repeat(_poolPhase[g] + _poolHertz[g] * Time.deltaTime, 1f);
+
+                _pools[g].enabled = active && _poolPhase[g] < DutyCycle;
             }
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                var lit = active && Mathf.Repeat(Time.time * FlashHertz + _group[i] * GroupOffset, 1f) < DutyCycle;
+                _phase[i] = Mathf.Repeat(_phase[i] + _hertz[i] * Time.deltaTime, 1f);
+
+                var lit = active && _phase[i] < DutyCycle;
 
                 if (lit == _lit[i])
                 {
