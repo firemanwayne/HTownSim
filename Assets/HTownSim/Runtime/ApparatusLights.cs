@@ -15,6 +15,9 @@ namespace HTownSim.Runtime
         /// <summary>Slower flash rate for the front light bar, the rear lamps and the road light pools; the side markers keep <see cref="FlashHertz"/>.</summary>
         private const float FrontRearHertz = 1.15f;
 
+        /// <summary>Lenses with this in their name are the roof light bar.</summary>
+        private const string BarLensName = "TwinLED";
+
         /// <summary>Lenses with this in their name are the side markers.</summary>
         private const string SideLensName = "SideMarker";
 
@@ -44,6 +47,12 @@ namespace HTownSim.Runtime
         [SerializeField] private int[] _group = new int[0];
 
         private bool[] _lit = new bool[0];
+
+        /// <summary>Which flasher each lens belongs to; lenses of one flasher (a half of the light bar, a rear lamp column) share a phase.</summary>
+        private int[] _flasher = new int[0];
+
+        /// <summary>The flasher of the left (0) and right (1) halves of the roof light bar, or -1 when none was found.</summary>
+        private readonly int[] _barFlasher = { -1, -1 };
 
         private float[] _phase = new float[0];
 
@@ -88,17 +97,46 @@ namespace HTownSim.Runtime
         {
             _lit = new bool[_lenses.Length];
 
-            _phase = new float[_lenses.Length];
+            _flasher = new int[_lenses.Length];
 
-            _hertz = new float[_lenses.Length];
+            var keys = new System.Collections.Generic.Dictionary<string, int>();
+
+            var bases = new System.Collections.Generic.List<float>();
+
+            var starts = new System.Collections.Generic.List<float>();
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                var baseHertz = _lenses[i].name.Contains(SideLensName) ? FlashHertz : FrontRearHertz;
+                var side = _lenses[i].name.Contains(SideLensName);
 
-                _hertz[i] = baseHertz * (1f + FlashSpread * (Mathf.Repeat(i * SpreadStep, 1f) * 2f - 1f));
+                var key = side ? SideLensName + i : _lenses[i].name + "|" + _group[i];
 
-                _phase[i] = _group[i] * GroupOffset;
+                if (!keys.TryGetValue(key, out var id))
+                {
+                    id = keys.Count;
+
+                    keys[key] = id;
+
+                    bases.Add(side ? FlashHertz : FrontRearHertz);
+
+                    starts.Add(_group[i] * GroupOffset);
+                }
+
+                _flasher[i] = id;
+
+                if (_lenses[i].name.Contains(BarLensName) && _group[i] >= 0 && _group[i] < _barFlasher.Length)
+                {
+                    _barFlasher[_group[i]] = id;
+                }
+            }
+
+            _phase = starts.ToArray();
+
+            _hertz = new float[bases.Count];
+
+            for (var f = 0; f < _hertz.Length; f++)
+            {
+                _hertz[f] = bases[f] * (1f + FlashSpread * (Mathf.Repeat(f * SpreadStep, 1f) * 2f - 1f));
             }
 
             for (var g = 0; g < 2; g++)
@@ -267,6 +305,14 @@ namespace HTownSim.Runtime
             }
         }
 
+        /// <summary>True while the given half of the roof light bar is in the lit part of its flash, so the beacon lights can match it.</summary>
+        internal bool BarLit(int half)
+        {
+            var id = half >= 0 && half < _barFlasher.Length ? _barFlasher[half] : -1;
+
+            return id >= 0 && _phase.Length > id && _phase[id] < DutyCycle;
+        }
+
         /// <summary>Lights each lens according to the emergency-light state and its flash group.</summary>
         private void Update()
         {
@@ -279,11 +325,14 @@ namespace HTownSim.Runtime
                 _pools[g].enabled = active && _poolPhase[g] < DutyCycle;
             }
 
+            for (var f = 0; f < _phase.Length; f++)
+            {
+                _phase[f] = Mathf.Repeat(_phase[f] + _hertz[f] * Time.deltaTime, 1f);
+            }
+
             for (var i = 0; i < _lenses.Length; i++)
             {
-                _phase[i] = Mathf.Repeat(_phase[i] + _hertz[i] * Time.deltaTime, 1f);
-
-                var lit = active && _phase[i] < DutyCycle;
+                var lit = active && _phase[_flasher[i]] < DutyCycle;
 
                 if (lit == _lit[i])
                 {

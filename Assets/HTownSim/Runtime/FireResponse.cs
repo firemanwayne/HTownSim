@@ -115,6 +115,7 @@ namespace HTownSim.Runtime
         private int _tone;
         private GameObject? _incidentGroup;
         private float[] _beaconPhase = new float[0];
+        private ApparatusLights? _apparatus;
         /// <summary>Orbit rig and accumulated mouse angles.</summary>
         private CinemachineFollow _follow = null!;
         private Vector3 _initialCameraOffset;
@@ -677,6 +678,11 @@ namespace HTownSim.Runtime
 
             _spread.Tick(_paused ? 0f : Time.deltaTime, _heat, _water.enabled);
 
+            if (_apparatus == null)
+            {
+                _apparatus = FindAnyObjectByType<ApparatusLights>();
+            }
+
             if (_beaconPhase.Length != _beacons.Length)
             {
                 _beaconPhase = new float[_beacons.Length];
@@ -693,7 +699,9 @@ namespace HTownSim.Runtime
 
                 _beaconPhase[i] = Mathf.Repeat(_beaconPhase[i] + hertz * Time.deltaTime, 1f);
 
-                _beacons[i].intensity = _lightsEnabled && _beaconPhase[i] < BeaconDuty ? BeaconIntensity : 0f;
+                var lit = _apparatus != null && i < 2 ? _apparatus.BarLit(i) : _beaconPhase[i] < BeaconDuty;
+
+                _beacons[i].intensity = _lightsEnabled && lit ? BeaconIntensity : 0f;
             }
 
             if (!_paused)
