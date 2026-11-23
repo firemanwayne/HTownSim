@@ -136,3 +136,9 @@ Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-backgrou
 - **Headlights:** low beams and the five amber roof clearance lights (`ClearanceLight0-4`) are steady while the lights are on (`HeadlightsActive`, one place to give them their own switch). The high beams wig-wag left and right, and the red lights flash independently.
 - **Turn signals:** `TurnSignal_L` and `TurnSignal_R` flash amber at about 1.5 Hz. `Z` left, `C` right, `X` hazards.
 - The lit lens materials now have emission enabled, so they glow.
+
+## City detail
+
+`AgentScripts/AddCityDetail.cs` (`AddCityDetail.Run`) adds detail without changing the street grid or building footprints, and can be re-run after `BuildRealMidtown` (it clears its previous output first):
+- **Business signs:** every shop gets a sign board with a made-up business name over its storefront, an awning in one of six colours, and an "OPEN" sign in about half of them (`BusinessSigns`).
+- **Parking lots:** light poles at the corners, a pylon sign carrying the nearest shop's name, a blue "P" sign and a dumpster, placed only where nothing is in the way (`LotDetail`).
