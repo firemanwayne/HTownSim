@@ -266,7 +266,7 @@ public static class AddCityDetail
 
         var textColour = colourIndex == 7 ? new Color(0.1f, 0.08f, 0.02f) : new Color(1f, 0.95f, 0.82f);
 
-        Text("BusinessSignText", board.transform, centre + outward * (BoardDepth / 2f + TextLift / 10f), outward, NameFor(index), new Vector2(boardWidth - 0.4f, BoardHeight - 0.2f), textColour, 4.5f);
+        Text("BusinessSignText", parent, centre + outward * (BoardDepth / 2f + TextLift / 10f), outward, NameFor(index), new Vector2(boardWidth - 0.4f, BoardHeight - 0.2f), textColour, 4.5f);
 
         var awning = shop.Find("Awning");
 
@@ -283,7 +283,7 @@ public static class AddCityDetail
 
             var openBoard = Prim(PrimitiveType.Cube, "OpenSign", parent, openPosition, alongZ ? new Vector3(1.3f, 0.5f, 0.06f) : new Vector3(0.06f, 0.5f, 1.3f), _openSign);
 
-            Text("OpenSignText", openBoard.transform, openPosition + outward * 0.04f, outward, "OPEN", new Vector2(1.2f, 0.45f), new Color(1f, 0.15f, 0.1f), 2.2f);
+            Text("OpenSignText", parent, openPosition + outward * 0.04f, outward, "OPEN", new Vector2(1.2f, 0.45f), new Color(1f, 0.15f, 0.1f), 2.2f);
         }
 
         return true;
@@ -486,9 +486,9 @@ public static class AddCityDetail
 
         var colour = colourIndex == 7 ? new Color(0.1f, 0.08f, 0.02f) : new Color(1f, 0.95f, 0.82f);
 
-        Text("PylonText", board.transform, boardCentre + outward * 0.11f, outward, NameFor(shopIndex), new Vector2(3f, 1.4f), colour, 1.6f);
+        Text("PylonText", parent, boardCentre + outward * 0.11f, outward, NameFor(shopIndex), new Vector2(3f, 1.4f), colour, 1.6f);
 
-        Text("PylonTextBack", board.transform, boardCentre - outward * 0.11f, -outward, NameFor(shopIndex), new Vector2(3f, 1.4f), colour, 1.6f);
+        Text("PylonTextBack", parent, boardCentre - outward * 0.11f, -outward, NameFor(shopIndex), new Vector2(3f, 1.4f), colour, 1.6f);
     }
 
     private static void AddDumpster(Transform parent, Bounds bounds)
@@ -518,6 +518,6 @@ public static class AddCityDetail
 
         var board = Prim(PrimitiveType.Cube, "ParkingSign", parent, spot + Vector3.up * 2.5f, new Vector3(0.06f, 0.9f, 0.7f), _signBlue);
 
-        Text("ParkingSignText", board.transform, spot + Vector3.up * 2.5f - Vector3.right * 0.05f, -Vector3.right, "P", new Vector2(0.6f, 0.8f), Color.white, 2f);
+        Text("ParkingSignText", parent, spot + Vector3.up * 2.5f - Vector3.right * 0.05f, -Vector3.right, "P", new Vector2(0.6f, 0.8f), Color.white, 2f);
     }
 }
