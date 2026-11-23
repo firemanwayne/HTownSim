@@ -94,9 +94,18 @@ namespace HTownSim.Runtime
         /// <summary>World size of the glow halo drawn around a lit lens, and its opacity.</summary>
         private const float HaloSize = 1.5f;
 
-        private const float HaloAlpha = 0.9f;
+        /// <summary>Halos are sized from their lens (this many times its longest side) and kept between these limits, so a small lens gets a small glow.</summary>
+        private const float HaloLensScale = 3.2f;
+
+        private const float HaloMinSize = 0.3f;
+
+        private const float HaloMaxSize = 0.8f;
+
+        private const float HaloAlpha = 0.55f;
 
         private Transform[] _halos = new Transform[0];
+
+        private float[] _haloSizes = new float[0];
 
         private Renderer[] _haloRenderers = new Renderer[0];
 
@@ -217,6 +226,8 @@ namespace HTownSim.Runtime
         {
             _halos = new Transform[_lenses.Length];
 
+            _haloSizes = new float[_lenses.Length];
+
             _haloRenderers = new Renderer[_lenses.Length];
 
             _haloMaterials = new Material[_lenses.Length];
@@ -249,6 +260,10 @@ namespace HTownSim.Runtime
 
                 _halos[i] = quad.transform;
 
+                var extents = _lenses[i].bounds.size;
+
+                _haloSizes[i] = Mathf.Clamp(Mathf.Max(extents.x, extents.y, extents.z) * HaloLensScale, HaloMinSize, HaloMaxSize);
+
                 _haloRenderers[i] = renderer;
             }
         }
@@ -276,7 +291,7 @@ namespace HTownSim.Runtime
 
                 _halos[i].rotation = camera.transform.rotation;
 
-                _halos[i].localScale = Vector3.one * HaloSize;
+                _halos[i].localScale = Vector3.one * _haloSizes[i];
             }
         }
 
