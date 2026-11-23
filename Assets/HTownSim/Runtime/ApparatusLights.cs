@@ -18,6 +18,19 @@ namespace HTownSim.Runtime
         /// <summary>Lenses with this in their name are the roof light bar.</summary>
         private const string BarLensName = "TwinLED";
 
+        /// <summary>
+        /// The light bar's lens meshes are named EmergencyLighting_Lens0 to Lens47: 12 columns of 4, where in each column the
+        /// even meshes are the rear face and the odd ones the front, and the first two are the lower row and the last two the upper.
+        /// </summary>
+        private const string BarMeshPrefix = "EmergencyLighting_Lens";
+
+        private const int BarLenses = 48;
+        private const int BarColumns = 12;
+        private const int LensesPerColumn = 4;
+
+        /// <summary>Fraction of a flash cycle the lower lens of a red column trails the upper lens, so red columns roll from top to bottom.</summary>
+        private const float RollDelay = 0.13f;
+
         /// <summary>Lenses with this in their name are the side markers.</summary>
         private const string SideLensName = "SideMarker";
 
@@ -53,6 +66,9 @@ namespace HTownSim.Runtime
 
         /// <summary>The flasher of the left (0) and right (1) halves of the roof light bar, or -1 when none was found.</summary>
         private readonly int[] _barFlasher = { -1, -1 };
+
+        /// <summary>How far each lens trails its flasher's phase, as a fraction of a cycle.</summary>
+        private float[] _delay = new float[0];
 
         private float[] _phase = new float[0];
 
@@ -99,6 +115,10 @@ namespace HTownSim.Runtime
 
             _flasher = new int[_lenses.Length];
 
+            _delay = new float[_lenses.Length];
+
+            FindBarMaterials(out var redOn, out var redOff, out var whiteOn, out var whiteOff);
+
             var keys = new System.Collections.Generic.Dictionary<string, int>();
 
             var bases = new System.Collections.Generic.List<float>();
@@ -107,9 +127,41 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                var side = _lenses[i].name.Contains(SideLensName);
+                var bar = BarIndex(_lenses[i]);
 
-                var key = side ? SideLensName + i : _lenses[i].name + "|" + _group[i];
+                var side = bar < 0 && _lenses[i].name.Contains(SideLensName);
+
+                string key;
+
+                var start = _group[i] * GroupOffset;
+
+                if (bar >= 0)
+                {
+                    var column = bar / LensesPerColumn;
+
+                    var upper = bar % LensesPerColumn >= 2;
+
+                    var red = Mathf.Min(column, BarColumns - 1 - column) % 2 == 0;
+
+                    key = "Bar" + column;
+
+                    start = Mathf.Repeat(column * 0.173f, 1f);
+
+                    _delay[i] = red && !upper ? RollDelay : 0f;
+
+                    if (redOn != null && whiteOn != null)
+                    {
+                        _on[i] = red ? redOn : whiteOn;
+
+                        _off[i] = red ? redOff : whiteOff;
+
+                        _lenses[i].sharedMaterial = _off[i];
+                    }
+                }
+                else
+                {
+                    key = side ? SideLensName + i : _lenses[i].name + "|" + _group[i];
+                }
 
                 if (!keys.TryGetValue(key, out var id))
                 {
@@ -119,14 +171,23 @@ namespace HTownSim.Runtime
 
                     bases.Add(side ? FlashHertz : FrontRearHertz);
 
-                    starts.Add(_group[i] * GroupOffset);
+                    starts.Add(start);
                 }
 
                 _flasher[i] = id;
 
-                if (_lenses[i].name.Contains(BarLensName) && _group[i] >= 0 && _group[i] < _barFlasher.Length)
+                if (bar >= 0)
                 {
-                    _barFlasher[_group[i]] = id;
+                    var column = bar / LensesPerColumn;
+
+                    if (column == 0)
+                    {
+                        _barFlasher[0] = id;
+                    }
+                    else if (column == BarColumns - 1)
+                    {
+                        _barFlasher[1] = id;
+                    }
                 }
             }
 
@@ -305,6 +366,55 @@ namespace HTownSim.Runtime
             }
         }
 
+        /// <summary>The bar lens number from the mesh name (EmergencyLighting_Lens47 is 47), or -1 for any other lens.</summary>
+        private static int BarIndex(Renderer lens)
+        {
+            var filter = lens.GetComponent<MeshFilter>();
+
+            if (filter == null || filter.sharedMesh == null)
+            {
+                return -1;
+            }
+
+            var meshName = filter.sharedMesh.name;
+
+            if (!meshName.StartsWith(BarMeshPrefix) || !int.TryParse(meshName.Substring(BarMeshPrefix.Length), out var number))
+            {
+                return -1;
+            }
+
+            return number >= 0 && number < BarLenses ? number : -1;
+        }
+
+        /// <summary>Finds the red and white on and off lens materials already used by the lenses.</summary>
+        private void FindBarMaterials(out Material? redOn, out Material? redOff, out Material? whiteOn, out Material? whiteOff)
+        {
+            redOn = null;
+
+            redOff = null;
+
+            whiteOn = null;
+
+            whiteOff = null;
+
+            for (var i = 0; i < _lenses.Length && i < _on.Length && i < _off.Length; i++)
+            {
+                if (redOn == null && _on[i].name.Contains("Red"))
+                {
+                    redOn = _on[i];
+
+                    redOff = _off[i];
+                }
+
+                if (whiteOn == null && _on[i].name.Contains("White"))
+                {
+                    whiteOn = _on[i];
+
+                    whiteOff = _off[i];
+                }
+            }
+        }
+
         /// <summary>True while the given half of the roof light bar is in the lit part of its flash, so the beacon lights can match it.</summary>
         internal bool BarLit(int half)
         {
@@ -332,7 +442,7 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                var lit = active && _phase[_flasher[i]] < DutyCycle;
+                var lit = active && Mathf.Repeat(_phase[_flasher[i]] - _delay[i], 1f) < DutyCycle;
 
                 if (lit == _lit[i])
                 {
