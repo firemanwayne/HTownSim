@@ -120,3 +120,12 @@ Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-backgrou
 
 - **Fleet:** traffic cars cycle through 20 models: the Stylized Vehicles pack plus SimplePoly City cars, SUVs, pickups, taxis, box and dump trucks, a container truck and a bus. Each is scaled to a real length (`TrafficSystem.LengthFor`), spaced by its own half-length, and has its own collision box, rolling wheels and brake lights.
 - **Lanes:** two-way streets keep to the right of the painted center line. On one-way streets (dashed center line) cars now take the middle of either lane beside the dash instead of straddling it.
+
+## Siren control, engine sound, ragdolls and fire
+
+- **Siren control panel (bottom right):** STBY, WAIL, YELP, PIER (phaser), HORN and LIGHTS keys. Off keys are pale and frosted, active keys are dark with a green rim, and a pressed key glows red. Keys: `Q` standby (everything off, or siren on when nothing is on), `1` `2` `3` tones, `T` next tone, `L` lights, and `H` horn (hold to sound, release to stop; it never latches). STBY lights only when the siren and lights are both off. The sirens loop until turned off. The clips are in `Resources/SirenAudio`.
+- **HUD layout:** the left side is a layout container: the key list on the far left, and beside it the incident panel stacked over the map. Hiding the incident panel (`I`) or map (`M`) closes the gap and the others move up.
+- **Engine sound:** `EngineSound` crossfades idle, 1000 and 2000 RPM loops from a simulated gear/RPM model (revs rise under throttle, fall slowly on lift-off, faster under braking) with road noise by speed.
+- **Ragdolls:** a pedestrian struck by the engine becomes a physics ragdoll (`RagdollBuilder`), then is cleaned up and recycled.
+- **Fire:** the incident fire uses the Vefects Free Fire VFX prefabs (`FireSpread`): big main fire, medium spreading fires, with a heavy smoke column that climbs, widens and drifts downwind as the fire grows.
+- **Parked cars** in the lots are the same imported car models as the traffic.

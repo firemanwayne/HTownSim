@@ -6,7 +6,7 @@ namespace HTownSim.Runtime
 {
     /// <summary>
     /// Spatial city sound on top of the weather system's ambient bed: engine and tyre noise on the nearest civilian cars,
-    /// car horns, distant sirens and birdsong. Car engines and horns use recorded clips from Resources/TrafficAudio when
+    /// car horns and birdsong. Car engines and horns use recorded clips from Resources/TrafficAudio when
     /// present (idle and drive loops are crossfaded by speed); everything else, and the fallback, is synthesized.
     /// Follows the F7 ambience mute and the same shelter muffling as the bed.
     /// </summary>
@@ -24,9 +24,6 @@ namespace HTownSim.Runtime
         private const float HornMaxInterval = 14f;
         private const float HornMinRange = 12f;
         private const float HornMaxRange = 60f;
-        private const float SirenMinInterval = 25f;
-        private const float SirenMaxInterval = 60f;
-        private const float SirenDistance = 220f;
         private const float BirdMinInterval = 3f;
         private const float BirdMaxInterval = 9f;
         private const float BirdRange = 35f;
@@ -42,7 +39,6 @@ namespace HTownSim.Runtime
         private FireResponse _response = null!;
         private AudioClip _engineClip = null!;
         private AudioClip _hornClip = null!;
-        private AudioClip _sirenClip = null!;
         private AudioClip[] _birdClips = new AudioClip[0];
         private AudioClip[] _idleClips = new AudioClip[0];
         private AudioClip[] _driveClips = new AudioClip[0];
@@ -52,14 +48,9 @@ namespace HTownSim.Runtime
         private readonly int[] _carAssigned = new int[CarVoices];
         private readonly List<TrafficSystem.NearCar> _near = new List<TrafficSystem.NearCar>();
         private AudioSource _oneShot = null!;
-        private AudioSource _sirenSource = null!;
         private float _nextRefresh;
         private float _nextHorn;
-        private float _nextSiren;
         private float _nextBird;
-        private float _sirenAge;
-        private Vector3 _sirenFrom;
-        private Vector3 _sirenTo;
 
         /// <summary>Wires the sources this component drives.</summary>
         internal void Initialize(TrafficSystem traffic, FireResponse response)
@@ -80,8 +71,6 @@ namespace HTownSim.Runtime
 
             _hornClips = LoadOrFallback(HornResource, _hornClip);
 
-            _sirenClip = MakeDistantSiren();
-
             _birdClips = new[] { MakeBird(3100f, 4200f, 0.11f, 1), MakeBird(2500f, 3300f, 0.18f, 2), MakeBird(4200f, 3600f, 0.08f, 3) };
 
             for (var i = 0; i < CarVoices; i++)
@@ -95,13 +84,7 @@ namespace HTownSim.Runtime
 
             _oneShot = NewSource("OneShot", _hornClip, false);
 
-            _sirenSource = NewSource("DistantSiren", _sirenClip, false);
-
-            _sirenSource.maxDistance = 400f;
-
             _nextHorn = Random.Range(HornMinInterval, HornMaxInterval);
-
-            _nextSiren = Random.Range(10f, SirenMinInterval);
 
             _nextBird = Random.Range(1f, BirdMinInterval);
         }
@@ -278,22 +261,6 @@ namespace HTownSim.Runtime
 
                 Chirp(gain);
             }
-
-            if (Time.time >= _nextSiren)
-            {
-                _nextSiren = Time.time + Random.Range(SirenMinInterval, SirenMaxInterval);
-
-                StartDistantSiren();
-            }
-
-            if (_sirenSource.isPlaying)
-            {
-                _sirenAge += Time.deltaTime;
-
-                _sirenSource.transform.position = Vector3.Lerp(_sirenFrom, _sirenTo, Mathf.Clamp01(_sirenAge / _sirenClip.length));
-
-                _sirenSource.volume = 0.35f * gain;
-            }
         }
 
         /// <summary>One nearby car (not the one that is stopped for the engine's siren) sounds its horn.</summary>
@@ -361,24 +328,6 @@ namespace HTownSim.Runtime
             Destroy(source.gameObject, source.clip.length + 0.2f);
         }
 
-        /// <summary>A faint emergency siren passing far off, as there is always one somewhere in Houston.</summary>
-        private void StartDistantSiren()
-        {
-            var angle = Random.value * Mathf.PI * 2f;
-
-            var centre = _response.transform.position;
-
-            _sirenFrom = centre + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * SirenDistance;
-
-            _sirenTo = centre + new Vector3(Mathf.Cos(angle + 0.9f), 0f, Mathf.Sin(angle + 0.9f)) * SirenDistance * 0.8f;
-
-            _sirenAge = 0f;
-
-            _sirenSource.transform.position = _sirenFrom;
-
-            _sirenSource.Play();
-        }
-
         // ---------------------------------------------------------------- synthesized clips
 
         /// <summary>Seamless engine and tyre bed: a low harmonic stack plus periodic band noise built from sines with integer cycle counts.</summary>
@@ -436,32 +385,6 @@ namespace HTownSim.Runtime
             return Build("CityHorn", samples);
         }
 
-        private static AudioClip MakeDistantSiren()
-        {
-            const float seconds = 8f;
-
-            var samples = new float[(int)(Rate * seconds)];
-
-            var phase = 0f;
-
-            for (var i = 0; i < samples.Length; i++)
-            {
-                var t = i / (float)Rate;
-
-                var sweep = Mathf.PingPong(t / 3.5f, 1f);
-
-                var frequency = Mathf.Lerp(650f, 1450f, sweep);
-
-                phase += 2f * Mathf.PI * frequency / Rate;
-
-                var envelope = Mathf.Clamp01(t * 2f) * Mathf.Clamp01((seconds - t) * 2f);
-
-                samples[i] = (Mathf.Sin(phase) + Mathf.Sin(phase * 2f) * 0.25f) * 0.3f * envelope;
-            }
-
-            return Build("CityDistantSiren", samples);
-        }
-
         private static AudioClip MakeBird(float from, float to, float chirp, int seed)
         {
             var count = 2 + seed;
@@ -504,7 +427,7 @@ namespace HTownSim.Runtime
 
         private void OnDestroy()
         {
-            foreach (var clip in new[] { _engineClip, _hornClip, _sirenClip })
+            foreach (var clip in new[] { _engineClip, _hornClip })
             {
                 if (clip != null)
                 {

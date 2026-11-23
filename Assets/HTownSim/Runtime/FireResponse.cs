@@ -19,6 +19,8 @@ namespace HTownSim.Runtime
         [SerializeField] private Transform _incident = null!;
         [SerializeField] private ParticleSystem _fire = null!;
         [SerializeField] private ParticleSystem _smoke = null!;
+        [SerializeField] private GameObject? _fireVfxMain;
+        [SerializeField] private GameObject? _fireVfxSpread;
         [SerializeField] private LineRenderer _water = null!;
         [SerializeField] private TMP_Text _status = null!;
         [SerializeField] private TMP_Text _telemetry = null!;
@@ -52,7 +54,30 @@ namespace HTownSim.Runtime
         private const string DispatchPanelName = "DispatchPanel";
         private const string HeaderName = "HudLabel";
         private const string ControlsHintMarker = "WASD";
-        private const string InfoHint = "     I  INFO";
+        private const string MapPanelName = "CityMapPanel";
+        private const string HideLabelName = "InfoHideLabel";
+        private const string HideLabelText = "I  HIDE";
+        private const float HideLabelFontSize = 16f;
+        private const float ControlsFontSize = 18f;
+        private const float ControlsLineSpacing = 6f;
+        private const float ControlsKeyColumn = 142f;
+        private const string ControlsKeyColor = "#FFAF52";
+        private static readonly string[][] ControlsList =
+        {
+            new[] { "WASD", "DRIVE" },
+            new[] { "SPACE", "BRAKE" },
+            new[] { "E (HOLD)", "WATER" },
+            new[] { "RMB + DRAG", "LOOK" },
+            new[] { "Q", "STANDBY" },
+            new[] { "1  2  3", "WAIL  YELP  PIER" },
+            new[] { "T", "NEXT TONE" },
+            new[] { "H (HOLD)", "HORN" },
+            new[] { "L", "LIGHTS" },
+            new[] { "ESC", "PAUSE" },
+            new[] { "R", "RETURN TO STATION" },
+            new[] { "M", "MAP" },
+            new[] { "I", "INCIDENT PANEL" },
+        };
         private bool _infoVisible = true;
         /// <summary>The randomly chosen site of the first call; R retries this same incident.</summary>
         private int _firstSiteIndex;
@@ -80,6 +105,11 @@ namespace HTownSim.Runtime
         private bool _lightsEnabled;
         private AudioSource _siren = null!;
         private AudioClip _sirenClip = null!;
+        private AudioSource _horn = null!;
+        private readonly AudioClip?[] _toneClips = new AudioClip?[ToneNames.Length];
+        private AudioClip? _hornClip;
+        private int _tone;
+        private GameObject? _incidentGroup;
         /// <summary>Orbit rig and accumulated mouse angles.</summary>
         private CinemachineFollow _follow = null!;
         private Vector3 _initialCameraOffset;
@@ -121,12 +151,23 @@ namespace HTownSim.Runtime
 
         private AudioClip _emsClip = null!;
 
+        private const string SirenFolder = "SirenAudio/";
+        private const string HornResource = "Horn";
+        private const float SirenVolume = 0.55f;
+        private const float HornVolume = 0.7f;
+        private static readonly string[] ToneNames = { "WAIL", "YELP", "PHASER" };
+        private static readonly string[] ToneResources = { "Wail", "Yelp", "Phaser" };
+
         /// <summary>Initializes the vehicle and a synthesized placeholder siren.</summary>
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
 
             _spread = gameObject.AddComponent<FireSpread>();
+
+            _spread.MainPrefab = _fireVfxMain;
+
+            _spread.SatellitePrefab = _fireVfxSpread;
 
             _spread.Initialize(_fire, _smoke);
 
@@ -173,6 +214,8 @@ namespace HTownSim.Runtime
 
             _siren.mute = true;
 
+            LoadSirenTones();
+
             foreach (var beacon in _beacons)
             {
                 beacon.intensity = 0f;
@@ -207,23 +250,226 @@ namespace HTownSim.Runtime
 
             RestartFire();
 
-            AddInfoKeyHint();
+            ArrangeHud();
+
+            AddEmergencyHud();
+
+            gameObject.AddComponent<EngineSound>().Initialize(this);
 
             Invoke(nameof(PlayDispatch), 0.8f);
         }
 
-        /// <summary>Appends the info-panel key to the on-screen controls line, which is baked into the scene.</summary>
-        private void AddInfoKeyHint()
+        /// <summary>Adds the siren and light controller panel to the HUD canvas.</summary>
+        private void AddEmergencyHud()
         {
-            foreach (var text in _status.transform.parent.GetComponentsInChildren<TMP_Text>(true))
-            {
-                if (text.text.Contains(ControlsHintMarker) && !text.text.Contains(InfoHint))
-                {
-                    text.text += InfoHint;
+            var canvas = _status.GetComponentInParent<Canvas>();
 
-                    return;
+            if (canvas != null)
+            {
+                new GameObject("EmergencyHudDriver").AddComponent<EmergencyHud>().Initialize(this, canvas);
+            }
+        }
+
+        /// <summary>Loads the recorded wail, yelp, phaser and horn clips; any missing tone falls back to the synthesized wail.</summary>
+        private void LoadSirenTones()
+        {
+            for (var i = 0; i < ToneResources.Length; i++)
+            {
+                _toneClips[i] = Resources.Load<AudioClip>(SirenFolder + ToneResources[i]);
+            }
+
+            _hornClip = Resources.Load<AudioClip>(SirenFolder + HornResource);
+
+            _horn = gameObject.AddComponent<AudioSource>();
+
+            _horn.clip = _hornClip;
+
+            _horn.loop = true;
+
+            _horn.playOnAwake = false;
+
+            _horn.spatialBlend = 0f;
+
+            _horn.volume = HornVolume;
+
+            ApplyTone();
+        }
+
+        /// <summary>Points the siren at the selected tone's clip, keeping it looping and muted state untouched.</summary>
+        private void ApplyTone()
+        {
+            var clip = _toneClips[_tone];
+
+            _siren.clip = clip != null ? clip : _sirenClip;
+
+            _siren.volume = clip != null ? SirenVolume : 0.2f;
+
+            _siren.loop = true;
+
+            _siren.Play();
+        }
+
+        /// <summary>Chooses a tone and turns the siren on; choosing the active tone again, when asked, turns it off.</summary>
+        internal void SelectTone(int tone, bool offIfSame)
+        {
+            if (offIfSame && _sirenEnabled && tone == _tone)
+            {
+                _sirenEnabled = false;
+
+                return;
+            }
+
+            _tone = tone;
+
+            _sirenEnabled = true;
+
+            ApplyTone();
+        }
+
+        /// <summary>True while the siren is switched on (any tone), for the controller HUD.</summary>
+        internal bool SirenOn => _sirenEnabled;
+
+        /// <summary>The selected siren tone index: 0 wail, 1 yelp, 2 phaser.</summary>
+        internal int Tone => _tone;
+
+        /// <summary>Display name of the selected tone.</summary>
+        internal string ToneName => ToneNames[_tone];
+
+        /// <summary>True while the electric horn is sounding.</summary>
+        internal bool HornSounding => _horn != null && _horn.isPlaying;
+
+        /// <summary>True while the emergency lights are on.</summary>
+        internal bool LightsOn => _lightsEnabled;
+
+        /// <summary>Held by the HUD while its horn button is pressed with the mouse.</summary>
+        internal bool HornPointerDown { get; set; }
+
+        /// <summary>True when the siren and the lights are both off, which is when the STBY key is lit.</summary>
+        internal bool InStandby => !_sirenEnabled && !_lightsEnabled;
+
+        /// <summary>Puts everything in standby: siren and lights off, as the STBY key does.</summary>
+        internal void StandbyAll()
+        {
+            _sirenEnabled = false;
+
+            _lightsEnabled = false;
+        }
+
+        /// <summary>Toggles the emergency lights, as the L key does.</summary>
+        internal void ToggleLights()
+        {
+            _lightsEnabled = !_lightsEnabled;
+        }
+
+        /// <summary>Starts the electric horn on key down and stops it on key up, and never while paused, dispatching or after the fire is out.</summary>
+        private void UpdateHorn(UnityEngine.InputSystem.Keyboard keyboard)
+        {
+            if (_horn == null || _hornClip == null)
+            {
+                return;
+            }
+
+            var allowed = !_paused && !(_heat > 0f && _remaining <= 0f) && !DispatchPlaying;
+
+            var wanted = keyboard.hKey.isPressed || HornPointerDown;
+
+            if (wanted && allowed && !_horn.isPlaying)
+            {
+                _horn.Play();
+            }
+
+            if (_horn.isPlaying && (!wanted || !allowed))
+            {
+                _horn.Stop();
+            }
+        }
+
+        /// <summary>Lays out the HUD: a left-hand column with the vertical key list beside a stack of the incident panel over the map.</summary>
+        private void ArrangeHud()
+        {
+            var canvas = (RectTransform)_status.transform.parent;
+
+            TMP_Text? controls = null;
+
+            foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.text.Contains(ControlsHintMarker))
+                {
+                    ArrangeControls(text);
+
+                    controls = text;
+
+                    break;
                 }
             }
+
+            if (controls == null)
+            {
+                return;
+            }
+
+            var header = canvas.Find(HeaderName);
+
+            var hide = header != null ? CreateHideLabel(canvas, header) : null;
+
+            _incidentGroup = HudLayout.Build(new HudLayoutParts
+            {
+                Canvas = canvas,
+                Controls = controls,
+                Panel = canvas.Find(DispatchPanelName),
+                Header = header,
+                Status = _status,
+                Telemetry = _telemetry,
+                HideLabel = hide,
+                Map = canvas.Find(MapPanelName),
+            });
+        }
+
+        /// <summary>Turns the baked controls line into a vertical key list beside the map, with the keys picked out in colour.</summary>
+        private static void ArrangeControls(TMP_Text text)
+        {
+            var lines = new string[ControlsList.Length];
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                lines[i] = $"<color={ControlsKeyColor}>{ControlsList[i][0]}</color><pos={ControlsKeyColumn}>{ControlsList[i][1]}";
+            }
+
+            text.text = string.Join("\n", lines);
+
+            text.fontSize = ControlsFontSize;
+
+            text.lineSpacing = ControlsLineSpacing;
+
+            text.alignment = TextAlignmentOptions.TopLeft;
+
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+
+            text.outlineColor = new Color32(4, 10, 14, 255);
+
+            text.outlineWidth = 0.22f;
+        }
+
+        /// <summary>Creates the "I HIDE" label for the incident panel header, styled like the map panel's "M HIDE".</summary>
+        private static TMP_Text CreateHideLabel(Transform canvas, Transform header)
+        {
+            var clone = Instantiate(header.gameObject, canvas);
+
+            clone.name = HideLabelName;
+
+            var label = clone.GetComponent<TMP_Text>();
+
+            label.text = HideLabelText;
+
+            label.fontSize = HideLabelFontSize;
+
+            label.fontStyle = FontStyles.Normal;
+
+            label.color = new Color(0.902f, 0.843f, 0.718f, 1f);
+
+            label.rectTransform.sizeDelta = new Vector2(90f, 22f);
+
+            return label;
         }
 
         /// <summary>Shows or hides the dispatch panel (its background, incident status and telemetry text). Text keeps updating while hidden.</summary>
@@ -231,23 +477,10 @@ namespace HTownSim.Runtime
         {
             _infoVisible = visible;
 
-            var panel = _status.transform.parent.Find(DispatchPanelName);
-
-            if (panel != null)
+            if (_incidentGroup != null)
             {
-                panel.gameObject.SetActive(visible);
+                _incidentGroup.SetActive(visible);
             }
-
-            var header = _status.transform.parent.Find(HeaderName);
-
-            if (header != null)
-            {
-                header.gameObject.SetActive(visible);
-            }
-
-            _status.gameObject.SetActive(visible);
-
-            _telemetry.gameObject.SetActive(visible);
         }
 
         /// <summary>Chooses a random storefront at least the minimum call distance from the station for the first call; falls back to site 0.</summary>
@@ -377,12 +610,41 @@ namespace HTownSim.Runtime
 
             if (keyboard.qKey.wasPressedThisFrame)
             {
-                _sirenEnabled = !_sirenEnabled;
+                if (_sirenEnabled || _lightsEnabled)
+                {
+                    StandbyAll();
+                }
+                else
+                {
+                    _sirenEnabled = true;
+                }
             }
+
+            if (keyboard.tKey.wasPressedThisFrame)
+            {
+                SelectTone((_tone + 1) % ToneNames.Length, false);
+            }
+
+            if (keyboard.digit1Key.wasPressedThisFrame)
+            {
+                SelectTone(0, true);
+            }
+
+            if (keyboard.digit2Key.wasPressedThisFrame)
+            {
+                SelectTone(1, true);
+            }
+
+            if (keyboard.digit3Key.wasPressedThisFrame)
+            {
+                SelectTone(2, true);
+            }
+
+            UpdateHorn(keyboard);
 
             if (keyboard.lKey.wasPressedThisFrame)
             {
-                _lightsEnabled = !_lightsEnabled;
+                ToggleLights();
             }
 
             _siren.mute = !_sirenEnabled || _paused || (_heat > 0f && _remaining <= 0f) || DispatchPlaying;
@@ -600,6 +862,10 @@ namespace HTownSim.Runtime
         /// <summary>Moves the arcade vehicle with collision-aware steering.</summary>
         internal void Drive(Vector2 input, bool braking)
         {
+            ThrottleInput = input.y;
+
+            BrakeInput = braking;
+
             var target = braking ? 0f : input.y * (input.y >= 0f ? 13f : 5f);
 
             _speed = Mathf.MoveTowards(_speed, target, (braking ? 20f : 6f) * Time.deltaTime);
@@ -639,6 +905,15 @@ namespace HTownSim.Runtime
 
         /// <summary>Signed forward speed in metres per second (negative in reverse).</summary>
         internal float SignedSpeed => _speed;
+
+        /// <summary>The driver's throttle this frame, -1 (reverse) to 1 (forward), for the engine sound.</summary>
+        internal float ThrottleInput { get; private set; }
+
+        /// <summary>True while the driver is braking, for the engine sound.</summary>
+        internal bool BrakeInput { get; private set; }
+
+        /// <summary>True while the response is paused, so the engine falls silent.</summary>
+        internal bool EngineMuted => _paused;
 
         /// <summary>Scales the current speed, used when the engine ploughs through something soft.</summary>
         internal void ScaleSpeed(float factor)
@@ -706,6 +981,11 @@ namespace HTownSim.Runtime
             _lightsEnabled = false;
 
             _siren.mute = true;
+
+            if (_horn != null)
+            {
+                _horn.Stop();
+            }
 
             foreach (var beacon in _beacons)
             {

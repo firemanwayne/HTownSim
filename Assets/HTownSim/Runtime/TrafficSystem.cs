@@ -309,6 +309,8 @@ namespace HTownSim.Runtime
             /// <summary>True when a humanoid model with a walk clip replaces the primitive body.</summary>
             public bool Rigged;
 
+            public Animator? Animator;
+
             public PlayableGraph Graph;
 
             public AnimationClipPlayable Clip;
@@ -639,7 +641,9 @@ namespace HTownSim.Runtime
                     paint.SetColor("_BaseColor", tint);
                 }
 
-                var scale = new Vector3(1f, Random.Range(0.95f, 1.25f), Random.Range(0.92f, 1.2f));
+                var scale = car.Body is null
+                    ? Vector3.one * Random.Range(0.97f, 1.04f)
+                    : new Vector3(1f, Random.Range(0.95f, 1.25f), Random.Range(0.92f, 1.2f));
 
                 car.Transform.localScale = scale;
 
@@ -756,27 +760,37 @@ namespace HTownSim.Runtime
         {
             if (modelName.Contains("Bus"))
             {
-                return 8.5f;
+                return 8f;
             }
 
-            if (modelName.Contains("Truck_color") && !modelName.Contains("Pick") || modelName.Contains("Container"))
+            if (modelName.Contains("Container"))
             {
-                return 8f;
+                return 7.2f;
+            }
+
+            if (modelName.Contains("Truck_color") && !modelName.Contains("Pick"))
+            {
+                return 6.8f;
             }
 
             if (modelName.Contains("Ambulance"))
             {
-                return 6f;
+                return 5.6f;
             }
 
             if (modelName.Contains("Pick"))
             {
-                return 5.4f;
+                return 5.2f;
             }
 
             if (modelName.Contains("SUV"))
             {
                 return 4.9f;
+            }
+
+            if (modelName.Contains("MicroBus"))
+            {
+                return 5f;
             }
 
             return modelName.Contains("Vehicle_") ? 4.5f : ModelLength;
@@ -1415,6 +1429,8 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            ped.Animator = animator;
+
             animator.runtimeAnimatorController = null;
 
             animator.applyRootMotion = false;
@@ -1596,6 +1612,23 @@ namespace HTownSim.Runtime
                 ped.Clip.SetSpeed(0f);
             }
 
+            if (ped.Rigged && ped.Animator != null)
+            {
+                var thrown = velocity * 0.95f + new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f));
+
+                thrown.y = 2f + velocity.magnitude * 0.2f;
+
+                ped.Graph.Stop();
+
+                RagdollBuilder.Build(new RagdollRequest { Animator = ped.Animator, Mass = PedestrianMass, Ignore = _playerController, Velocity = thrown });
+
+                _response.ScaleSpeed(0.92f);
+
+                PlayImpact(ped.Transform.position, velocity.magnitude * 0.5f);
+
+                return;
+            }
+
             var go = ped.Transform.gameObject;
 
             var body = go.AddComponent<Rigidbody>();
@@ -1636,6 +1669,13 @@ namespace HTownSim.Runtime
             }
 
             var go = ped.Transform.gameObject;
+
+            if (ped.Rigged && ped.Animator != null)
+            {
+                RagdollBuilder.Remove(ped.Animator);
+
+                ped.Graph.Play();
+            }
 
             Destroy(go.GetComponent<CapsuleCollider>());
 

@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HTownSim.Runtime
@@ -20,6 +21,35 @@ namespace HTownSim.Runtime
         private static readonly float[] SatelliteOffsets = { 4f, -4f, 8f, -8f };
         private static readonly Color DenseSmoke = new Color(0.04f, 0.045f, 0.05f, 1f);
 
+        /// <summary>Scale of the Vefects fire at ignition and at full growth, and how little of it remains as the heat falls to zero.</summary>
+        private const float VfxMinScale = 1.1f;
+        private const float VfxMaxScale = 2.6f;
+        private const float VfxEmbersScale = 0.35f;
+        private const float VfxSmokeCap = 9000;
+        /// <summary>How the smoke climbs and spreads: lifetime, rise speed and widening multipliers at ignition and at full growth, plus the steady wind that carries it downwind.</summary>
+        private const float SmokeLifeMin = 2.2f;
+        private const float SmokeLifeMax = 3.6f;
+        private const float SmokeRiseMin = 1.3f;
+        private const float SmokeRiseMax = 2.1f;
+        private const float SmokeWidenMin = 1.4f;
+        private const float SmokeWidenMax = 2.6f;
+        private const float SmokeWind = 1.8f;
+        /// <summary>Smoke emission multipliers at ignition and at full growth; the smoke is deliberately heavy.</summary>
+        private const float VfxSmokeBoostMin = 3.2f;
+        private const float VfxSmokeBoostMax = 8.5f;
+        private const float VfxFlameBoostMin = 0.9f;
+        private const float VfxFlameBoostMax = 1.7f;
+        private static readonly string[] SmokeNames = { "Smoke", "Burning", "Dark" };
+
+        private readonly Dictionary<ParticleSystem, float> _vfxRates = new Dictionary<ParticleSystem, float>();
+        private readonly Dictionary<ParticleSystem, float> _vfxSizes = new Dictionary<ParticleSystem, float>();
+        private readonly Dictionary<ParticleSystem, float> _vfxLifetimes = new Dictionary<ParticleSystem, float>();
+        private readonly Dictionary<ParticleSystem, float> _vfxSpeeds = new Dictionary<ParticleSystem, float>();
+        private readonly Dictionary<ParticleSystem, float> _vfxWidening = new Dictionary<ParticleSystem, float>();
+        private GameObject? _vfxMain;
+        private GameObject[] _vfxSatellites = new GameObject[0];
+        private bool _useVfx;
+
         private ParticleSystem _fire = null!;
         private ParticleSystem _smoke = null!;
         private ParticleSystem[] _satellites = new ParticleSystem[0];
@@ -27,6 +57,12 @@ namespace HTownSim.Runtime
         private float _flameRadius;
         private float _smokeRadius;
         private bool _ready;
+
+        /// <summary>Optional authored fire prefab for the main seat of the fire; when set it replaces the built-in flames and smoke.</summary>
+        internal GameObject? MainPrefab { get; set; }
+
+        /// <summary>Optional authored fire prefab for each fire that spreads along the facade.</summary>
+        internal GameObject? SatellitePrefab { get; set; }
 
         /// <summary>Current growth multiplier, 1 at ignition up to <see cref="MaxGrowth"/>.</summary>
         internal float Growth { get; private set; } = 1f;
@@ -68,7 +104,96 @@ namespace HTownSim.Runtime
                 _satellites[i].Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
 
+            if (MainPrefab != null)
+            {
+                SetupVfx(fire);
+            }
+
             _ready = true;
+        }
+
+        /// <summary>Hides the built-in emitters and creates the authored main fire and spreading fires, all stopped.</summary>
+        private void SetupVfx(ParticleSystem fire)
+        {
+            _useVfx = true;
+
+            foreach (var system in new[] { _fire, _smoke })
+            {
+                system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+                system.GetComponent<ParticleSystemRenderer>().enabled = false;
+            }
+
+            _vfxMain = Instantiate(MainPrefab!, fire.transform.parent);
+
+            _vfxMain.name = "FireVfxMain";
+
+            Prepare(_vfxMain);
+
+            var prefab = SatellitePrefab != null ? SatellitePrefab : MainPrefab!;
+
+            _vfxSatellites = new GameObject[SatelliteOffsets.Length];
+
+            for (var i = 0; i < _vfxSatellites.Length; i++)
+            {
+                _vfxSatellites[i] = Instantiate(prefab, fire.transform.parent);
+
+                _vfxSatellites[i].name = "FireVfxSpread" + i;
+
+                Prepare(_vfxSatellites[i]);
+            }
+        }
+
+        /// <summary>Stops an authored fire, makes it scale with its transform, lifts the particle caps and remembers its base rates and sizes.</summary>
+        private void Prepare(GameObject fireObject)
+        {
+            foreach (var system in fireObject.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                var main = system.main;
+
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+
+                if (IsSmoke(system))
+                {
+                    main.maxParticles = (int)VfxSmokeCap;
+                }
+
+                _vfxRates[system] = system.emission.rateOverTimeMultiplier;
+
+                _vfxSizes[system] = main.startSizeMultiplier;
+
+                _vfxLifetimes[system] = main.startLifetimeMultiplier;
+
+                _vfxSpeeds[system] = main.startSpeedMultiplier;
+
+                _vfxWidening[system] = system.sizeOverLifetime.enabled ? system.sizeOverLifetime.sizeMultiplier : 1f;
+
+                if (IsSmoke(system))
+                {
+                    var wind = system.forceOverLifetime;
+
+                    wind.enabled = true;
+
+                    wind.space = ParticleSystemSimulationSpace.World;
+
+                    wind.x = new ParticleSystem.MinMaxCurve(SmokeWind);
+                }
+
+                system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+
+        private static bool IsSmoke(ParticleSystem system)
+        {
+            foreach (var word in SmokeNames)
+            {
+                if (system.name.Contains(word))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Starts a fresh fire at the incident: growth resets, satellites go out and the main fire and smoke relight.</summary>
@@ -88,6 +213,25 @@ namespace HTownSim.Runtime
                 _satellites[i].Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
                 _satellites[i].transform.position = _fire.transform.position + incident.right * SatelliteOffsets[i];
+            }
+
+            if (_useVfx)
+            {
+                foreach (var satellite in _vfxSatellites)
+                {
+                    satellite.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+
+                for (var i = 0; i < _vfxSatellites.Length; i++)
+                {
+                    _vfxSatellites[i].transform.position = _fire.transform.position + incident.right * SatelliteOffsets[i];
+                }
+
+                _vfxMain!.transform.position = _fire.transform.position;
+
+                _vfxMain.GetComponent<ParticleSystem>().Clear(true);
+
+                _vfxMain.GetComponent<ParticleSystem>().Play(true);
             }
 
             Apply(1f);
@@ -116,6 +260,16 @@ namespace HTownSim.Runtime
         /// <summary>Stops the flames, satellites and smoke when the fire is contained.</summary>
         internal void Extinguish()
         {
+            if (_useVfx)
+            {
+                _vfxMain!.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+                foreach (var satellite in _vfxSatellites)
+                {
+                    satellite.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                }
+            }
+
             _fire.Stop();
 
             _smoke.Stop();
@@ -132,6 +286,13 @@ namespace HTownSim.Runtime
         internal void Apply(float heat)
         {
             var growth01 = Mathf.InverseLerp(1f, MaxGrowth, Growth);
+
+            if (_useVfx)
+            {
+                ApplyVfx(heat, growth01);
+
+                return;
+            }
 
             ConfigureFlame(_fire, MainFlameRate * heat * (1f + growth01 * 1.2f), growth01);
 
@@ -171,6 +332,81 @@ namespace HTownSim.Runtime
             var smokeShape = _smoke.shape;
 
             smokeShape.radius = _smokeRadius * (1f + growth01 * 0.8f);
+        }
+
+        /// <summary>Scales the authored fires with growth and heat, ignites the spreading fires in turn, and keeps the smoke dense.</summary>
+        private void ApplyVfx(float heat, float growth01)
+        {
+            _vfxMain!.transform.position = _fire.transform.position;
+
+            Scale(_vfxMain, Mathf.Lerp(VfxMinScale, VfxMaxScale, growth01), heat, growth01);
+
+            SpreadCount = 0;
+
+            for (var i = 0; i < _vfxSatellites.Length; i++)
+            {
+                var ignited = heat > 0f && Growth >= 1f + (i + 1) * 0.4f;
+
+                if (!ignited)
+                {
+                    continue;
+                }
+
+                SpreadCount++;
+
+                var system = _vfxSatellites[i].GetComponent<ParticleSystem>();
+
+                Scale(_vfxSatellites[i], Mathf.Lerp(0.7f, 1.3f, growth01), heat, growth01);
+
+                if (!system.isPlaying)
+                {
+                    system.Play(true);
+                }
+            }
+        }
+
+        /// <summary>Sizes one authored fire and sets every emitter's rate: smoke gets the large boost, flames a mild one, both fading with the heat.</summary>
+        private void Scale(GameObject fireObject, float size, float heat, float growth01)
+        {
+            fireObject.transform.localScale = Vector3.one * size * Mathf.Lerp(VfxEmbersScale, 1f, heat);
+
+            var smokeBoost = Mathf.Lerp(VfxSmokeBoostMin, VfxSmokeBoostMax, growth01) * Mathf.Lerp(0.5f, 1f, heat);
+
+            var flameBoost = Mathf.Lerp(VfxFlameBoostMin, VfxFlameBoostMax, growth01) * Mathf.Lerp(0.5f, 1f, heat);
+
+            foreach (var system in fireObject.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                if (!_vfxRates.TryGetValue(system, out var rate))
+                {
+                    continue;
+                }
+
+                var smoke = IsSmoke(system);
+
+                var emission = system.emission;
+
+                emission.rateOverTimeMultiplier = rate * (smoke ? smokeBoost : flameBoost);
+
+                var main = system.main;
+
+                main.startSizeMultiplier = _vfxSizes[system] * (smoke ? 1f + growth01 * 0.8f : 1f);
+
+                if (!smoke)
+                {
+                    continue;
+                }
+
+                main.startLifetimeMultiplier = _vfxLifetimes[system] * Mathf.Lerp(SmokeLifeMin, SmokeLifeMax, growth01);
+
+                main.startSpeedMultiplier = _vfxSpeeds[system] * Mathf.Lerp(SmokeRiseMin, SmokeRiseMax, growth01);
+
+                var widening = system.sizeOverLifetime;
+
+                if (widening.enabled)
+                {
+                    widening.sizeMultiplier = _vfxWidening[system] * Mathf.Lerp(SmokeWidenMin, SmokeWidenMax, growth01);
+                }
+            }
         }
 
         /// <summary>Sets one flame emitter's rate, flame size and base footprint.</summary>
