@@ -12,6 +12,12 @@ namespace HTownSim.Runtime
         /// <summary>Flash rate in cycles per second (about the same as the beacon lights in <see cref="FireResponse"/>).</summary>
         private const float FlashHertz = 1.8f;
 
+        /// <summary>Slower flash rate for the front light bar, the rear lamps and the road light pools; the side markers keep <see cref="FlashHertz"/>.</summary>
+        private const float FrontRearHertz = 1.15f;
+
+        /// <summary>Lenses with this in their name are the side markers.</summary>
+        private const string SideLensName = "SideMarker";
+
         /// <summary>Fraction of each cycle a lens is lit.</summary>
         private const float DutyCycle = 0.45f;
 
@@ -88,14 +94,16 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _lenses.Length; i++)
             {
-                _hertz[i] = FlashHertz * (1f + FlashSpread * (Mathf.Repeat(i * SpreadStep, 1f) * 2f - 1f));
+                var baseHertz = _lenses[i].name.Contains(SideLensName) ? FlashHertz : FrontRearHertz;
+
+                _hertz[i] = baseHertz * (1f + FlashSpread * (Mathf.Repeat(i * SpreadStep, 1f) * 2f - 1f));
 
                 _phase[i] = _group[i] * GroupOffset;
             }
 
             for (var g = 0; g < 2; g++)
             {
-                _poolHertz[g] = FlashHertz * (1f + FlashSpread * (g == 0 ? -0.8f : 0.9f));
+                _poolHertz[g] = FrontRearHertz * (1f + FlashSpread * (g == 0 ? -0.8f : 0.9f));
 
                 _poolPhase[g] = g * GroupOffset;
             }

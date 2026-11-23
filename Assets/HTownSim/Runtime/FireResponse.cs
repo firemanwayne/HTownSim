@@ -42,7 +42,7 @@ namespace HTownSim.Runtime
         /// <summary>Seconds after containment before the next call, and the nearest a new call may be, in metres.</summary>
         /// <summary>Brightness of a lit emergency beacon.</summary>
         private const float BeaconIntensity = 160f;
-        private const float BeaconHertz = 1.8f;
+        private const float BeaconHertz = 1.15f;
         private const float BeaconDuty = 0.45f;
         private const float BeaconSpread = 0.07f;
         private const float BeaconSpreadStep = 0.6180339f;
