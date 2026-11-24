@@ -114,3 +114,9 @@ more than a sidewalk's width past their own lot, the worst by 74 m, and many ove
 built (`_expanding`), each footprint box is first clamped to its lot's bounds (`FootprintSlack`, 0.5 m), then `ResolveFootprintOverlaps` moves the
 shared edge of any two overlapping boxes from different lots to the middle of the overlap, never making a box smaller than 3 m. Midtown's original,
 Blender-rebuilt buildings are not affected. This is a stop-gap until buildings use oriented footprint rectangles with their own angle.
+
+## Texas Medical Center
+
+`NEIGHBORHOOD=medcenter node AgentScripts/PrepareMidtownData.js`, then `BuildRealMidtown.ExpandMedCenter` (window x -450..650, z -4700..-3300, Midtown's grid). The City's tax data has no floor count for most hospital campuses, so `AddHospitalCampuses` gives large exempt lots on campus streets a tall building. `HTownSim > Med Center > Add Hospital ER Bays` places six `ER_Bay_*` pads at the City's hospital points (Memorial Hermann, Houston Methodist, Texas Children's, St. Luke's, Ben Taub, MD Anderson).
+
+An ambulance (a unit with no water) that finishes a medical call moves the marker to the nearest ER bay and the call ends when it stops there (`FireResponse.BeginTransport`). Not done: the plain-ground corridor between the gap and the Med Center has no streets, the HUD map still covers only the original window, and the Med Center has only the two traffic axes the City data yields.

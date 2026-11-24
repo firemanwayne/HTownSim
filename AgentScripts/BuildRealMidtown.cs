@@ -3964,8 +3964,21 @@ public static class BuildRealMidtown
         GridDegrees = 35.06f,
     };
 
+    /// <summary>The Texas Medical Center (Fannin, Holcombe and Bertner), south of the city on Midtown's own grid: the hospitals the ambulances deliver to.</summary>
+    private static readonly NeighborhoodDef MedCenterNeighborhood = new NeighborhoodDef
+    {
+        Name = "MedCenter",
+        DataPath = "Assets/HTownSim/Data/Neighborhood_MedCenter.txt",
+        MinX = -450f,
+        MaxX = 650f,
+        MinZ = -4700f,
+        MaxZ = -3300f,
+        SignalStreet = "FANNIN ST",
+        GridDegrees = 35.06f,
+    };
+
     /// <summary>Every neighborhood built so far; the gap pass leaves their lots out and the playable area covers them all.</summary>
-    private static readonly NeighborhoodDef[] AllNeighborhoods = { Station16Neighborhood, SouthMidtownNeighborhood };
+    private static readonly NeighborhoodDef[] AllNeighborhoods = { Station16Neighborhood, SouthMidtownNeighborhood, MedCenterNeighborhood };
 
     /// <summary>Builds the South Midtown neighborhood; can be run again.</summary>
     public static string ExpandSouthMidtown()
@@ -3973,6 +3986,19 @@ public static class BuildRealMidtown
         try
         {
             return ExpandNeighborhood(SouthMidtownNeighborhood);
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    /// <summary>Builds the Texas Medical Center neighborhood; can be run again.</summary>
+    public static string ExpandMedCenter()
+    {
+        try
+        {
+            return ExpandNeighborhood(MedCenterNeighborhood);
         }
         finally
         {
@@ -4071,6 +4097,11 @@ public static class BuildRealMidtown
         LoadMaterials();
 
         var parcels = new List<Parcel>(_data.parcels);
+
+        if (def.Name == "MedCenter")
+        {
+            AddHospitalCampuses(parcels);
+        }
 
         _station16Parcel = def.StationNumber == 16 ? FindStationParcel(parcels, _data.station16) : null;
 
@@ -4187,6 +4218,35 @@ public static class BuildRealMidtown
         AssetDatabase.SaveAssets();
 
         return "Neighborhood " + def.Name + ": " + parcels.Count + " parcels, root rotated " + psi.ToString("0.00") + " degrees; world x " + union.xMin.ToString("0") + ".." + union.xMax.ToString("0") + ", z " + union.yMin.ToString("0") + ".." + union.yMax.ToString("0") + "; traffic: " + trafficNote;
+    }
+
+    /// <summary>The streets whose large exempt lots in the Medical Center are hospital and university campuses (the rest, like the park, stay as they are).</summary>
+    private static readonly string[] CampusStreets = { "FANNIN ST", "HOLCOMBE ST", "TAUB LOOP", "BAYLOR PLZ", "PRESSLER ST", "BERTNER AVE", "MOURSUND ST", "BATES ST", "MAIN ST" };
+
+    /// <summary>
+    /// The City's tax data carries no floor count for most of the Medical Center's exempt campuses, so they would come out as park. A large
+    /// exempt lot on a campus street gets a tall building: floors from the lot area, and a footprint inset 12 m from the lot when it has none.
+    /// </summary>
+    private static void AddHospitalCampuses(List<Parcel> parcels)
+    {
+        foreach (var parcel in parcels)
+        {
+            if (parcel.f != 0 || !parcel.k.StartsWith("X", StringComparison.Ordinal) || parcel.a < 8000 || Array.IndexOf(CampusStreets, parcel.s) < 0)
+            {
+                continue;
+            }
+
+            parcel.f = Mathf.Clamp(Mathf.RoundToInt(parcel.a / 5000f) + 6, 8, 18);
+
+            if (parcel.fb.Length >= 4)
+            {
+                continue;
+            }
+
+            var inset = Mathf.Min(12f, Mathf.Min(parcel.b[2] - parcel.b[0], parcel.b[3] - parcel.b[1]) / 4f);
+
+            parcel.fb = new[] { parcel.b[0] + inset, parcel.b[1] + inset, parcel.b[2] - inset, parcel.b[3] - inset };
+        }
     }
 
     /// <summary>Sites for FireResponse from the neighborhood's incident site transforms (already rotated into the city).</summary>

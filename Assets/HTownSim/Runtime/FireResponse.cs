@@ -78,6 +78,15 @@ namespace HTownSim.Runtime
         private const float PatientClearSeconds = 6f;
         /// <summary>True once the active call's outcome has been reported to the manager.</summary>
         private bool _outcomeReported;
+
+        /// <summary>The emergency-room bays of the Texas Medical Center hospitals (objects named ER_Bay_*), found at start.</summary>
+        private Transform[] _hospitals = new Transform[0];
+
+        /// <summary>True while the patient is aboard and the incident marker sits at the hospital bay.</summary>
+        private bool _transporting;
+
+        /// <summary>The hospital the patient is being taken to.</summary>
+        private string _hospitalName = string.Empty;
         /// <summary>True when the active call is a fire, or when there is no call record yet.</summary>
         private bool IncidentIsFire => _activeIncident is null || _activeIncident.IsFire;
         /// <summary>Name of the dispatch panel background that hides with the incident text, and its visibility (key I).</summary>
@@ -356,6 +365,8 @@ namespace HTownSim.Runtime
         /// <summary>Sounds the first dispatch shortly after the scene starts.</summary>
         private void Start()
         {
+            _hospitals = FindHospitals();
+
             _firstSiteIndex = PickFirstSite();
 
             _incidents = gameObject.AddComponent<IncidentManager>();
@@ -997,6 +1008,10 @@ namespace HTownSim.Runtime
                         ? $"{(fire ? "FIRE CONTAINED" : "CALL CLEARED")}\nGood work, {unit}.  Free roam: drive anywhere.  R to respond again."
                         : _remaining <= 0f
                             ? $"RESPONSE TIME EXCEEDED\n{unit}: R to retry the call."
+                            : _transporting
+                                ? (distance > MonitorRange
+                                    ? $"PATIENT ABOARD  /  {unitUpper} TRANSPORTING\nTake the patient to {_hospitalName}'s emergency room (marked)."
+                                    : $"{unitUpper} AT {_hospitalName}\nStop at the ER bay to hand off the patient.")
                             : distance > MonitorRange
                                 ? $"{label}  /  {unitUpper} RESPONDING{SeveritySuffix()}\n{_incidentLocation}.  {(fire ? "Approach the marked storefront." : "Head for the marked scene.")}"
                                 : !fire
@@ -1093,6 +1108,8 @@ namespace HTownSim.Runtime
             }
 
             ShowIncident(incident);
+
+            _transporting = false;
 
             _heat = 1f;
 
@@ -1602,6 +1619,71 @@ namespace HTownSim.Runtime
             }
         }
 
+        /// <summary>The ER bays in the scene: every object named ER_Bay_*.</summary>
+        private static Transform[] FindHospitals()
+        {
+            var found = new System.Collections.Generic.List<Transform>();
+
+            foreach (var candidate in FindObjectsByType<Transform>(FindObjectsInactive.Exclude))
+            {
+                if (candidate.name.StartsWith("ER_Bay_", System.StringComparison.Ordinal))
+                {
+                    found.Add(candidate);
+                }
+            }
+
+            return found.ToArray();
+        }
+
+        /// <summary>True when this call has a patient, this unit is an ambulance (no water), and there is a hospital to deliver to.</summary>
+        private bool CanTransportPatient()
+        {
+            return _hospitals.Length > 0
+                && _patient != null
+                && !_profile.CanSprayWater
+                && _activeIncident is not null
+                && (_activeIncident.Agency == IncidentAgency.Ems || _activeIncident.CallType == IncidentCallType.Medical);
+        }
+
+        /// <summary>The patient is loaded: the marker moves to the nearest hospital's ER bay and the call stays open until the unit stops there.</summary>
+        private void BeginTransport()
+        {
+            var best = _hospitals[0];
+
+            var bestDistance = float.MaxValue;
+
+            foreach (var bay in _hospitals)
+            {
+                var offset = bay.position - transform.position;
+
+                offset.y = 0f;
+
+                if (offset.sqrMagnitude < bestDistance)
+                {
+                    bestDistance = offset.sqrMagnitude;
+
+                    best = bay;
+                }
+            }
+
+            _transporting = true;
+
+            _hospitalName = best.name.Substring("ER_Bay_".Length).Replace('_', ' ').ToUpperInvariant();
+
+            if (_patient != null)
+            {
+                _patient.Hide(0f);
+            }
+
+            PlaceIncidentAt(best.position, NearestSite(best.position, out _));
+
+            _heat = 1f;
+
+            _remaining = Mathf.Clamp((Mathf.Sqrt(bestDistance) / 5f) + 90f, 90f, 600f);
+
+            _alertUntil = Time.time + 6f;
+        }
+
         /// <summary>A call that is not a fire clears once the unit has been stopped within monitor range for a few seconds.</summary>
         private void WorkNonFireScene(float seconds)
         {
@@ -1616,6 +1698,13 @@ namespace HTownSim.Runtime
             }
 
             _heat = Mathf.Max(0f, _heat - (Mathf.Max(0f, seconds) / SceneSeconds));
+
+            if (_heat <= 0f && !_transporting && CanTransportPatient())
+            {
+                BeginTransport();
+
+                return;
+            }
 
             if (_heat <= 0f)
             {
@@ -1635,6 +1724,8 @@ namespace HTownSim.Runtime
             _controller.enabled = true;
 
             _speed = 0f;
+
+            _transporting = false;
 
             _heat = 1f;
 

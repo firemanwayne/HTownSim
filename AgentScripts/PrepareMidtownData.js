@@ -19,6 +19,9 @@ const NEIGHBORHOODS = {
   // The whole rectangle between Midtown and Station 16, in Midtown's own frame: lots only, for the placeholder pass (BuildRealMidtown.ExpandGap).
   // South of the Midtown window, same grid as Midtown (angle 35.06), z -1450..-450.
   southmidtown: { label: 0, rotationDegrees: 35.06, win: { x0: -845, x1: 560, z0: -1450, z1: -450 }, file: "Neighborhood_SouthMidtown.txt" },
+  // The Texas Medical Center (Fannin / Holcombe / Bertner), south of the city, on Midtown's own grid (Main St runs straight down to it).
+  medcorridor: { label: 0, rotationDegrees: 35.06, win: { x0: -450, x1: 650, z0: -3300, z1: -2410 }, file: "Neighborhood_MedCorridor.txt" },
+  medcenter: { label: 0, rotationDegrees: 35.06, win: { x0: -450, x1: 650, z0: -4700, z1: -3300 }, file: "Neighborhood_MedCenter.txt" },
   gap: { label: 0, rotationDegrees: 35.06, win: { x0: -2310, x1: 600, z0: -2410, z1: 1700 }, file: "Gap_Southwest.txt" },
 };
 const NEIGHBORHOOD = process.env.NEIGHBORHOOD ? NEIGHBORHOODS[process.env.NEIGHBORHOOD] : null;
