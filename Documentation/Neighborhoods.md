@@ -82,3 +82,18 @@ Data: `NEIGHBORHOOD=gap node AgentScripts/PrepareMidtownData.js` writes `Assets/
 Not there yet: lane markings, crosswalks, signals and traffic in the gap, real buildings, trees, props and parked cars, and the far
 south-west corners outside the data (plain ground). The next step is real neighborhoods for the gap, built the same way as Station 16 and
 replacing the placeholders under their area.
+
+## Which neighborhoods are next
+
+Measuring the street angle of every lot edge in 300 m cells (relative to Midtown's grid) shows the gap is mostly two grids:
+
+- **Montrose grid (about 36 degrees from Midtown's):** the whole west and south-west, from x -2400 to about -900, the same angle as Station 16's
+  neighborhood. These neighborhoods can share Station 16's frame (grid angle 0.1) and only differ in their window, so each one is
+  one more `NeighborhoodDef` with the same `GridDegrees`.
+- **Midtown grid (about 0 degrees):** south of Midtown from x -600 to 560. `SouthMidtown` (x -845..560, z -1450..-450, `ExpandSouthMidtown`) is the first of these;
+  its root is not turned.
+- A mixed strip around the US-59 corridor (x -900 to -600) where the angle changes cell by cell. Neighborhood boundaries should follow the freeway there.
+
+`AllNeighborhoods` in `BuildRealMidtown.cs` lists every neighborhood built so far. The gap pass leaves their lots out, and the playable area
+and `NeighborhoodFill` cover all of them. After building a neighborhood, run `ExpandGap` again (it rebuilds the placeholders around it) and
+`AddCityDetail.Run`.

@@ -3871,6 +3871,12 @@ public static class BuildRealMidtown
         public float MaxZ;
 
         public string SignalStreet = "ELGIN ST";
+
+        /// <summary>The neighborhood's own street-grid angle in degrees (Midtown's is 35.06); its root is turned by the difference.</summary>
+        public float GridDegrees = MidtownGridDegrees;
+
+        /// <summary>The fire station this neighborhood places (16), or 0 for none.</summary>
+        public int StationNumber;
     }
 
     /// <summary>Fire Station 16 (1700 Richmond Ave) and its blocks: Montrose and Hyde Park, whose streets run about 35 degrees off Midtown's.</summary>
@@ -3883,7 +3889,38 @@ public static class BuildRealMidtown
         MinZ = -1225f,
         MaxZ = 75f,
         SignalStreet = "RICHMOND AVE",
+        GridDegrees = 0.1f,
+        StationNumber = 16,
     };
+
+    /// <summary>The blocks south of the Midtown window: the same grid as Midtown, so its root is not turned.</summary>
+    private static readonly NeighborhoodDef SouthMidtownNeighborhood = new NeighborhoodDef
+    {
+        Name = "SouthMidtown",
+        DataPath = "Assets/HTownSim/Data/Neighborhood_SouthMidtown.txt",
+        MinX = -845f,
+        MaxX = 560f,
+        MinZ = -1450f,
+        MaxZ = -450f,
+        SignalStreet = "WHEELER ST",
+        GridDegrees = 35.06f,
+    };
+
+    /// <summary>Every neighborhood built so far; the gap pass leaves their lots out and the playable area covers them all.</summary>
+    private static readonly NeighborhoodDef[] AllNeighborhoods = { Station16Neighborhood, SouthMidtownNeighborhood };
+
+    /// <summary>Builds the South Midtown neighborhood; can be run again.</summary>
+    public static string ExpandSouthMidtown()
+    {
+        try
+        {
+            return ExpandNeighborhood(SouthMidtownNeighborhood);
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
 
     /// <summary>Builds the Station 16 neighborhood (see <see cref="NeighborhoodDef"/>); can be run again, it replaces its own earlier output.</summary>
     public static string ExpandStation16()
@@ -3977,7 +4014,7 @@ public static class BuildRealMidtown
 
         var parcels = new List<Parcel>(_data.parcels);
 
-        _station16Parcel = FindStationParcel(parcels, _data.station16);
+        _station16Parcel = def.StationNumber == 16 ? FindStationParcel(parcels, _data.station16) : null;
 
         BuildNeighborhoodGround();
 
@@ -4007,7 +4044,10 @@ public static class BuildRealMidtown
 
         BuildSignals();
 
-        PlaceStation16();
+        if (def.StationNumber == 16)
+        {
+            PlaceStation16();
+        }
 
         var sites = BuildExpansionSites(parcels);
 
@@ -4047,11 +4087,18 @@ public static class BuildRealMidtown
         container.rotation = Quaternion.Euler(0f, psi, 0f);
 
         // The playable area is now the Midtown window plus this neighborhood, with plain ground in the gap between them.
-        var union = Rect.MinMaxRect(
-            Mathf.Min(NewMinX, worldRect.xMin - 40f),
-            Mathf.Min(NewMinZ, worldRect.yMin - 40f),
-            Mathf.Max(NewMaxX, worldRect.xMax + 40f),
-            Mathf.Max(NewMaxZ, worldRect.yMax + 40f));
+        var union = Rect.MinMaxRect(NewMinX, NewMinZ, NewMaxX, NewMaxZ);
+
+        foreach (var other in AllNeighborhoods)
+        {
+            var otherRect = NeighborhoodWorldRect(other, -(MidtownGridDegrees - other.GridDegrees));
+
+            union = Rect.MinMaxRect(
+                Mathf.Min(union.xMin, otherRect.xMin - 40f),
+                Mathf.Min(union.yMin, otherRect.yMin - 40f),
+                Mathf.Max(union.xMax, otherRect.xMax + 40f),
+                Mathf.Max(union.yMax, otherRect.yMax + 40f));
+        }
 
         _root = cityRoot.transform;
 
@@ -4198,10 +4245,6 @@ public static class BuildRealMidtown
         LoadMaterials();
 
         // Lots already built elsewhere are left out: the Midtown window, and the Station 16 neighborhood (checked in its own rotated frame).
-        var neighborhood = Station16Neighborhood;
-
-        var toNeighborhood = Quaternion.Euler(0f, MidtownGridDegrees - 0.1f, 0f);
-
         var parcels = new List<Parcel>();
 
         foreach (var parcel in _data.parcels)
@@ -4215,14 +4258,24 @@ public static class BuildRealMidtown
                 continue;
             }
 
-            var local = toNeighborhood * new Vector3(x, 0f, z);
+            var inNeighborhood = false;
 
-            if (local.x >= neighborhood.MinX && local.x <= neighborhood.MaxX && local.z >= neighborhood.MinZ && local.z <= neighborhood.MaxZ)
+            foreach (var built in AllNeighborhoods)
             {
-                continue;
+                var local = Quaternion.Euler(0f, MidtownGridDegrees - built.GridDegrees, 0f) * new Vector3(x, 0f, z);
+
+                if (local.x >= built.MinX && local.x <= built.MaxX && local.z >= built.MinZ && local.z <= built.MaxZ)
+                {
+                    inNeighborhood = true;
+
+                    break;
+                }
             }
 
-            parcels.Add(parcel);
+            if (!inNeighborhood)
+            {
+                parcels.Add(parcel);
+            }
         }
 
         Section("Ground", _root);

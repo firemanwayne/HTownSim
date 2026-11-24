@@ -17,6 +17,8 @@ const BASE = "https://mycity2.houstontx.gov/gisweb02/rest/services/HoustonMap";
 const NEIGHBORHOODS = {
   station16: { label: 16, lat: 29.73431865, lon: -95.40213039, rotationDegrees: 0.1, half: 650, file: "Neighborhood_Station16.txt" },
   // The whole rectangle between Midtown and Station 16, in Midtown's own frame: lots only, for the placeholder pass (BuildRealMidtown.ExpandGap).
+  // South of the Midtown window, same grid as Midtown (angle 35.06), z -1450..-450.
+  southmidtown: { label: 0, rotationDegrees: 35.06, win: { x0: -845, x1: 560, z0: -1450, z1: -450 }, file: "Neighborhood_SouthMidtown.txt" },
   gap: { label: 0, rotationDegrees: 35.06, win: { x0: -2310, x1: 600, z0: -2410, z1: 1700 }, file: "Gap_Southwest.txt" },
 };
 const NEIGHBORHOOD = process.env.NEIGHBORHOOD ? NEIGHBORHOODS[process.env.NEIGHBORHOOD] : null;
