@@ -10,5 +10,8 @@ namespace HTownSim.Runtime
 
         /// <summary>Station 8, 1919 Louisiana St.</summary>
         Station8 = 1,
+
+        /// <summary>Station 16, 1700 Richmond Ave, in Montrose.</summary>
+        Station16 = 2,
     }
 }

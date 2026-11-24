@@ -24,5 +24,17 @@ namespace HTownSim.Runtime
 
         /// <summary>Medic 08, the medic unit at Station 8.</summary>
         Medic08 = 5,
+
+        /// <summary>Engine 16, the pumper at Station 16.</summary>
+        Engine16 = 6,
+
+        /// <summary>Ladder 16, the aerial at Station 16.</summary>
+        Ladder16 = 7,
+
+        /// <summary>Ambulance 16, the medic unit at Station 16.</summary>
+        Ambulance16 = 8,
+
+        /// <summary>Supervisor 16, the Suburban the EMS supervisor drives from Station 16.</summary>
+        Supervisor16 = 9,
     }
 }

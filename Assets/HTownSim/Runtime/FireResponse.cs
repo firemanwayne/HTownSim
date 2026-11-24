@@ -1155,8 +1155,8 @@ namespace HTownSim.Runtime
         {
             return ApparatusLoadout.Detect(transform) switch
             {
-                StartingTruck.Ladder => IncidentUnit.Ladder,
-                StartingTruck.Ambulance or StartingTruck.Medic08 => IncidentUnit.Ambulance,
+                StartingTruck.Ladder or StartingTruck.Ladder16 => IncidentUnit.Ladder,
+                StartingTruck.Ambulance or StartingTruck.Medic08 or StartingTruck.Ambulance16 or StartingTruck.Supervisor16 => IncidentUnit.Ambulance,
                 _ => IncidentUnit.Engine,
             };
         }

@@ -58,6 +58,9 @@ namespace HTownSim.Runtime
         /// <summary>False when the scene has no parked Station 8 units, so Station 8 cannot be chosen yet.</summary>
         private bool _station8Ready;
 
+        /// <summary>False when the scene has no parked Station 16 units, so Station 16 cannot be chosen yet.</summary>
+        private bool _station16Ready;
+
         /// <summary>The card the player is on (mouse hover, arrow keys or number keys).</summary>
         private int _highlight;
 
@@ -106,6 +109,8 @@ namespace HTownSim.Runtime
             menu._station = StartingTruckChoice.StationOf(menu._current);
 
             menu._station8Ready = ApparatusLoadout.Station8Ready(response.gameObject.scene);
+
+            menu._station16Ready = ApparatusLoadout.Station16Ready(response.gameObject.scene);
 
             menu.ShowStep(Step.Station);
         }
@@ -176,14 +181,15 @@ namespace HTownSim.Runtime
             }
         }
 
-        /// <summary>The 1, 2 or 3 key for a card index.</summary>
+        /// <summary>The 1, 2, 3 or 4 key for a card index.</summary>
         private static UnityEngine.InputSystem.Controls.KeyControl DigitKey(Keyboard keyboard, int index)
         {
             return index switch
             {
                 0 => keyboard.digit1Key,
                 1 => keyboard.digit2Key,
-                _ => keyboard.digit3Key,
+                2 => keyboard.digit3Key,
+                _ => keyboard.digit4Key,
             };
         }
 
@@ -198,7 +204,7 @@ namespace HTownSim.Runtime
             {
                 foreach (var station in StartingTruckChoice.Stations)
                 {
-                    var available = station == StartingStation.Station7 || _station8Ready;
+                    var available = station == StartingStation.Station7 || (station == StartingStation.Station8 && _station8Ready) || (station == StartingStation.Station16 && _station16Ready);
 
                     _cards.Add(new MenuCard(
                         StartingTruckChoice.StationName(station).ToUpperInvariant(),
@@ -305,7 +311,9 @@ namespace HTownSim.Runtime
 
             GUI.Label(new Rect(0f, 214f, width, 36f), stationStep ? "Houston Fire Department" : StartingTruckChoice.StationName(_station), _subtitle);
 
-            var total = (_cards.Count * CardWidth) + ((_cards.Count - 1) * CardGap);
+            var cardWidth = Mathf.Min(CardWidth, (width - 80f - ((_cards.Count - 1) * CardGap)) / _cards.Count);
+
+            var total = (_cards.Count * cardWidth) + ((_cards.Count - 1) * CardGap);
 
             var left = (width - total) / 2f;
 
@@ -313,12 +321,12 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _cards.Count; i++)
             {
-                DrawCard(new Rect(left + (i * (CardWidth + CardGap)), top, CardWidth, CardHeight), i);
+                DrawCard(new Rect(left + (i * (cardWidth + CardGap)), top, cardWidth, CardHeight), i);
             }
 
             var hint = stationStep
-                ? "Press 1 or 2, or use the arrow keys and Enter"
-                : "Press 1, 2 or 3, or use the arrow keys and Enter.   Backspace: change station";
+                ? "Press 1, 2 or 3, or use the arrow keys and Enter"
+                : "Press a number, or use the arrow keys and Enter.   Backspace: change station";
 
             GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), hint, _hint);
         }

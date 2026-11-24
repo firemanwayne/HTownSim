@@ -44,6 +44,17 @@ namespace HTownSim.Runtime
 
         private const string Medic08Unit = "Medic08";
 
+        /// <summary>The group AddStation16Apparatus fills, and the unit names inside it.</summary>
+        private const string Station16Group = "Station16Apparatus";
+
+        private const string Engine16Unit = "Engine16";
+
+        private const string Ladder16Unit = "Ladder16";
+
+        private const string Ambulance16Unit = "Ambulance16";
+
+        private const string Supervisor16Unit = "Supervisor16";
+
         /// <summary>The visuals' drop below the driven object, so every apparatus's tyres sit on the floor the same way.</summary>
         private const float VisualDrop = -0.15f;
 
@@ -57,11 +68,32 @@ namespace HTownSim.Runtime
 
         private static readonly Vector3 AmbulanceBeacon = new Vector3(0.8f, 3.1f, 0.7f);
 
+        /// <summary>The Suburban's roof light bar.</summary>
+        private static readonly Vector3 SuvBeacon = new Vector3(0.55f, 2.35f, 0.15f);
+
         /// <summary>Ladder 07's fit-out (0.558 m tyres, front axle +3.80, tandem -1.76/-3.13).</summary>
         private static readonly ApparatusProfileValues LadderValues = new ApparatusProfileValues(
             "Ladder 07", 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
             new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
             new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
+
+        /// <summary>Ladder 07's fit-out under another unit name (Ladder 16): the same aerial rig.</summary>
+        private static ApparatusProfileValues LadderAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
+                new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
+                new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
+        }
+
+        /// <summary>Supervisor 16's fit-out: a Chevrolet Suburban (0.40 m tyres, wheelbase 3.3 m), a tight turn, no water, EMS tones and the plain horn.</summary>
+        private static ApparatusProfileValues SupervisorAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.40f, 3.3f, new[] { "SubWheelFront" }, new[] { "SubWheelRear" }, 7f, 0.8f,
+                new Vector3(0f, 2.2f, -1.5f), new Vector3(0.9f, 1.9f, -0.5f), false,
+                new string[0], new string[0], new string[0], false, false, "", true);
+        }
 
         /// <summary>Which apparatus the driven object currently is: a run-time profile names a Station 8 unit, else the fitted model decides.</summary>
         internal static StartingTruck Detect(Transform driven)
@@ -78,6 +110,14 @@ namespace HTownSim.Runtime
                         return StartingTruck.Engine01;
                     case "Medic 08":
                         return StartingTruck.Medic08;
+                    case "Engine 16":
+                        return StartingTruck.Engine16;
+                    case "Ladder 16":
+                        return StartingTruck.Ladder16;
+                    case "Ambulance 16":
+                        return StartingTruck.Ambulance16;
+                    case "Supervisor 16":
+                        return StartingTruck.Supervisor16;
                 }
             }
 
@@ -93,6 +133,24 @@ namespace HTownSim.Runtime
         internal static bool IsStation8(StartingTruck truck)
         {
             return StartingTruckChoice.StationOf(truck) == StartingStation.Station8;
+        }
+
+        /// <summary>True for the apparatus that live at Station 16.</summary>
+        internal static bool IsStation16(StartingTruck truck)
+        {
+            return StartingTruckChoice.StationOf(truck) == StartingStation.Station16;
+        }
+
+        /// <summary>True when the scene holds the parked Station 16 units (made by the editor command HTownSim > Station 16 > Add Apparatus).</summary>
+        internal static bool Station16Ready(Scene scene)
+        {
+            var group = scene.GetRootGameObjects().FirstOrDefault(root => root.name == Station16Group);
+
+            return group != null
+                && group.transform.Find(Engine16Unit) != null
+                && group.transform.Find(Ladder16Unit) != null
+                && group.transform.Find(Ambulance16Unit) != null
+                && group.transform.Find(Supervisor16Unit) != null;
         }
 
         /// <summary>True when the scene holds the parked Station 8 units (made by the editor command HTownSim > Station 8 > Add Apparatus).</summary>
@@ -141,6 +199,15 @@ namespace HTownSim.Runtime
                     }
 
                     ApplyStation8(request);
+                }
+                else if (IsStation16(request.Target))
+                {
+                    if (current == StartingTruck.Ladder)
+                    {
+                        RevertLadder(request);
+                    }
+
+                    ApplyStation16(request);
                 }
                 else if (request.Target == StartingTruck.Engine)
                 {
@@ -223,6 +290,67 @@ namespace HTownSim.Runtime
             unit.gameObject.SetActive(false);
         }
 
+        /// <summary>Engine to a Station 16 apparatus: Engine 07 is parked at Station 7 and the driven object takes the Station 16 unit's bay and look.</summary>
+        private static void ApplyStation16(LoadoutRequest request)
+        {
+            var driven = request.Apparatus.transform;
+
+            var unitName = request.Target switch
+            {
+                StartingTruck.Ladder16 => Ladder16Unit,
+                StartingTruck.Ambulance16 => Ambulance16Unit,
+                StartingTruck.Supervisor16 => Supervisor16Unit,
+                _ => Engine16Unit,
+            };
+
+            var group = FindRoot(driven, Station16Group);
+
+            var unit = group.Find(unitName) ?? throw new InvalidOperationException(Station16Group + " has no " + unitName + ".");
+
+            if (request.Target == StartingTruck.Ladder16)
+            {
+                // The aerial rig of Ladder 07 moves to the Ladder 16 bay and takes the Station 16 unit's name.
+                ApplyLadder(request, unit, "Ladder 16");
+
+                unit.gameObject.SetActive(false);
+
+                return;
+            }
+
+            var model = unit.childCount > 0 ? unit.GetChild(0) : throw new InvalidOperationException(unitName + " has no model.");
+
+            var engineVisual = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
+
+            ParkEngine(driven);
+
+            driven.SetPositionAndRotation(unit.position, unit.rotation);
+
+            if (request.Target == StartingTruck.Engine16)
+            {
+                CopyMaterials(engineVisual, model);
+
+                SetProfile(driven, ApparatusProfile.EngineAs("Engine 16"));
+            }
+            else
+            {
+                engineVisual.gameObject.SetActive(false);
+
+                var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
+
+                var suburban = request.Target == StartingTruck.Supervisor16;
+
+                MoveBeacons(new BeaconMove(request.Apparatus, suburban ? SuvBeacon : AmbulanceBeacon));
+
+                oldVisual.gameObject.SetActive(false);
+
+                model.SetParent(driven, true);
+
+                SetProfile(driven, suburban ? SupervisorAs("Supervisor 16") : AmbulanceAs("Ambulance 16"));
+            }
+
+            unit.gameObject.SetActive(false);
+        }
+
         /// <summary>Gives the renderers of one model the materials of the same-named renderers of another (the other unit's livery and number).</summary>
         private static void CopyMaterials(Transform target, Transform source)
         {
@@ -258,7 +386,7 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>Engine to ladder: the engine is parked in its bay and the driven object takes the ladder bay and model.</summary>
-        private static void ApplyLadder(LoadoutRequest request)
+        private static void ApplyLadder(LoadoutRequest request, Transform? bay = null, string unitName = "")
         {
             var driven = request.Apparatus.transform;
 
@@ -271,7 +399,7 @@ namespace HTownSim.Runtime
             ParkEngine(driven);
 
             // The driven object moves to the ladder bay and becomes the ladder.
-            driven.SetPositionAndRotation(prop.position, prop.rotation);
+            driven.SetPositionAndRotation(bay != null ? bay.position : prop.position, bay != null ? bay.rotation : prop.rotation);
 
             source.gameObject.SetActive(false);
 
@@ -289,7 +417,7 @@ namespace HTownSim.Runtime
 
             prop.gameObject.SetActive(false);
 
-            SetProfile(driven, LadderValues);
+            SetProfile(driven, unitName.Length == 0 ? LadderValues : LadderAs(unitName));
         }
 
         /// <summary>Puts the beacon lights under a new LadderBeacons object on the driven object, at the apparatus's roof positions.</summary>
