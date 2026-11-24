@@ -106,3 +106,11 @@ road centre lines: one 16 m deck per carriageway line, 105 segments and about 7.
 `Assets/HTownSim/Data/US59.txt` from `Blender/HTown/data/htown_map.json` (only the south-western run; the Midtown-edge part is the existing
 deck). It is scenery: there are no ramps or frontage-road logic, the streets pass underneath, and it is not part of any neighborhood, so it
 survives neighborhood rebuilds. Re-run the pass to replace it.
+
+## Building footprints
+
+Buildings are boxes built from the 2018 LiDAR footprint bounds, which do not line up with the tax lots (in South Midtown 30% of the boxes reached
+more than a sidewalk's width past their own lot, the worst by 74 m, and many overlapped their neighbours). When any expansion or neighborhood is
+built (`_expanding`), each footprint box is first clamped to its lot's bounds (`FootprintSlack`, 0.5 m), then `ResolveFootprintOverlaps` moves the
+shared edge of any two overlapping boxes from different lots to the middle of the overlap, never making a box smaller than 3 m. Midtown's original,
+Blender-rebuilt buildings are not affected. This is a stop-gap until buildings use oriented footprint rectangles with their own angle.

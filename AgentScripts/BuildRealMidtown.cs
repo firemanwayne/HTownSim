@@ -55,6 +55,9 @@ public static class BuildRealMidtown
 
     private const float GroundMargin = 80f;
 
+    /// <summary>How far a building footprint may reach past its lot's bounds, in metres.</summary>
+    private const float FootprintSlack = 0.5f;
+
     private const float SidewalkWidth = 2.4f;
 
     private const float CurbTop = 0.2f;
@@ -1860,6 +1863,11 @@ public static class BuildRealMidtown
 
         var buildings = _parent;
 
+        if (_expanding)
+        {
+            ResolveFootprintOverlaps(parcels);
+        }
+
         var incident = chooseIncident ? ChooseIncidentParcel(parcels) : null;
 
         var index = _indexBase;
@@ -1973,11 +1981,32 @@ public static class BuildRealMidtown
 
         if (hasFootprint)
         {
-            width = box![2] - box[0];
+            // The footprint box can reach well past the lot (the 2018 footprints and the tax lots do not line up, and merged condo lots
+            // hold only one unit's outline). Keep the building on its own lot, so it never spills into the street or its neighbours.
+            var x0 = Mathf.Max(box![0], parcel.b[0] - FootprintSlack);
 
-            depth = box[3] - box[1];
+            var z0 = Mathf.Max(box[1], parcel.b[1] - FootprintSlack);
 
-            centre = new Vector2((box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f);
+            var x1 = Mathf.Min(box[2], parcel.b[2] + FootprintSlack);
+
+            var z1 = Mathf.Min(box[3], parcel.b[3] + FootprintSlack);
+
+            if (x1 - x0 < 3f || z1 - z0 < 3f)
+            {
+                x0 = box[0];
+
+                z0 = box[1];
+
+                x1 = box[2];
+
+                z1 = box[3];
+            }
+
+            width = x1 - x0;
+
+            depth = z1 - z0;
+
+            centre = new Vector2((x0 + x1) / 2f, (z0 + z1) / 2f);
         }
         else
         {
@@ -4627,6 +4656,89 @@ public static class BuildRealMidtown
             Piece("FreewayColumn", new Vector3(2.2f, DeckY - 0.6f, 2.2f), 0f, along, DeckY / 2f - 0.3f, _concrete, PrimitiveType.Cylinder, true);
 
             Piece("FreewayCapBeam", new Vector3(11f, 1.4f, 2.6f), 0f, along, DeckY - 0.9f, _concrete);
+        }
+    }
+
+    /// <summary>
+    /// Where the footprint boxes of two different lots overlap (boxes of rotated or L-shaped buildings, party walls), moves their shared
+    /// edge to the middle of the overlap along the axis with the smaller overlap, so neighbours touch instead of passing through each other.
+    /// Works on the parcels' footprint bounds in memory; a box is never made smaller than 3 m.
+    /// </summary>
+    private static void ResolveFootprintOverlaps(List<Parcel> parcels)
+    {
+        const float MinSize = 3f;
+
+        const float Tolerance = 0.3f;
+
+        var entries = new List<(Parcel Parcel, int Slot)>();
+
+        foreach (var parcel in parcels)
+        {
+            for (var i = 0; i + 3 < parcel.fb.Length; i += 4)
+            {
+                entries.Add((parcel, i));
+            }
+        }
+
+        entries.Sort((a, b) => a.Parcel.fb[a.Slot].CompareTo(b.Parcel.fb[b.Slot]));
+
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var a = entries[i];
+
+            var af = a.Parcel.fb;
+
+            for (var j = i + 1; j < entries.Count; j++)
+            {
+                var b = entries[j];
+
+                var bf = b.Parcel.fb;
+
+                if (bf[b.Slot] >= af[a.Slot + 2])
+                {
+                    break;
+                }
+
+                if (a.Parcel == b.Parcel)
+                {
+                    continue;
+                }
+
+                var width = Mathf.Min(af[a.Slot + 2], bf[b.Slot + 2]) - Mathf.Max(af[a.Slot], bf[b.Slot]);
+
+                var depth = Mathf.Min(af[a.Slot + 3], bf[b.Slot + 3]) - Mathf.Max(af[a.Slot + 1], bf[b.Slot + 1]);
+
+                if (width <= Tolerance || depth <= Tolerance)
+                {
+                    continue;
+                }
+
+                // Split along x (indices 0 and 2) when that overlap is the smaller one, else along z (1 and 3).
+                var low = width <= depth ? 0 : 1;
+
+                var high = low + 2;
+
+                var mid = (Mathf.Max(af[a.Slot + low], bf[b.Slot + low]) + Mathf.Min(af[a.Slot + high], bf[b.Slot + high])) / 2f;
+
+                var aFirst = af[a.Slot + low] + af[a.Slot + high] <= bf[b.Slot + low] + bf[b.Slot + high];
+
+                var first = aFirst ? af : bf;
+
+                var firstSlot = aFirst ? a.Slot : b.Slot;
+
+                var second = aFirst ? bf : af;
+
+                var secondSlot = aFirst ? b.Slot : a.Slot;
+
+                if (mid - first[firstSlot + low] < MinSize || second[secondSlot + high] - mid < MinSize)
+                {
+                    continue;
+                }
+
+                first[firstSlot + high] = mid;
+
+                second[secondSlot + low] = mid;
+            }
         }
     }
 }
