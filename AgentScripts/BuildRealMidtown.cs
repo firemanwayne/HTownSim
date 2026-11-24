@@ -24,14 +24,34 @@ public static class BuildRealMidtown
 
     private const string MaterialFolder = "Assets/HTownSim/Generated/";
 
-    /// <summary>Playable window in the scene frame (metres, station geocode at the origin).</summary>
-    private const float MinX = -520f;
+    private const string ExpandedDataPath = "Assets/HTownSim/Data/MidtownExpanded.txt";
 
-    private const float MaxX = 560f;
+    /// <summary>The original playable window in the scene frame (metres, station geocode at the origin).</summary>
+    private const float OldMinX = -520f;
 
-    private const float MinZ = -450f;
+    private const float OldMaxX = 560f;
 
-    private const float MaxZ = 620f;
+    private const float OldMinZ = -450f;
+
+    private const float OldMaxZ = 620f;
+
+    /// <summary>The expanded window: one block west of Louisiana St and four blocks north of Fire Station 8 (past Bell St).</summary>
+    private const float NewMinX = -845f;
+
+    private const float NewMaxX = 560f;
+
+    private const float NewMinZ = -450f;
+
+    private const float NewMaxZ = 1575f;
+
+    /// <summary>The window currently being built; <see cref="Build"/> uses the old one and <see cref="Expand"/> the new one.</summary>
+    private static float MinX = OldMinX;
+
+    private static float MaxX = OldMaxX;
+
+    private static float MinZ = OldMinZ;
+
+    private static float MaxZ = OldMaxZ;
 
     private const float GroundMargin = 80f;
 
@@ -102,6 +122,37 @@ public static class BuildRealMidtown
 
     private static RealData _data = null!;
 
+    /// <summary>True while <see cref="Expand"/> adds to the existing city instead of rebuilding it.</summary>
+    private static bool _expanding;
+
+    /// <summary>Suffix added to the sections created by an expansion so a rerun can remove them.</summary>
+    private static string _suffix = string.Empty;
+
+    /// <summary>Yaw of the street grid's own frame relative to the scene axes (radians); zero for the original city.</summary>
+    private static float _frameYaw;
+
+    private static Quaternion _yawRot = Quaternion.identity;
+
+    /// <summary>When set, <see cref="Make"/> turns each piece by the frame yaw (markings, crosswalks and signals follow the real streets).</summary>
+    private static bool _framed;
+
+    /// <summary>Added to building indexes during an expansion so names and random seeds do not repeat the original city's.</summary>
+    private static int _indexBase;
+
+    /// <summary>The current parcel's lot plus sidewalk outline, used to keep trees and lamps off the roadway.</summary>
+    private static List<Vector2>? _currentOuter;
+
+    /// <summary>The parcel that holds Fire Station 8, if the data has one.</summary>
+    private static Parcel? _station8Parcel;
+
+    private static Transform? _treeRoot;
+
+    private static Transform? _propRoot;
+
+    private static Transform? _parkedRoot;
+
+    private static readonly System.Random PlaceRandom = new System.Random(8008);
+
     private enum BuildingStyle
     {
         Glass,
@@ -119,6 +170,14 @@ public static class BuildRealMidtown
         public float w;
 
         public string name = string.Empty;
+
+        /// <summary>Street centre in the grid's own frame (NaN when the data has none, then <see cref="c"/> applies).</summary>
+        public float cl = float.NaN;
+
+        /// <summary>First and last coordinate along the street where it is paved and continuous (NaN when unknown).</summary>
+        public float e0 = float.NaN;
+
+        public float e1 = float.NaN;
     }
 
     public sealed class GridData
@@ -179,6 +238,10 @@ public static class BuildRealMidtown
         public float rotationDegrees;
 
         public StationData station = new StationData();
+
+        public StationData? station8;
+
+        public float frameYaw;
 
         public GridData grid = new GridData();
 
@@ -351,6 +414,8 @@ public static class BuildRealMidtown
 
         _data = Parse(File.ReadAllLines(DataPath));
 
+        ResetState();
+
         var existing = GameObject.Find(RootName);
 
         if (existing != null)
@@ -394,7 +459,7 @@ public static class BuildRealMidtown
 
         BuildParcelSlabs(window);
 
-        var incident = BuildBuildings(window);
+        var incident = BuildBuildings(window)!;
 
         FlushRoofs();
 
@@ -445,6 +510,850 @@ public static class BuildRealMidtown
     }
 
 
+    // ---------------------------------------------------------------- expansion
+
+    /// <summary>Compiles the script and reports the expansion window without changing anything.</summary>
+    public static string Check()
+    {
+        return "BuildRealMidtown compiled; expansion window x " + NewMinX + ".." + NewMaxX + ", z " + NewMinZ + ".." + NewMaxZ;
+    }
+
+    private const string ExpansionSuffix = "_Exp";
+
+    private const string TreeFolder = "Assets/SimplePoly City - Low Poly Assets/Prefab/Natures/";
+
+    private const string PropFolder = "Assets/POLYGON city pack/Prefabs/Props/";
+
+    private static readonly string[] TreeNames = { "Natures_Big Tree", "Natures_Cube Tree", "Natures_Fir Tree" };
+
+    /// <summary>How many of each street tree the original city has, so the new blocks get the same mix.</summary>
+    private static readonly float[] TreeWeights = { 1463f, 538f, 295f };
+
+    private static readonly string[] PropNames = { "Bin prefab", "Hydrant prefab", "Mail_box prefab", "parking meter prefab", "phone booth prefab", "Bench 2 prefab", "Bus stop prefab" };
+
+    private static readonly float[] PropWeights = { 44f, 56f, 15f, 38f, 6f, 22f, 8f };
+
+    private static GameObject?[] _treePrefabs = new GameObject?[0];
+
+    private static GameObject?[] _propPrefabs = new GameObject?[0];
+
+    private static List<GameObject> _parkedTemplates = new List<GameObject>();
+
+    /// <summary>Footprint centre of the Station 7 model relative to its root, used to drop a copy onto Station 8's lot.</summary>
+    private static readonly Vector3 StationModelCentre = new Vector3(4f, 0f, -67.63f);
+
+    private static void ResetState()
+    {
+        MinX = OldMinX;
+
+        MaxX = OldMaxX;
+
+        MinZ = OldMinZ;
+
+        MaxZ = OldMaxZ;
+
+        _expanding = false;
+
+        _suffix = string.Empty;
+
+        _frameYaw = 0f;
+
+        _yawRot = Quaternion.identity;
+
+        _framed = false;
+
+        _indexBase = 0;
+
+        _currentOuter = null;
+
+        _station8Parcel = null;
+
+        _treeRoot = null;
+
+        _propRoot = null;
+
+        _parkedRoot = null;
+    }
+
+    private static bool IsStationYard(Parcel parcel)
+    {
+        if (_station8Parcel != null && parcel == _station8Parcel)
+        {
+            return true;
+        }
+
+        return Vector2.Distance(new Vector2(parcel.c[0], parcel.c[1]), StationParcelCentre) < 4f;
+    }
+
+    private static bool InOldWindow(float x, float z)
+    {
+        return x >= OldMinX && x <= OldMaxX && z >= OldMinZ && z <= OldMaxZ;
+    }
+
+    /// <summary>True when the point lies on the current parcel's lot or sidewalk, so a tree or lamp there is not in the roadway.</summary>
+    private static bool OnSidewalk(Vector3 position)
+    {
+        return _currentOuter != null && PointInPolygon(_currentOuter, new Vector2(position.x, position.z));
+    }
+
+    private static int Pick(float[] weights)
+    {
+        var total = 0f;
+
+        foreach (var weight in weights)
+        {
+            total += weight;
+        }
+
+        var roll = (float)PlaceRandom.NextDouble() * total;
+
+        for (var i = 0; i < weights.Length; i++)
+        {
+            roll -= weights[i];
+
+            if (roll <= 0f)
+            {
+                return i;
+            }
+        }
+
+        return weights.Length - 1;
+    }
+
+    private static GameObject?[] LoadPrefabs(string folder, string[] names)
+    {
+        var result = new GameObject?[names.Length];
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            result[i] = AssetDatabase.LoadAssetAtPath<GameObject>(folder + names[i] + ".prefab");
+        }
+
+        return result;
+    }
+
+    /// <summary>Loads the tree and prop prefabs and finds one example of every parked-car model in the existing city.</summary>
+    private static void LoadPlacementAssets()
+    {
+        _treePrefabs = LoadPrefabs(TreeFolder, TreeNames);
+
+        _propPrefabs = LoadPrefabs(PropFolder, PropNames);
+
+        _parkedTemplates = new List<GameObject>();
+
+        var parked = GameObject.Find("ParkedCars");
+
+        if (parked == null)
+        {
+            return;
+        }
+
+        var seen = new HashSet<string>();
+
+        foreach (Transform car in parked.transform)
+        {
+            if (car.childCount == 0)
+            {
+                continue;
+            }
+
+            var model = car.GetChild(0).gameObject;
+
+            var source = PrefabUtility.GetCorrespondingObjectFromSource(model);
+
+            var key = source != null ? AssetDatabase.GetAssetPath(source) : model.name;
+
+            if (seen.Add(key))
+            {
+                _parkedTemplates.Add(car.gameObject);
+            }
+        }
+    }
+
+    private static void PlaceTree(Vector3 position)
+    {
+        if (_treeRoot == null || !OnSidewalk(position))
+        {
+            return;
+        }
+
+        var prefab = _treePrefabs[Pick(TreeWeights)];
+
+        if (prefab == null)
+        {
+            return;
+        }
+
+        var tree = (GameObject)PrefabUtility.InstantiatePrefab(prefab, _treeRoot);
+
+        tree.transform.SetPositionAndRotation(new Vector3(position.x, CurbTop + 0.01f, position.z), Quaternion.Euler(0f, (float)PlaceRandom.NextDouble() * 360f, 0f));
+
+        tree.transform.localScale = Vector3.one * (1.15f + (float)PlaceRandom.NextDouble() * 0.22f);
+    }
+
+    private static void PlaceProp(Vector3 edge, Vector3 facing)
+    {
+        if (_propRoot == null)
+        {
+            return;
+        }
+
+        var prefab = _propPrefabs[Pick(PropWeights)];
+
+        var along = new Vector3(facing.z, 0f, facing.x);
+
+        var position = edge + along * 2.5f;
+
+        if (prefab == null || !OnSidewalk(position))
+        {
+            return;
+        }
+
+        var prop = (GameObject)PrefabUtility.InstantiatePrefab(prefab, _propRoot);
+
+        prop.transform.SetPositionAndRotation(new Vector3(position.x, CurbTop, position.z), Quaternion.Euler(0f, 270f, 0f));
+    }
+
+    private static void PlaceParkedCar(Vector3 position)
+    {
+        if (_parkedRoot == null || _parkedTemplates.Count == 0)
+        {
+            return;
+        }
+
+        var template = _parkedTemplates[PlaceRandom.Next(_parkedTemplates.Count)];
+
+        var car = Object.Instantiate(template, _parkedRoot);
+
+        car.name = "ParkedCar";
+
+        var yaw = (PlaceRandom.NextDouble() < 0.5 ? 0f : 180f) + ((float)PlaceRandom.NextDouble() - 0.5f) * 3f;
+
+        car.transform.SetPositionAndRotation(new Vector3(position.x, 0.22f, position.z), Quaternion.Euler(0f, yaw, 0f));
+    }
+
+    /// <summary>
+    /// Adds the blocks west and north of the original window (one block west of Louisiana St, and four blocks north of Fire
+    /// Station 8) to the existing city without rebuilding it. New ground, lots, buildings, trees, props and parked cars go
+    /// into sections ending in _Exp; the street markings, crosswalks and signals are rebuilt for the whole window along the
+    /// real street frame; the bounds, dispatch sites and traffic are updated in place. Safe to run more than once.
+    /// </summary>
+    public static string Expand()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        if (!File.Exists(ExpandedDataPath))
+        {
+            return "Missing " + ExpandedDataPath + ". Run: EXPANDED=1 node AgentScripts/PrepareMidtownData.js";
+        }
+
+        var root = GameObject.Find(RootName);
+
+        if (root == null)
+        {
+            return "Build the city first (BuildRealMidtown.Build).";
+        }
+
+        try
+        {
+            return ExpandCity(root);
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string ExpandCity(GameObject root)
+    {
+        _data = Parse(File.ReadAllLines(ExpandedDataPath));
+
+        ResetState();
+
+        MinX = NewMinX;
+
+        MaxX = NewMaxX;
+
+        MinZ = NewMinZ;
+
+        MaxZ = NewMaxZ;
+
+        _expanding = true;
+
+        _suffix = ExpansionSuffix;
+
+        _frameYaw = _data.frameYaw * Mathf.Deg2Rad;
+
+        _yawRot = Quaternion.Euler(0f, _data.frameYaw, 0f);
+
+        _indexBase = 100000;
+
+        _root = root.transform;
+
+        RemoveExpansion(root.transform);
+
+        _wallIndex = 1000;
+
+        RoofSlabs.Clear();
+
+        EwRed.Clear();
+
+        EwAmber.Clear();
+
+        EwGreen.Clear();
+
+        NsRed.Clear();
+
+        NsAmber.Clear();
+
+        NsGreen.Clear();
+
+        LoadMaterials();
+
+        var added = new List<Parcel>();
+
+        foreach (var parcel in _data.parcels)
+        {
+            var x = parcel.c[0];
+
+            var z = parcel.c[1];
+
+            if (x >= MinX && x <= MaxX && z >= MinZ && z <= MaxZ && !InOldWindow(x, z))
+            {
+                added.Add(parcel);
+            }
+        }
+
+        _station8Parcel = FindStation8Parcel(added);
+
+        BuildExpansionGround();
+
+        BuildParcelSlabs(added);
+
+        _treeRoot = new GameObject("StreetTrees" + _suffix).transform;
+
+        _propRoot = new GameObject("StreetProps" + _suffix).transform;
+
+        _parkedRoot = new GameObject("ParkedCars" + _suffix).transform;
+
+        LoadPlacementAssets();
+
+        BuildBuildings(added, false);
+
+        FlushRoofs();
+
+        BuildRail();
+
+        BuildFreeway(OldMaxZ + GroundMargin);
+
+        // The markings, crosswalks, signals and skyline are rebuilt for the whole window, replacing the originals.
+        foreach (var name in new[] { "Markings", "Crosswalks", "Signals", "DowntownSkyline" })
+        {
+            var old = root.transform.Find(name);
+
+            if (old != null)
+            {
+                Object.DestroyImmediate(old.gameObject);
+            }
+        }
+
+        var keepSuffix = _suffix;
+
+        _suffix = string.Empty;
+
+        BuildMarkings();
+
+        BuildCrossings();
+
+        BuildSignals();
+
+        BuildSkyline();
+
+        _suffix = keepSuffix;
+
+        PlaceStation8();
+
+        UpdateBounds();
+
+        var sites = BuildExpansionSites(added);
+
+        UpdateDispatch(sites);
+
+        var axes = UpdateTraffic();
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        AssetDatabase.SaveAssets();
+
+        var station = _station8Parcel == null ? "no Station 8 lot found" : "Station 8 at " + _station8Parcel.n + " " + _station8Parcel.s;
+
+        return "Expanded to x " + MinX + ".." + MaxX + ", z " + MinZ + ".." + MaxZ + ": " + added.Count + " new parcels, " + _parkedRoot.childCount + " parked cars, " + _treeRoot.childCount + " trees, " + _propRoot.childCount + " props, " + sites.Count + " new fire sites, " + axes + "; " + station + ".";
+    }
+
+    /// <summary>Removes everything a previous expansion added so the pass can run again.</summary>
+    private static void RemoveExpansion(Transform root)
+    {
+        var doomed = new List<GameObject>();
+
+        foreach (Transform child in root)
+        {
+            if (child.name.EndsWith(ExpansionSuffix, StringComparison.Ordinal))
+            {
+                doomed.Add(child.gameObject);
+            }
+        }
+
+        foreach (var name in new[] { "StreetTrees", "StreetProps", "ParkedCars" })
+        {
+            var extra = GameObject.Find(name + ExpansionSuffix);
+
+            if (extra != null)
+            {
+                doomed.Add(extra);
+            }
+        }
+
+        var station = GameObject.Find("FireStation8");
+
+        if (station != null)
+        {
+            doomed.Add(station);
+        }
+
+        foreach (var go in doomed)
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    /// <summary>Finds the lot that holds Fire Station 8: by street address first, then the nearest lot to the geocode.</summary>
+    private static Parcel? FindStation8Parcel(List<Parcel> parcels)
+    {
+        var station = _data.station8;
+
+        if (station == null)
+        {
+            return null;
+        }
+
+        var space = station.address.IndexOf(' ');
+
+        var number = space > 0 ? station.address.Substring(0, space) : station.address;
+
+        var street = space > 0 ? station.address.Substring(space + 1) : string.Empty;
+
+        Parcel? best = null;
+
+        foreach (var parcel in parcels)
+        {
+            if (parcel.n == number && string.Equals(parcel.s, street, StringComparison.OrdinalIgnoreCase) && (best == null || parcel.a > best.a))
+            {
+                best = parcel;
+            }
+        }
+
+        if (best != null)
+        {
+            return best;
+        }
+
+        var bestDistance = 60f;
+
+        foreach (var parcel in parcels)
+        {
+            var distance = Vector2.Distance(new Vector2(parcel.c[0], parcel.c[1]), new Vector2(station.x, station.z));
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+
+                best = parcel;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Grass base and asphalt for the new area: the asphalt covers only the west and north strips so it never overlaps the existing roads.</summary>
+    private static void BuildExpansionGround()
+    {
+        Section("Ground", _root);
+
+        var width = MaxX - MinX;
+
+        var depth = MaxZ - MinZ;
+
+        var centre = new Vector3((MinX + MaxX) / 2f, 0f, (MinZ + MaxZ) / 2f);
+
+        // Just below the original base so the two never fight for the same pixels.
+        Make(new Spec("Ground", centre + new Vector3(0f, -0.32f, 0f), new Vector3(width + GroundMargin * 2f, 0.5f, depth + GroundMargin * 2f), _leaf, PrimitiveType.Cube, true));
+
+        var strips = new[]
+        {
+            new Rect(MinX, MinZ, OldMinX - MinX, MaxZ - MinZ),
+            new Rect(OldMinX, OldMaxZ, MaxX - OldMinX, MaxZ - OldMaxZ),
+        };
+
+        foreach (var strip in strips)
+        {
+            Make(new Spec("Streets", new Vector3(strip.center.x, 0f, strip.center.y), new Vector3(strip.width, RoadTop * 2f, strip.height), _asphalt, PrimitiveType.Cube, true));
+        }
+    }
+
+    /// <summary>Copies the Station 7 model onto Station 8's lot, turned to face the nearest street, and relabels it.</summary>
+    private static void PlaceStation8()
+    {
+        var parcel = _station8Parcel;
+
+        var source = GameObject.Find("Station07");
+
+        if (parcel == null || source == null)
+        {
+            return;
+        }
+
+        var clone = Object.Instantiate(source);
+
+        clone.name = "FireStation8";
+
+        var centre = new Vector2(parcel.c[0], parcel.c[1]);
+
+        var facing = FacingStreet(centre, 32f, 21f);
+
+        var rotation = Quaternion.Euler(0f, Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg, 0f);
+
+        clone.transform.SetPositionAndRotation(new Vector3(centre.x, 0f, centre.y) - rotation * StationModelCentre, rotation);
+
+        foreach (var light in clone.GetComponentsInChildren<Light>(true))
+        {
+            Object.DestroyImmediate(light.gameObject);
+        }
+
+        foreach (var text in clone.GetComponentsInChildren<TMP_Text>(true))
+        {
+            text.text = text.text.Replace('7', '8');
+        }
+    }
+
+    /// <summary>Moves the invisible walls out to the expanded window.</summary>
+    private static void UpdateBounds()
+    {
+        var bounds = _root.Find("WorldBounds");
+
+        if (bounds == null)
+        {
+            return;
+        }
+
+        const float Thickness = 6f;
+
+        const float Height = 40f;
+
+        const float Overshoot = 12f;
+
+        var width = MaxX - MinX;
+
+        var depth = MaxZ - MinZ;
+
+        var walls = new Dictionary<string, (Vector3 Position, Vector3 Size)>
+        {
+            { "WallWest", (new Vector3(MinX - Thickness / 2f, Height / 2f, (MinZ + MaxZ) / 2f), new Vector3(Thickness, Height, depth + Overshoot * 2f)) },
+            { "WallEast", (new Vector3(MaxX + Thickness / 2f, Height / 2f, (MinZ + MaxZ) / 2f), new Vector3(Thickness, Height, depth + Overshoot * 2f)) },
+            { "WallSouth", (new Vector3((MinX + MaxX) / 2f, Height / 2f, MinZ - Thickness / 2f), new Vector3(width + Overshoot * 2f, Height, Thickness)) },
+            { "WallNorth", (new Vector3((MinX + MaxX) / 2f, Height / 2f, MaxZ + Thickness / 2f), new Vector3(width + Overshoot * 2f, Height, Thickness)) },
+        };
+
+        foreach (var pair in walls)
+        {
+            var wall = bounds.Find(pair.Key);
+
+            if (wall == null)
+            {
+                continue;
+            }
+
+            wall.position = pair.Value.Position;
+
+            var box = wall.GetComponent<BoxCollider>();
+
+            if (box != null)
+            {
+                box.size = pair.Value.Size;
+            }
+        }
+    }
+
+    /// <summary>Marks storefronts in the new blocks as extra fire sites for free-roam calls.</summary>
+    private static List<(Transform Site, string Street)> BuildExpansionSites(List<Parcel> parcels)
+    {
+        Section("IncidentSites", _root);
+
+        var sites = new List<(Transform, string)>();
+
+        var chosen = new List<Vector2>();
+
+        var random = new System.Random(78);
+
+        var candidates = new List<Parcel>();
+
+        foreach (var parcel in parcels)
+        {
+            var inset = parcel.c[0] > MinX + 60f && parcel.c[0] < MaxX - 60f && parcel.c[1] > MinZ + 60f && parcel.c[1] < MaxZ - 60f;
+
+            if (inset && !IsStationYard(parcel) && (parcel.k == "F1" || parcel.k == "F2") && parcel.fb.Length >= 4 && parcel.f > 0 && Floors(parcel) <= 3 && parcel.a >= 150 && parcel.a <= 1600)
+            {
+                candidates.Add(parcel);
+            }
+        }
+
+        for (var i = candidates.Count - 1; i > 0; i--)
+        {
+            var j = random.Next(i + 1);
+
+            (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+        }
+
+        foreach (var parcel in candidates)
+        {
+            if (sites.Count >= 24)
+            {
+                break;
+            }
+
+            var here = new Vector2(parcel.c[0], parcel.c[1]);
+
+            var clear = true;
+
+            foreach (var other in chosen)
+            {
+                if (Vector2.Distance(here, other) < 55f)
+                {
+                    clear = false;
+
+                    break;
+                }
+            }
+
+            if (!clear)
+            {
+                continue;
+            }
+
+            var spec = Describe(parcel, true, 0)[0];
+
+            var go = new GameObject("Site " + parcel.n + " " + parcel.s);
+
+            go.transform.SetParent(_parent, false);
+
+            go.transform.SetPositionAndRotation(FacePoint(spec, 3f, 0.25f), Quaternion.LookRotation(-spec.Facing));
+
+            sites.Add((go.transform, parcel.n + " " + parcel.s));
+
+            chosen.Add(here);
+        }
+
+        var result = new List<(Transform Site, string Street)>();
+
+        foreach (var site in sites)
+        {
+            result.Add((site.Item1, site.Item2));
+        }
+
+        return result;
+    }
+
+    /// <summary>Appends the new fire sites to the engine's FireResponse and widens its playable bounds.</summary>
+    private static void UpdateDispatch(List<(Transform Site, string Street)> added)
+    {
+        var engine = GameObject.Find("Engine07");
+
+        var response = engine == null ? null : engine.GetComponent("FireResponse");
+
+        if (response == null)
+        {
+            return;
+        }
+
+        var serialized = new SerializedObject(response);
+
+        var siteProperty = serialized.FindProperty("_incidentSites");
+
+        var streetProperty = serialized.FindProperty("_incidentStreets");
+
+        var sites = new List<Object>();
+
+        var streets = new List<string>();
+
+        for (var i = 0; i < siteProperty.arraySize; i++)
+        {
+            var site = siteProperty.GetArrayElementAtIndex(i).objectReferenceValue;
+
+            if (site != null)
+            {
+                sites.Add(site);
+
+                streets.Add(i < streetProperty.arraySize ? streetProperty.GetArrayElementAtIndex(i).stringValue : string.Empty);
+            }
+        }
+
+        foreach (var site in added)
+        {
+            sites.Add(site.Site);
+
+            streets.Add(site.Street);
+        }
+
+        siteProperty.arraySize = sites.Count;
+
+        streetProperty.arraySize = sites.Count;
+
+        for (var i = 0; i < sites.Count; i++)
+        {
+            siteProperty.GetArrayElementAtIndex(i).objectReferenceValue = sites[i];
+
+            streetProperty.GetArrayElementAtIndex(i).stringValue = streets[i];
+        }
+
+        serialized.FindProperty("_boundsMin").vector2Value = new Vector2(MinX, MinZ);
+
+        serialized.FindProperty("_boundsMax").vector2Value = new Vector2(MaxX, MaxZ);
+
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    /// <summary>Rewires the traffic system to the expanded street grid (centres and extents in the street frame) and the rebuilt signals.</summary>
+    private static string UpdateTraffic()
+    {
+        var traffic = _root.Find("Traffic");
+
+        Component? system = null;
+
+        if (traffic != null)
+        {
+            foreach (var component in traffic.GetComponents<MonoBehaviour>())
+            {
+                if (component != null && component.GetType().Name == "TrafficSystem")
+                {
+                    system = component;
+                }
+            }
+        }
+
+        if (system == null)
+        {
+            return "no TrafficSystem found";
+        }
+
+        var serialized = new SerializedObject(system);
+
+        var nsCentre = new List<float>();
+
+        var nsWidth = new List<float>();
+
+        var nsOneWay = new List<bool>();
+
+        var nsMin = new List<float>();
+
+        var nsMax = new List<float>();
+
+        foreach (var axis in _data.grid.ns)
+        {
+            var c = AxisC(axis);
+
+            if (c > MinX + 25f && c < MaxX - 25f)
+            {
+                nsCentre.Add(c);
+
+                nsWidth.Add(axis.w);
+
+                nsOneWay.Add(IsOneWay(axis));
+
+                nsMin.Add(AxisStart(axis, MinZ) + 20f);
+
+                nsMax.Add(AxisEnd(axis, MaxZ) - 20f);
+            }
+        }
+
+        var ewCentre = new List<float>();
+
+        var ewWidth = new List<float>();
+
+        var ewOneWay = new List<bool>();
+
+        var ewMin = new List<float>();
+
+        var ewMax = new List<float>();
+
+        foreach (var axis in _data.grid.ew)
+        {
+            var c = AxisC(axis);
+
+            if (c > MinZ + 25f && c < MaxZ - 25f)
+            {
+                ewCentre.Add(c);
+
+                ewWidth.Add(axis.w);
+
+                ewOneWay.Add(false);
+
+                ewMin.Add(AxisStart(axis, MinX) + 20f);
+
+                ewMax.Add(AxisEnd(axis, MaxX) - 20f);
+            }
+        }
+
+        SetFloats(serialized, "_nsCentre", nsCentre);
+
+        SetFloats(serialized, "_nsWidth", nsWidth);
+
+        SetBools(serialized, "_nsOneWay", nsOneWay);
+
+        SetFloats(serialized, "_nsMin", nsMin);
+
+        SetFloats(serialized, "_nsMax", nsMax);
+
+        SetFloats(serialized, "_ewCentre", ewCentre);
+
+        SetFloats(serialized, "_ewWidth", ewWidth);
+
+        SetBools(serialized, "_ewOneWay", ewOneWay);
+
+        SetFloats(serialized, "_ewMin", ewMin);
+
+        SetFloats(serialized, "_ewMax", ewMax);
+
+        serialized.FindProperty("_frameYawDegrees").floatValue = _data.frameYaw;
+
+        serialized.FindProperty("_boundsMin").vector2Value = new Vector2(MinX, MinZ);
+
+        serialized.FindProperty("_boundsMax").vector2Value = new Vector2(MaxX, MaxZ);
+
+        var elgin = FindAxis(_data.grid.ew, "ELGIN ST");
+
+        serialized.FindProperty("_signalZ").floatValue = elgin == null ? 0f : AxisC(elgin);
+
+        SetObjects(serialized, "_ewRed", EwRed.ToArray());
+
+        SetObjects(serialized, "_ewAmber", EwAmber.ToArray());
+
+        SetObjects(serialized, "_ewGreen", EwGreen.ToArray());
+
+        SetObjects(serialized, "_nsRed", NsRed.ToArray());
+
+        SetObjects(serialized, "_nsAmber", NsAmber.ToArray());
+
+        SetObjects(serialized, "_nsGreen", NsGreen.ToArray());
+
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+
+        return nsCentre.Count + " north-south and " + ewCentre.Count + " east-west traffic streets";
+    }
+
     /// <summary>Parses the tab-separated file written by PrepareMidtownData.js.</summary>
     private static RealData Parse(string[] lines)
     {
@@ -481,8 +1390,27 @@ public static class BuildRealMidtown
 
                     break;
 
+                case "H":
+                    data.station8 = new StationData { x = F(f[2]), z = F(f[3]), address = f[4] };
+
+                    break;
+
+                case "Y":
+                    data.frameYaw = F(f[1]);
+
+                    break;
+
                 case "G":
                     var axis = new GridAxis { c = F(f[2]), w = F(f[3]), name = f[4] };
+
+                    if (f.Length > 7)
+                    {
+                        axis.cl = F(f[5]);
+
+                        axis.e0 = F(f[6]);
+
+                        axis.e1 = F(f[7]);
+                    }
 
                     (f[1] == "ns" ? ns : ew).Add(axis);
 
@@ -782,7 +1710,7 @@ public static class BuildRealMidtown
 
             var sidewalk = For(_concrete);
 
-            if (Vector2.Distance(new Vector2(parcel.c[0], parcel.c[1]), StationParcelCentre) < 4f)
+            if (IsStationYard(parcel))
             {
                 // The station lot is a paved yard just below curb height so the bay floor and apron sit on top of it.
                 sidewalk.AddTop(outer, StationYardTop);
@@ -853,15 +1781,15 @@ public static class BuildRealMidtown
     }
 
     /// <summary>Creates a building, lot detail or park for every parcel and returns the parcel chosen for the fire.</summary>
-    private static Parcel BuildBuildings(List<Parcel> parcels)
+    private static Parcel? BuildBuildings(List<Parcel> parcels, bool chooseIncident = true)
     {
         Section("Buildings", _root);
 
         var buildings = _parent;
 
-        var incident = ChooseIncidentParcel(parcels);
+        var incident = chooseIncident ? ChooseIncidentParcel(parcels) : null;
 
-        var index = 0;
+        var index = _indexBase;
 
         foreach (var parcel in parcels)
         {
@@ -869,9 +1797,14 @@ public static class BuildRealMidtown
 
             var centre = new Vector2(parcel.c[0], parcel.c[1]);
 
-            if (Vector2.Distance(centre, StationParcelCentre) < 4f)
+            if (IsStationYard(parcel))
             {
                 continue;
+            }
+
+            if (_expanding)
+            {
+                _currentOuter = Offset(ToCounterClockwise(ToPolygon(parcel.p)), SidewalkWidth);
             }
 
             if (IsPark(parcel))
@@ -1032,19 +1965,24 @@ public static class BuildRealMidtown
     /// <summary>Returns the axis direction from a building towards the nearest street of the real grid.</summary>
     private static Vector3 FacingStreet(Vector2 centre, float width, float depth)
     {
+        if (_frameYaw != 0f)
+        {
+            centre = ToFrame(centre.x, centre.y);
+        }
+
         var bestX = float.MaxValue;
 
         var signX = 1f;
 
         foreach (var axis in _data.grid.ns)
         {
-            var gap = Mathf.Abs(centre.x - axis.c) - axis.w / 2f - width / 2f;
+            var gap = Mathf.Abs(centre.x - AxisC(axis)) - axis.w / 2f - width / 2f;
 
             if (gap < bestX)
             {
                 bestX = gap;
 
-                signX = axis.c >= centre.x ? 1f : -1f;
+                signX = AxisC(axis) >= centre.x ? 1f : -1f;
             }
         }
 
@@ -1054,13 +1992,13 @@ public static class BuildRealMidtown
 
         foreach (var axis in _data.grid.ew)
         {
-            var gap = Mathf.Abs(centre.y - axis.c) - axis.w / 2f - depth / 2f;
+            var gap = Mathf.Abs(centre.y - AxisC(axis)) - axis.w / 2f - depth / 2f;
 
             if (gap < bestZ)
             {
                 bestZ = gap;
 
-                signZ = axis.c >= centre.y ? 1f : -1f;
+                signZ = AxisC(axis) >= centre.y ? 1f : -1f;
             }
         }
 
@@ -1138,6 +2076,11 @@ public static class BuildRealMidtown
         else if (index % 6 == 1)
         {
             Lamp(edge, spec.Facing);
+
+            if (_expanding)
+            {
+                PlaceProp(edge, spec.Facing);
+            }
         }
     }
 
@@ -1619,6 +2562,13 @@ public static class BuildRealMidtown
 
     private static void Car(Vector3 position, Material paint)
     {
+        if (_expanding)
+        {
+            PlaceParkedCar(position);
+
+            return;
+        }
+
         Make(new Spec("Car", position + new Vector3(0f, 0.65f, 0f), new Vector3(1.8f, 0.75f, 4.2f), paint, PrimitiveType.Cube, true));
 
         Make(new Spec("CarCabin", position + new Vector3(0f, 1.3f, -0.1f), new Vector3(1.6f, 0.6f, 2.2f), _glass));
@@ -1641,38 +2591,112 @@ public static class BuildRealMidtown
         }
     }
 
-    /// <summary>Paints centre lines on every street of the detected grid, leaving gaps at the intersections.</summary>
+    // ---------------------------------------------------------------- street frame
+
+    /// <summary>Street centre in the grid frame (the original data has no separate frame value).</summary>
+    private static float AxisC(GridAxis axis)
+    {
+        return float.IsNaN(axis.cl) ? axis.c : axis.cl;
+    }
+
+    /// <summary>First coordinate along a street where it is paved and continuous, limited to the window.</summary>
+    private static float AxisStart(GridAxis axis, float windowMin)
+    {
+        return float.IsNaN(axis.e0) ? windowMin : Mathf.Max(axis.e0, windowMin);
+    }
+
+    private static float AxisEnd(GridAxis axis, float windowMax)
+    {
+        return float.IsNaN(axis.e1) ? windowMax : Mathf.Min(axis.e1, windowMax);
+    }
+
+    private static bool IsOneWay(GridAxis axis)
+    {
+        return string.Equals(axis.name, "AUSTIN ST", StringComparison.OrdinalIgnoreCase) || string.Equals(axis.name, "LA BRANCH ST", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Turns a position in the street grid frame (u across the north-south streets, v along them) into a scene position.</summary>
+    private static Vector3 FromFrame(float u, float v, float y)
+    {
+        var sin = Mathf.Sin(_frameYaw);
+
+        var cos = Mathf.Cos(_frameYaw);
+
+        return new Vector3(u * cos + v * sin, y, -u * sin + v * cos);
+    }
+
+    /// <summary>The inverse of <see cref="FromFrame"/>.</summary>
+    private static Vector2 ToFrame(float x, float z)
+    {
+        var sin = Mathf.Sin(_frameYaw);
+
+        var cos = Mathf.Cos(_frameYaw);
+
+        return new Vector2(x * cos - z * sin, x * sin + z * cos);
+    }
+
+    /// <summary>The cross streets that really cross <paramref name="axis"/> (their paved run covers it).</summary>
+    private static GridAxis[] CrossingsOf(GridAxis axis, GridAxis[] others, float windowMin, float windowMax)
+    {
+        var list = new List<GridAxis>();
+
+        var c = AxisC(axis);
+
+        foreach (var other in others)
+        {
+            var oc = AxisC(other);
+
+            if (oc > windowMin && oc < windowMax && c >= AxisStart(other, float.MinValue) - 1f && c <= AxisEnd(other, float.MaxValue) + 1f)
+            {
+                list.Add(other);
+            }
+        }
+
+        return list.ToArray();
+    }
+
+    /// <summary>Paints centre lines on every street of the detected grid, leaving gaps at the intersections. Lines follow each street frame.</summary>
     private static void BuildMarkings()
     {
         Section("Markings", _root);
 
+        _framed = true;
+
         foreach (var axis in _data.grid.ns)
         {
-            if (axis.c < MinX + 5f || axis.c > MaxX - 5f)
+            var c = AxisC(axis);
+
+            if (c < MinX + 5f || c > MaxX - 5f)
             {
                 continue;
             }
 
-            var oneWay = axis.name == "AUSTIN ST" || axis.name == "LA BRANCH ST";
+            var crossings = CrossingsOf(axis, _data.grid.ew, MinZ, MaxZ);
 
-            foreach (var span in Spans(MinZ, MaxZ, _data.grid.ew))
+            foreach (var span in Spans(AxisStart(axis, MinZ), AxisEnd(axis, MaxZ), crossings))
             {
-                MarkStreet(axis, span, true, oneWay);
+                MarkStreet(c, span, true, IsOneWay(axis));
             }
         }
 
         foreach (var axis in _data.grid.ew)
         {
-            if (axis.c < MinZ + 5f || axis.c > MaxZ - 5f)
+            var c = AxisC(axis);
+
+            if (c < MinZ + 5f || c > MaxZ - 5f)
             {
                 continue;
             }
 
-            foreach (var span in Spans(MinX, MaxX, _data.grid.ns))
+            var crossings = CrossingsOf(axis, _data.grid.ns, MinX, MaxX);
+
+            foreach (var span in Spans(AxisStart(axis, MinX), AxisEnd(axis, MaxX), crossings))
             {
-                MarkStreet(axis, span, false, false);
+                MarkStreet(c, span, false, false);
             }
         }
+
+        _framed = false;
     }
 
     /// <summary>Returns the stretches between the crossing streets' road edges.</summary>
@@ -1682,16 +2706,20 @@ public static class BuildRealMidtown
 
         var start = from;
 
-        foreach (var crossing in crossings)
-        {
-            var edge = crossing.c - crossing.w / 2f;
+        var ordered = new List<GridAxis>(crossings);
 
-            if (edge > start && crossing.c <= to)
+        ordered.Sort((p, q) => AxisC(p).CompareTo(AxisC(q)));
+
+        foreach (var crossing in ordered)
+        {
+            var edge = AxisC(crossing) - crossing.w / 2f;
+
+            if (edge > start && AxisC(crossing) <= to)
             {
                 spans.Add(new Vector2(start, edge));
             }
 
-            start = Mathf.Max(start, crossing.c + crossing.w / 2f);
+            start = Mathf.Max(start, AxisC(crossing) + crossing.w / 2f);
         }
 
         if (to > start)
@@ -1702,7 +2730,7 @@ public static class BuildRealMidtown
         return spans;
     }
 
-    private static void MarkStreet(GridAxis axis, Vector2 span, bool alongZ, bool oneWay)
+    private static void MarkStreet(float axisC, Vector2 span, bool alongZ, bool oneWay)
     {
         var length = span.y - span.x;
 
@@ -1717,12 +2745,12 @@ public static class BuildRealMidtown
         {
             for (var along = span.x + 2f; along < span.y - 2f; along += 8f)
             {
-                Make(new Spec("LaneDash", At(axis.c, along, alongZ, MarkingY), Along(0.14f, 3f, alongZ), _white));
+                Make(new Spec("LaneDash", At(axisC, along, alongZ, MarkingY), Along(0.14f, 3f, alongZ), _white));
             }
 
             for (var along = span.x + 14f; along < span.y - 6f; along += 40f)
             {
-                Arrow(axis.c, along, alongZ);
+                Arrow(axisC, along, alongZ);
             }
 
             return;
@@ -1730,7 +2758,7 @@ public static class BuildRealMidtown
 
         foreach (var offset in new[] { -0.15f, 0.15f })
         {
-            Make(new Spec("CenterLine", At(axis.c + offset, centre, alongZ, MarkingY), Along(0.12f, length, alongZ), _yellow));
+            Make(new Spec("CenterLine", At(axisC + offset, centre, alongZ, MarkingY), Along(0.12f, length, alongZ), _yellow));
         }
     }
 
@@ -1742,14 +2770,14 @@ public static class BuildRealMidtown
         {
             var head = Make(new Spec("ArrowHead", At(axis + side * 0.49f, along + 0.81f, alongZ, MarkingY), Along(0.4f, 1.4f, alongZ), _white));
 
-            head.transform.rotation = Quaternion.Euler(0f, -side * 45f, 0f);
+            head.transform.rotation = (_framed ? _yawRot : Quaternion.identity) * Quaternion.Euler(0f, -side * 45f, 0f);
         }
     }
 
-    /// <summary>Position on a street: <paramref name="across"/> is the axis coordinate, <paramref name="along"/> runs down the street.</summary>
+    /// <summary>Position on a street: <paramref name="across"/> is the axis coordinate, <paramref name="along"/> runs down the street (grid frame).</summary>
     private static Vector3 At(float across, float along, bool alongZ, float y)
     {
-        return alongZ ? new Vector3(across, y, along) : new Vector3(along, y, across);
+        return alongZ ? FromFrame(across, along, y) : FromFrame(along, across, y);
     }
 
     private static Vector3 Along(float width, float length, bool alongZ)
@@ -1769,37 +2797,45 @@ public static class BuildRealMidtown
             return;
         }
 
+        _framed = true;
+
+        var ec = AxisC(elgin);
+
         foreach (var ns in _data.grid.ns)
         {
-            if (ns.c < MinX + 20f || ns.c > MaxX - 20f)
+            var nc = AxisC(ns);
+
+            if (nc < MinX + 20f || nc > MaxX - 20f || nc < AxisStart(elgin, float.MinValue) || nc > AxisEnd(elgin, float.MaxValue))
             {
                 continue;
             }
 
             foreach (var side in new[] { -1f, 1f })
             {
-                var xLeg = ns.c + side * (ns.w / 2f + 1.8f);
+                var xLeg = nc + side * (ns.w / 2f + 1.8f);
 
-                for (var z = elgin.c - (elgin.w / 2f - SidewalkWidth) + 0.8f; z <= elgin.c + (elgin.w / 2f - SidewalkWidth) - 0.6f; z += 1.6f)
+                for (var v = ec - (elgin.w / 2f - SidewalkWidth) + 0.8f; v <= ec + (elgin.w / 2f - SidewalkWidth) - 0.6f; v += 1.6f)
                 {
-                    Make(new Spec("Crosswalk", new Vector3(xLeg, MarkingY, z), new Vector3(3f, 0.02f, 0.8f), _white));
+                    Make(new Spec("Crosswalk", FromFrame(xLeg, v, MarkingY), new Vector3(3f, 0.02f, 0.8f), _white));
                 }
 
-                var zLeg = elgin.c + side * (elgin.w / 2f + 1.8f);
+                var zLeg = ec + side * (elgin.w / 2f + 1.8f);
 
-                for (var x = ns.c - (ns.w / 2f - SidewalkWidth) + 0.8f; x <= ns.c + (ns.w / 2f - SidewalkWidth) - 0.6f; x += 1.6f)
+                for (var u = nc - (ns.w / 2f - SidewalkWidth) + 0.8f; u <= nc + (ns.w / 2f - SidewalkWidth) - 0.6f; u += 1.6f)
                 {
-                    Make(new Spec("Crosswalk", new Vector3(x, MarkingY, zLeg), new Vector3(0.8f, 0.02f, 3f), _white));
+                    Make(new Spec("Crosswalk", FromFrame(u, zLeg, MarkingY), new Vector3(0.8f, 0.02f, 3f), _white));
                 }
             }
         }
+
+        _framed = false;
     }
 
     private static GridAxis? FindAxis(GridAxis[] axes, string name)
     {
         foreach (var axis in axes)
         {
-            if (axis.name == name)
+            if (string.Equals(axis.name, name, StringComparison.OrdinalIgnoreCase))
             {
                 return axis;
             }
@@ -1820,9 +2856,15 @@ public static class BuildRealMidtown
             return;
         }
 
+        _framed = true;
+
+        var ec = AxisC(elgin);
+
         foreach (var ns in _data.grid.ns)
         {
-            if (ns.c < MinX + 20f || ns.c > MaxX - 20f)
+            var nc = AxisC(ns);
+
+            if (nc < MinX + 20f || nc > MaxX - 20f || nc < AxisStart(elgin, float.MinValue) || nc > AxisEnd(elgin, float.MaxValue))
             {
                 continue;
             }
@@ -1831,23 +2873,31 @@ public static class BuildRealMidtown
 
             var hz = elgin.w / 2f - 1.2f;
 
-            Mast(new Vector3(ns.c - hx, 0f, elgin.c - hz), new Vector3(0f, 0f, hz * 2f));
+            Mast(new Vector3(nc - hx, 0f, ec - hz), new Vector3(0f, 0f, hz * 2f));
 
-            Mast(new Vector3(ns.c + hx, 0f, elgin.c + hz), new Vector3(0f, 0f, -hz * 2f));
+            Mast(new Vector3(nc + hx, 0f, ec + hz), new Vector3(0f, 0f, -hz * 2f));
 
-            Mast(new Vector3(ns.c + hx, 0f, elgin.c - hz), new Vector3(-hx * 2f, 0f, 0f));
+            Mast(new Vector3(nc + hx, 0f, ec - hz), new Vector3(-hx * 2f, 0f, 0f));
         }
+
+        _framed = false;
     }
 
+    /// <summary>Builds one mast arm. <paramref name="position"/> and <paramref name="arm"/> are in the street grid frame.</summary>
     private static void Mast(Vector3 position, Vector3 arm)
     {
         const float ArmY = 7.6f;
 
-        Make(new Spec("MastPole", position + Vector3.up * 4f, new Vector3(0.35f, 8f, 0.35f), _steel, PrimitiveType.Cylinder, true));
+        Vector3 W(Vector3 local)
+        {
+            return FromFrame(local.x, local.z, local.y);
+        }
+
+        Make(new Spec("MastPole", W(position + Vector3.up * 4f), new Vector3(0.35f, 8f, 0.35f), _steel, PrimitiveType.Cylinder, true));
 
         var alongX = Mathf.Abs(arm.x) > Mathf.Abs(arm.z);
 
-        Make(new Spec("MastArm", position + arm / 2f + Vector3.up * ArmY, new Vector3(Mathf.Abs(arm.x) + 0.25f, 0.25f, Mathf.Abs(arm.z) + 0.25f), _steel));
+        Make(new Spec("MastArm", W(position + arm / 2f + Vector3.up * ArmY), new Vector3(Mathf.Abs(arm.x) + 0.25f, 0.25f, Mathf.Abs(arm.z) + 0.25f), _steel));
 
         var faceOffset = alongX ? new Vector3(0f, 0f, 0.27f) : new Vector3(0.27f, 0f, 0f);
 
@@ -1857,15 +2907,15 @@ public static class BuildRealMidtown
         {
             var head = position + arm * fraction + Vector3.up * (ArmY - 0.9f);
 
-            Make(new Spec("SignalHead", head, new Vector3(0.5f, 1.4f, 0.5f), _dark));
+            Make(new Spec("SignalHead", W(head), new Vector3(0.5f, 1.4f, 0.5f), _dark));
 
             foreach (var sign in new[] { -1f, 1f })
             {
-                (alongX ? NsRed : EwRed).Add(Make(new Spec("SignalRed", head + Vector3.up * 0.45f + faceOffset * sign, lensScale, _lensRedOff)).GetComponent<Renderer>());
+                (alongX ? NsRed : EwRed).Add(Make(new Spec("SignalRed", W(head + Vector3.up * 0.45f + faceOffset * sign), lensScale, _lensRedOff)).GetComponent<Renderer>());
 
-                (alongX ? NsAmber : EwAmber).Add(Make(new Spec("SignalAmber", head + faceOffset * sign, lensScale, _lensAmberOff)).GetComponent<Renderer>());
+                (alongX ? NsAmber : EwAmber).Add(Make(new Spec("SignalAmber", W(head + faceOffset * sign), lensScale, _lensAmberOff)).GetComponent<Renderer>());
 
-                (alongX ? NsGreen : EwGreen).Add(Make(new Spec("SignalGreen", head + Vector3.down * 0.45f + faceOffset * sign, lensScale, _lensGreenOff)).GetComponent<Renderer>());
+                (alongX ? NsGreen : EwGreen).Add(Make(new Spec("SignalGreen", W(head + Vector3.down * 0.45f + faceOffset * sign), lensScale, _lensGreenOff)).GetComponent<Renderer>());
             }
         }
     }
@@ -1883,7 +2933,7 @@ public static class BuildRealMidtown
 
                 var b = new Vector3(path.p[i + 2], MarkingY, path.p[i + 3]);
 
-                if (a.x < MinX || a.x > MaxX || a.z < MinZ || a.z > MaxZ || Vector3.Distance(a, b) < 0.5f)
+                if (a.x < MinX || a.x > MaxX || a.z < MinZ || a.z > MaxZ || Vector3.Distance(a, b) < 0.5f || (_expanding && InOldWindow(a.x, a.z)))
                 {
                     continue;
                 }
@@ -1903,7 +2953,7 @@ public static class BuildRealMidtown
     }
 
     /// <summary>Builds a distant elevated freeway along the south-east edge, standing in for US 59 / I-45.</summary>
-    private static void BuildFreeway()
+    private static void BuildFreeway(float? southOverride = null)
     {
         Section("Freeway", _root);
 
@@ -1911,7 +2961,7 @@ public static class BuildRealMidtown
 
         const float DeckWidth = 34f;
 
-        var south = MinZ - GroundMargin;
+        var south = southOverride ?? MinZ - GroundMargin;
 
         var north = MaxZ + GroundMargin;
 
@@ -2469,6 +3519,13 @@ public static class BuildRealMidtown
 
     private static void Oak(Vector3 position)
     {
+        if (_expanding)
+        {
+            PlaceTree(position);
+
+            return;
+        }
+
         Make(new Spec("OakTrunk", position + Vector3.up * 2f, new Vector3(0.6f, 4f, 0.6f), _wood, PrimitiveType.Cylinder, true));
 
         Make(new Spec("OakCanopy", position + new Vector3(-1.2f, 4.6f, 0f), Vector3.one * 4.6f, _leaf, PrimitiveType.Sphere));
@@ -2480,6 +3537,11 @@ public static class BuildRealMidtown
 
     private static void Lamp(Vector3 position, Vector3 direction)
     {
+        if (_expanding && !OnSidewalk(position))
+        {
+            return;
+        }
+
         Make(new Spec("LampPost", position + Vector3.up * 3.5f, new Vector3(0.25f, 7f, 0.25f), _steel, PrimitiveType.Cylinder, true));
 
         var armScale = new Vector3(Mathf.Abs(direction.x) * 2.2f + 0.15f, 0.15f, Mathf.Abs(direction.z) * 2.2f + 0.15f);
@@ -2491,7 +3553,7 @@ public static class BuildRealMidtown
 
     private static void Section(string name, Transform parent)
     {
-        var go = new GameObject(name);
+        var go = new GameObject(parent == _root ? name + _suffix : name);
 
         go.transform.SetParent(parent, false);
 
@@ -2516,6 +3578,11 @@ public static class BuildRealMidtown
         }
 
         go.transform.localScale = scale;
+
+        if (_framed)
+        {
+            go.transform.rotation = _yawRot * go.transform.rotation;
+        }
 
         go.GetComponent<Renderer>().sharedMaterial = spec.Material;
 

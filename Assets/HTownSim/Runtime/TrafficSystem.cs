@@ -132,6 +132,18 @@ namespace HTownSim.Runtime
 
         [SerializeField] private bool[] _ewOneWay = new bool[0];
 
+        /// <summary>Optional first and last coordinate along each street where it is paved and continuous; empty means the whole bounds.</summary>
+        [SerializeField] private float[] _nsMin = new float[0];
+
+        [SerializeField] private float[] _nsMax = new float[0];
+
+        [SerializeField] private float[] _ewMin = new float[0];
+
+        [SerializeField] private float[] _ewMax = new float[0];
+
+        /// <summary>Yaw in degrees of the street grid's own frame relative to the world axes. Street centres and extents are in that frame.</summary>
+        [SerializeField] private float _frameYawDegrees;
+
         [SerializeField] private Vector2 _boundsMin;
 
         [SerializeField] private Vector2 _boundsMax;
@@ -324,9 +336,13 @@ namespace HTownSim.Runtime
         /// <summary>Builds the street model and the agent pools.</summary>
         private void Start()
         {
-            BuildAxes(_nsCentre, _nsWidth, _nsOneWay, true);
+            _frame = Quaternion.Euler(0f, _frameYawDegrees, 0f);
 
-            BuildAxes(_ewCentre, _ewWidth, _ewOneWay, false);
+            _frameInverse = Quaternion.Inverse(_frame);
+
+            BuildAxes(_nsCentre, _nsWidth, _nsOneWay, _nsMin, _nsMax, true);
+
+            BuildAxes(_ewCentre, _ewWidth, _ewOneWay, _ewMin, _ewMax, false);
 
             foreach (var axis in _axes)
             {
@@ -416,7 +432,7 @@ namespace HTownSim.Runtime
             }
         }
 
-        private void BuildAxes(float[] centres, float[] widths, bool[] oneWay, bool alongZ)
+        private void BuildAxes(float[] centres, float[] widths, bool[] oneWay, float[] mins, float[] maxs, bool alongZ)
         {
             for (var i = 0; i < centres.Length; i++)
             {
@@ -426,8 +442,8 @@ namespace HTownSim.Runtime
                     Fixed = centres[i],
                     HalfWidth = widths[i] / 2f,
                     OneWay = i < oneWay.Length && oneWay[i],
-                    Min = alongZ ? _boundsMin.y + 20f : _boundsMin.x + 20f,
-                    Max = alongZ ? _boundsMax.y - 20f : _boundsMax.x - 20f,
+                    Min = i < mins.Length ? mins[i] : alongZ ? _boundsMin.y + 20f : _boundsMin.x + 20f,
+                    Max = i < maxs.Length ? maxs[i] : alongZ ? _boundsMax.y - 20f : _boundsMax.x - 20f,
                 });
             }
         }
@@ -550,24 +566,37 @@ namespace HTownSim.Runtime
             return axis.AlongZ ? direction : -direction;
         }
 
+        /// <summary>Rotation from the street grid's frame to the world, and back (identity when the grid is aligned with the world axes).</summary>
+        private static Quaternion _frame = Quaternion.identity;
+
+        private static Quaternion _frameInverse = Quaternion.identity;
+
         private static Vector3 Heading(Axis axis, int direction)
         {
-            return axis.AlongZ ? new Vector3(0f, 0f, direction) : new Vector3(direction, 0f, 0f);
+            return _frame * (axis.AlongZ ? new Vector3(0f, 0f, direction) : new Vector3(direction, 0f, 0f));
         }
 
         private static Vector3 PointOn(Axis axis, float across, float along, float y)
         {
-            return axis.AlongZ ? new Vector3(across, y, along) : new Vector3(along, y, across);
+            var point = _frame * (axis.AlongZ ? new Vector3(across, 0f, along) : new Vector3(along, 0f, across));
+
+            point.y = y;
+
+            return point;
         }
 
         private static float AlongOf(Axis axis, Vector3 point)
         {
-            return axis.AlongZ ? point.z : point.x;
+            var local = _frameInverse * new Vector3(point.x, 0f, point.z);
+
+            return axis.AlongZ ? local.z : local.x;
         }
 
         private static float AcrossOf(Axis axis, Vector3 point)
         {
-            return axis.AlongZ ? point.x : point.z;
+            var local = _frameInverse * new Vector3(point.x, 0f, point.z);
+
+            return axis.AlongZ ? local.x : local.z;
         }
 
         private static bool NearCrossing(Axis axis, float along, float margin)

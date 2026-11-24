@@ -1,0 +1,62 @@
+{
+  "source": {
+    "objects": 2841,
+    "triangles": 190968
+  },
+  "lods": {
+    "0": {
+      "mesh_objects": 30,
+      "triangles": 190968
+    },
+    "1": {
+      "mesh_objects": 30,
+      "triangles": 67318
+    },
+    "2": {
+      "mesh_objects": 30,
+      "triangles": 19890
+    }
+  },
+  "controls": [
+    "Steering_deg",
+    "Wheel_travel_m",
+    "Aerial_azimuth_deg",
+    "Aerial_elevation_deg",
+    "Aerial_extension",
+    "Stabilizers",
+    "LOD"
+  ],
+  "rig_type": "Rigid hierarchical mechanical rig with property drivers; no deforming skin.",
+  "motion_checks": [
+    {
+      "extension": 0,
+      "elevation": 0,
+      "azimuth": 0,
+      "tip_world": [
+        -6.100000381469727,
+        0.0,
+        2.859999895095825
+      ]
+    },
+    {
+      "extension": 1,
+      "elevation": 55,
+      "azimuth": 28,
+      "tip_world": [
+        -12.556900978088379,
+        -9.165022850036621,
+        29.88888168334961
+      ]
+    },
+    {
+      "extension": 1,
+      "elevation": 80,
+      "azimuth": -90,
+      "tip_world": [
+        4.679999828338623,
+        6.438050270080566,
+        35.44898986816406
+      ]
+    }
+  ]
+}

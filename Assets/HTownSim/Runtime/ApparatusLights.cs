@@ -530,6 +530,16 @@ namespace HTownSim.Runtime
 
             for (var i = 0; i < _lenses.Length; i++)
             {
+                // Lenses of a model that is not the one being driven (e.g. the engine's while driving the ambulance) stay dark, with no glow.
+                if (!_lenses[i].gameObject.activeInHierarchy)
+                {
+                    _lit[i] = false;
+
+                    _haloRenderers[i].enabled = false;
+
+                    continue;
+                }
+
                 bool lit;
 
                 if (_signalSide[i] != 0)

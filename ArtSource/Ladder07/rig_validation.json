@@ -1,0 +1,7 @@
+{
+  "actual_mesh_motion": "passed",
+  "ackermann_steering": "passed",
+  "lod_visibility": "30 meshes per level, passed",
+  "driver_errors": [],
+  "deployment_action": "passed"
+}

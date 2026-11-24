@@ -16,6 +16,11 @@ namespace HTownSim.Runtime
         private const float SmokeRate = 15f;
         /// <summary>Particle caps sized for the intensified fire and smoke.</summary>
         private const int FlameParticleCap = 500;
+
+        /// <summary>Crackle is full volume within this distance and fades out smoothly to silence at the maximum, so a fire can be heard from blocks away.</summary>
+        private const float FireAudioMinDistance = 25f;
+
+        private const float FireAudioMaxDistance = 500f;
         private const int SmokeParticleCap = 900;
         /// <summary>Lateral offsets of the satellite fires from the main seat, in metres; each ignites at the matching growth threshold.</summary>
         private static readonly float[] SatelliteOffsets = { 4f, -4f, 8f, -8f };
@@ -181,6 +186,41 @@ namespace HTownSim.Runtime
 
                 system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
+
+            foreach (var source in fireObject.GetComponentsInChildren<AudioSource>(true))
+            {
+                source.Stop();
+
+                source.playOnAwake = false;
+
+                source.loop = true;
+
+                source.spatialBlend = 1f;
+
+                source.rolloffMode = AudioRolloffMode.Logarithmic;
+
+                source.minDistance = FireAudioMinDistance;
+
+                source.maxDistance = FireAudioMaxDistance;
+
+                source.dopplerLevel = 0f;
+            }
+        }
+
+        /// <summary>Starts or stops the crackle of an authored fire, so it only sounds while that fire burns.</summary>
+        private static void SetFireAudio(GameObject fireObject, bool on)
+        {
+            foreach (var source in fireObject.GetComponentsInChildren<AudioSource>(true))
+            {
+                if (on && !source.isPlaying)
+                {
+                    source.Play();
+                }
+                else if (!on && source.isPlaying)
+                {
+                    source.Stop();
+                }
+            }
         }
 
         private static bool IsSmoke(ParticleSystem system)
@@ -220,6 +260,8 @@ namespace HTownSim.Runtime
                 foreach (var satellite in _vfxSatellites)
                 {
                     satellite.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+                    SetFireAudio(satellite, false);
                 }
 
                 for (var i = 0; i < _vfxSatellites.Length; i++)
@@ -232,6 +274,8 @@ namespace HTownSim.Runtime
                 _vfxMain.GetComponent<ParticleSystem>().Clear(true);
 
                 _vfxMain.GetComponent<ParticleSystem>().Play(true);
+
+                SetFireAudio(_vfxMain, true);
             }
 
             Apply(1f);
@@ -264,9 +308,13 @@ namespace HTownSim.Runtime
             {
                 _vfxMain!.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmitting);
 
+                SetFireAudio(_vfxMain, false);
+
                 foreach (var satellite in _vfxSatellites)
                 {
                     satellite.GetComponent<ParticleSystem>().Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+                    SetFireAudio(satellite, false);
                 }
             }
 
@@ -362,6 +410,8 @@ namespace HTownSim.Runtime
                 {
                     system.Play(true);
                 }
+
+                SetFireAudio(_vfxSatellites[i], true);
             }
         }
 
@@ -369,6 +419,14 @@ namespace HTownSim.Runtime
         private void Scale(GameObject fireObject, float size, float heat, float growth01)
         {
             fireObject.transform.localScale = Vector3.one * size * Mathf.Lerp(VfxEmbersScale, 1f, heat);
+
+            foreach (var source in fireObject.GetComponentsInChildren<AudioSource>(true))
+            {
+                source.volume = Mathf.Lerp(0.2f, 1f, heat) * Mathf.Lerp(0.85f, 1f, growth01);
+
+                // Something on the authored prefab rescales the near distance as the fire grows, so hold it here.
+                source.minDistance = FireAudioMinDistance;
+            }
 
             var smokeBoost = Mathf.Lerp(VfxSmokeBoostMin, VfxSmokeBoostMax, growth01) * Mathf.Lerp(0.5f, 1f, heat);
 

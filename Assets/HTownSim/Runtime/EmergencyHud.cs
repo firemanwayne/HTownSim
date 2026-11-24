@@ -14,11 +14,12 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class EmergencyHud : MonoBehaviour
     {
-        private const float PanelWidth = 404f;
-        private const float PanelHeight = 168f;
-        private const float Margin = 22f;
-        private const float BottomMargin = 84f;
-        private const float Padding = 14f;
+        /// <summary>Panel size and placement (bottom right), shared with <see cref="AerialHud"/>, which takes this spot.</summary>
+        internal const float PanelWidth = 404f;
+        internal const float PanelHeight = 168f;
+        internal const float Margin = 22f;
+        internal const float BottomMargin = 84f;
+        internal const float Padding = 14f;
         private const float KeyWidth = 68f;
         private const float KeyHeight = 52f;
         private const float KeyGap = 8f;
@@ -34,18 +35,18 @@ namespace HTownSim.Runtime
         private const int RoundedRadius = 8;
         private const string Title = "SIREN CONTROL";
 
-        private static readonly Color Body = new Color(0.045f, 0.047f, 0.055f, 0.94f);
+        internal static readonly Color Body = new Color(0.045f, 0.047f, 0.055f, 0.94f);
         private static readonly Color FaceOff = new Color(0.9f, 0.93f, 0.97f, 0.7f);
         private static readonly Color FaceOn = new Color(0.04f, 0.045f, 0.05f, 0.97f);
-        private static readonly Color RimGreen = new Color(0.22f, 1f, 0.48f, 1f);
-        private static readonly Color RimRed = new Color(1f, 0.2f, 0.17f, 1f);
+        internal static readonly Color RimGreen = new Color(0.22f, 1f, 0.48f, 1f);
+        internal static readonly Color RimRed = new Color(1f, 0.2f, 0.17f, 1f);
         private static readonly Color TextOff = new Color(0.09f, 0.11f, 0.14f, 1f);
         private static readonly Color TextOn = Color.white;
         private static readonly Color HintOff = new Color(0.32f, 0.36f, 0.42f, 1f);
         private static readonly Color HintOn = new Color(0.62f, 0.68f, 0.74f, 1f);
-        private static readonly Color TextDim = new Color(0.72f, 0.78f, 0.85f, 1f);
-        private static readonly Color Accent = new Color(0.96f, 0.46f, 0.2f, 1f);
-        private static readonly Color LedOff = new Color(0.16f, 0.17f, 0.2f, 1f);
+        internal static readonly Color TextDim = new Color(0.72f, 0.78f, 0.85f, 1f);
+        internal static readonly Color Accent = new Color(0.96f, 0.46f, 0.2f, 1f);
+        internal static readonly Color LedOff = new Color(0.16f, 0.17f, 0.2f, 1f);
         private static readonly Color LedOn = new Color(1f, 0.55f, 0.18f, 1f);
 
         private readonly List<EmergencyButton> _buttons = new List<EmergencyButton>();
@@ -55,6 +56,9 @@ namespace HTownSim.Runtime
         private Sprite _rounded = null!;
         private TMP_Text _readout = null!;
         private EmergencyButton? _held;
+
+        /// <summary>The panel itself, so the aerial panel can take its place while the outriggers are set.</summary>
+        internal RectTransform Panel { get; private set; } = null!;
 
         /// <summary>Builds the panel as a child of the HUD canvas.</summary>
         internal void Initialize(FireResponse response, Canvas canvas)
@@ -66,6 +70,8 @@ namespace HTownSim.Runtime
             _rounded = CreateRoundedSprite();
 
             var panel = NewRect("EmergencyHud", canvas.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-Margin, BottomMargin), new Vector2(PanelWidth, PanelHeight));
+
+            Panel = panel;
 
             transform.SetParent(panel, false);
 
@@ -302,7 +308,7 @@ namespace HTownSim.Runtime
             return new EmergencyButton { Rect = rect, Face = face, Rim = rim, Glow = glow, Label = main, Hint = hint };
         }
 
-        private static RectTransform NewRect(string objectName, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 position, Vector2 size)
+        internal static RectTransform NewRect(string objectName, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 position, Vector2 size)
         {
             var rect = new GameObject(objectName, typeof(RectTransform)).GetComponent<RectTransform>();
 
@@ -321,7 +327,7 @@ namespace HTownSim.Runtime
             return rect;
         }
 
-        private static TMP_Text NewText(string objectName, RectTransform parent, string text, float size, Color color, TextAlignmentOptions alignment)
+        internal static TMP_Text NewText(string objectName, RectTransform parent, string text, float size, Color color, TextAlignmentOptions alignment)
         {
             var rect = NewRect(objectName, parent, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
@@ -342,7 +348,7 @@ namespace HTownSim.Runtime
             return label;
         }
 
-        private static void Place(RectTransform rect, Vector2 anchor, Vector2 position, Vector2 size)
+        internal static void Place(RectTransform rect, Vector2 anchor, Vector2 position, Vector2 size)
         {
             rect.anchorMin = anchor;
 
@@ -355,7 +361,7 @@ namespace HTownSim.Runtime
             rect.sizeDelta = size;
         }
 
-        private static void Stretch(RectTransform rect, Vector2 offsetMin, Vector2 offsetMax)
+        internal static void Stretch(RectTransform rect, Vector2 offsetMin, Vector2 offsetMax)
         {
             rect.anchorMin = Vector2.zero;
 
@@ -367,7 +373,7 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>A small white rounded-rectangle sprite with nine-slice borders, tinted by each Image.</summary>
-        private static Sprite CreateRoundedSprite()
+        internal static Sprite CreateRoundedSprite()
         {
             var texture = new Texture2D(RoundedSize, RoundedSize, TextureFormat.RGBA32, false) { name = "EmergencyHudRounded", wrapMode = TextureWrapMode.Clamp };
 

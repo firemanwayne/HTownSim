@@ -5,8 +5,8 @@ using UnityEngine.UI;
 namespace HTownSim.Runtime
 {
     /// <summary>
-    /// Arranges the left-hand HUD with layout groups: the key list on the far left, and beside it a stack with the incident
-    /// panel above the city map. A hidden panel is inactive, so the layout closes the gap and the others move up.
+    /// Arranges the left-hand HUD with layout groups: a stack with the incident panel above the city map on the far left, and
+    /// beside it the key list, which only shows while its key is held. A hidden panel is inactive, so the layout closes the gap and the others move up.
     /// </summary>
     internal static class HudLayout
     {
@@ -17,11 +17,11 @@ namespace HTownSim.Runtime
         private const float ColumnGap = 22f;
         private const float StackGap = 14f;
         private const float ControlsWidth = 345f;
-        private const float ControlsHeight = 372f;
+        private const float ControlsHeight = 522f;
         private const float IncidentWidth = 620f;
         private const float IncidentHeight = 295f;
         private const float MapWidth = 384f;
-        private const float MapHeight = 409f;
+        private const float MapHeight = 556f;
 
         /// <summary>Builds the container and stack, moves the HUD parts into them, and returns the incident group so it can be shown or hidden as one.</summary>
         internal static GameObject Build(HudLayoutParts parts)
@@ -42,7 +42,25 @@ namespace HTownSim.Runtime
 
             Configure(row, ColumnGap);
 
-            Fit(parts.Controls.rectTransform, container, ControlsWidth, ControlsHeight);
+            // The key list is shown only while its key is held, so it sits outside the row, beside the incident panel and map
+            // (which therefore take the far-left spot).
+            var controls = parts.Controls.rectTransform;
+
+            controls.SetParent(container, false);
+
+            var ignore = controls.GetComponent<LayoutElement>() ?? controls.gameObject.AddComponent<LayoutElement>();
+
+            ignore.ignoreLayout = true;
+
+            controls.anchorMin = new Vector2(0f, 1f);
+
+            controls.anchorMax = new Vector2(0f, 1f);
+
+            controls.pivot = new Vector2(0f, 1f);
+
+            controls.anchoredPosition = new Vector2(IncidentWidth + ColumnGap, 0f);
+
+            controls.sizeDelta = new Vector2(ControlsWidth, ControlsHeight);
 
             var stackRect = NewRect("HudStack", container);
 

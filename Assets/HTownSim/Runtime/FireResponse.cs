@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -15,6 +16,8 @@ namespace HTownSim.Runtime
         private const float DispatchSeconds = 180f;
         /// <summary>Maximum monitor reach in metres.</summary>
         private const float MonitorRange = 23f;
+        /// <summary>Reach of the aerial's master stream, measured from the ladder tip (fully raised and extended the tip can be 30+ m from a fire).</summary>
+        private const float AerialStreamRange = 50f;
         /// <summary>References authored by the scene builder.</summary>
         [SerializeField] private Transform _incident = null!;
         [SerializeField] private ParticleSystem _fire = null!;
@@ -58,6 +61,8 @@ namespace HTownSim.Runtime
         private const string DispatchPanelName = "DispatchPanel";
         private const string HeaderName = "HudLabel";
         private const string ControlsHintMarker = "WASD";
+        /// <summary>Start of the HUD title bar text; the unit name follows it.</summary>
+        private const string TitlePrefix = "H T O W N   /   ";
         private const string MapPanelName = "CityMapPanel";
         private const string HideLabelName = "InfoHideLabel";
         private const string HideLabelText = "I  HIDE";
@@ -66,17 +71,32 @@ namespace HTownSim.Runtime
         private const float ControlsLineSpacing = 6f;
         private const float ControlsKeyColumn = 142f;
         private const string ControlsKeyColor = "#FFAF52";
+        private const string WaterControl = "WATER";
+
+        /// <summary>The control list only shows while this key is held (it is off otherwise), and lists just what the driven vehicle has.</summary>
+        private const string ControlsKeyLabel = "TAB (HOLD)";
+
+        /// <summary>Keys of the aerial-ladder rows, listed only for an apparatus with an aerial (Ladder 07).</summary>
+        private static readonly string[] AerialControlKeys = { "4  5", "6  7", "UP  DOWN", "]  [", "LEFT  RIGHT" };
         private static readonly string[][] ControlsList =
         {
+            new[] { ControlsKeyLabel, "CONTROLS" },
             new[] { "WASD", "DRIVE" },
             new[] { "SPACE", "BRAKE" },
-            new[] { "E (HOLD)", "WATER" },
+            new[] { "E (HOLD)", WaterControl },
             new[] { "RMB + DRAG", "LOOK" },
+            new[] { "WHEEL", "ZOOM" },
             new[] { "Q", "STANDBY" },
             new[] { "1  2  3", "WAIL  YELP  PIER" },
             new[] { "T", "NEXT TONE" },
             new[] { "H (HOLD)", "HORN" },
             new[] { "L", "LIGHTS" },
+            new[] { "F", "SCENE LIGHTS" },
+            new[] { "4  5", "OUTRIGGERS OUT / IN" },
+            new[] { "6  7", "OUTRIGGERS DOWN / UP" },
+            new[] { "UP  DOWN", "LADDER RAISE / LOWER" },
+            new[] { "]  [", "LADDER EXTEND / RETRACT" },
+            new[] { "LEFT  RIGHT", "LADDER ROTATE" },
             new[] { "Z  X  C", "LEFT  HAZARD  RIGHT" },
             new[] { "ESC", "PAUSE" },
             new[] { "R", "RETURN TO STATION" },
@@ -88,6 +108,20 @@ namespace HTownSim.Runtime
         private int _firstSiteIndex;
         /// <summary>Cached vehicle collision and initial pose.</summary>
         private CharacterController _controller = null!;
+        /// <summary>The driven apparatus's fit-out: wheels, turning, camera distance, water origin, lights.</summary>
+        private ApparatusProfileValues _profile = ApparatusProfile.Engine;
+
+        /// <summary>The driven apparatus's fit-out, for the other apparatus components.</summary>
+        internal ApparatusProfileValues Profile => _profile;
+
+        /// <summary>The aerial, when the driven apparatus has one (Ladder 07); the truck holds still unless it is stowed.</summary>
+        private AerialController? _aerial;
+
+        /// <summary>True while the aerial's outriggers or ladder are moving, so the engine revs to drive the hydraulic pump.</summary>
+        internal bool AerialHydraulicsWorking => _aerial != null && _aerial.Working;
+
+        /// <summary>True while an aerial is set up (outriggers out or ladder raised), so the truck may not drive.</summary>
+        internal bool AerialDeployed => _aerial != null && !_aerial.Stowed;
         /// <summary>Traffic that reacts to collisions; registers itself at startup.</summary>
         internal TrafficSystem? Traffic { get; set; }
 
@@ -115,6 +149,9 @@ namespace HTownSim.Runtime
         private AudioClip? _hornClip;
         private int _tone;
         private GameObject? _incidentGroup;
+
+        /// <summary>The key list, shown only while the controls key is held.</summary>
+        private TMP_Text? _controlsText;
         private float[] _beaconPhase = new float[0];
         private bool _leftSignal;
         private bool _rightSignal;
@@ -130,6 +167,22 @@ namespace HTownSim.Runtime
         private const float OrbitSensitivity = 0.15f;
         private const float MinimumPitch = 12f;
         private const float MaximumPitch = 65f;
+        /// <summary>Mouse-wheel zoom as a multiple of the authored framing (15 m behind and above the truck): out to 4x
+        /// (about 61 m); in, the camera closes to <see cref="MinimumDistanceZoom"/> (about 6 m, still clear of the 9.4 m
+        /// truck) and below that the lens narrows instead (telephoto, down to half the field of view) so the camera never
+        /// ends up inside the engine. Each notch changes it by <see cref="ZoomPerNotch"/> (multiplicative, so every notch
+        /// feels the same near and far); the camera eases there at <see cref="ZoomEase"/>.</summary>
+        private const float MinimumZoom = 0.2f;
+        private const float MaximumZoom = 4f;
+        private const float MinimumDistanceZoom = 0.4f;
+        private const float ZoomPerNotch = 0.15f;
+        private const float ZoomEase = 12f;
+        private CinemachineCamera? _followCamera;
+        private float _defaultFieldOfView;
+        /// <summary>Raw wheel units per notch on Windows; newer Input System settings report about 1 per notch instead.</summary>
+        private const float WheelUnitsPerNotch = 120f;
+        private float _zoomTarget = 1f;
+        private float _zoom = 1f;
 
         /// <summary>Remaining normalized fire intensity.</summary>
         internal float Heat => _heat;
@@ -172,6 +225,9 @@ namespace HTownSim.Runtime
 
         private const string SirenFolder = "SirenAudio/";
         private const string HornResource = "Horn";
+        /// <summary>The synthesized air horn's start and hold-loop clips (ArtSource/Audio/make_air_horn.py).</summary>
+        private const string AirHornStartResource = "AirHornStart";
+        private const string AirHornLoopResource = "AirHornLoop";        private AirHorn? _airHorn;
         private const float SirenVolume = 0.55f;
         private const float HornVolume = 0.7f;
         private static readonly string[] ToneNames = { "WAIL", "YELP", "PHASER" };
@@ -181,6 +237,8 @@ namespace HTownSim.Runtime
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
+
+            _profile = ApparatusProfile.For(gameObject);
 
             _spread = gameObject.AddComponent<FireSpread>();
 
@@ -198,7 +256,11 @@ namespace HTownSim.Runtime
 
             _follow = FindAnyObjectByType<CinemachineFollow>();
 
-            _initialCameraOffset = _follow.FollowOffset;
+            _initialCameraOffset = _follow.FollowOffset * _profile.CameraDistanceScale;
+
+            _followCamera = _follow.GetComponent<CinemachineCamera>();
+
+            _defaultFieldOfView = _followCamera != null ? _followCamera.Lens.FieldOfView : 0f;
 
             ResetCamera();
 
@@ -275,6 +337,27 @@ namespace HTownSim.Runtime
 
             gameObject.AddComponent<EngineSound>().Initialize(this);
 
+            if (_profile.RearLamps)
+            {
+                gameObject.AddComponent<RearLamps>().Initialize(this);
+            }
+
+            gameObject.AddComponent<SceneLights>().Initialize(this);
+
+            _aerial = AerialController.Create(this);
+
+            var hudCanvas = _status.GetComponentInParent<Canvas>();
+
+            if (_aerial != null && hudCanvas != null)
+            {
+                new GameObject("AerialHudDriver").AddComponent<AerialHud>().Initialize(_aerial, hudCanvas, _emergencyHud);
+            }
+
+            if (_profile.FlashGroupA.Length + _profile.FlashGroupB.Length + _profile.SteadyLenses.Length > 0)
+            {
+                gameObject.AddComponent<LensFlasher>().Initialize(this, _profile);
+            }
+
             Invoke(nameof(PlayDispatch), 0.8f);
         }
 
@@ -285,9 +368,14 @@ namespace HTownSim.Runtime
 
             if (canvas != null)
             {
-                new GameObject("EmergencyHudDriver").AddComponent<EmergencyHud>().Initialize(this, canvas);
+                _emergencyHud = new GameObject("EmergencyHudDriver").AddComponent<EmergencyHud>();
+
+                _emergencyHud.Initialize(this, canvas);
             }
         }
+
+        /// <summary>The siren and light controller panel, which the aerial panel replaces while the outriggers are set.</summary>
+        private EmergencyHud? _emergencyHud;
 
         /// <summary>Loads the recorded wail, yelp, phaser and horn clips; any missing tone falls back to the synthesized wail.</summary>
         private void LoadSirenTones()
@@ -310,6 +398,19 @@ namespace HTownSim.Runtime
             _horn.spatialBlend = 0f;
 
             _horn.volume = HornVolume;
+
+            // The synthesized air horn (start + seamless loop + release), when its clips are present.
+            var airStart = Resources.Load<AudioClip>(SirenFolder + AirHornStartResource);
+
+            var airLoop = Resources.Load<AudioClip>(SirenFolder + AirHornLoopResource);
+
+            // Engine and ladder have the air horn; the ambulance (profile AirHorn off) keeps the original Horn.mp3 above, the electric horn.
+            if (_profile.AirHorn && airStart != null && airLoop != null)
+            {
+                _airHorn = gameObject.AddComponent<AirHorn>();
+
+                _airHorn.Initialize(airStart, airLoop, HornVolume);
+            }
 
             ApplyTone();
         }
@@ -355,7 +456,7 @@ namespace HTownSim.Runtime
         internal string ToneName => ToneNames[_tone];
 
         /// <summary>True while the electric horn is sounding.</summary>
-        internal bool HornSounding => _horn != null && _horn.isPlaying;
+        internal bool HornSounding => _airHorn != null ? _airHorn.Held : _horn != null && _horn.isPlaying;
 
         /// <summary>True while the emergency lights are on.</summary>
         internal bool LightsOn => _lightsEnabled;
@@ -380,17 +481,41 @@ namespace HTownSim.Runtime
             _lightsEnabled = !_lightsEnabled;
         }
 
-        /// <summary>Starts the electric horn on key down and stops it on key up, and never while paused, dispatching or after the fire is out.</summary>
+        /// <summary>True while the front scene lights are switched on (F key).</summary>
+        internal bool SceneLightsOn { get; private set; }
+
+        /// <summary>Toggles the front scene lights, as the F key does.</summary>
+        internal void ToggleSceneLights()
+        {
+            SceneLightsOn = !SceneLightsOn;
+        }
+
+        /// <summary>Sounds the horn while H (or the HUD's HORN key) is held, and never while paused, dispatching or after the fire is out.</summary>
         private void UpdateHorn(UnityEngine.InputSystem.Keyboard keyboard)
         {
+            var allowed = !_paused && !(_heat > 0f && _remaining <= 0f) && !DispatchPlaying;
+
+            var wanted = keyboard.hKey.isPressed || HornPointerDown;
+
+            // The air horn: blows while held, fades out when let go.
+            if (_airHorn != null)
+            {
+                if (wanted && allowed)
+                {
+                    _airHorn.Press();
+                }
+                else
+                {
+                    _airHorn.Release();
+                }
+
+                return;
+            }
+
             if (_horn == null || _hornClip == null)
             {
                 return;
             }
-
-            var allowed = !_paused && !(_heat > 0f && _remaining <= 0f) && !DispatchPlaying;
-
-            var wanted = keyboard.hKey.isPressed || HornPointerDown;
 
             if (wanted && allowed && !_horn.isPlaying)
             {
@@ -412,9 +537,20 @@ namespace HTownSim.Runtime
 
             foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(true))
             {
+                // The title bar names the unit being driven ("H T O W N   /   LADDER 07").
+                if (text.text.StartsWith(TitlePrefix))
+                {
+                    text.text = TitlePrefix + _profile.UnitName.ToUpperInvariant();
+                }
+            }
+
+            foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(true))
+            {
                 if (text.text.Contains(ControlsHintMarker))
                 {
-                    ArrangeControls(text);
+                    ArrangeControls(text, _profile.CanSprayWater, HasAerial());
+
+                    _controlsText = text;
 
                     controls = text;
 
@@ -442,17 +578,32 @@ namespace HTownSim.Runtime
                 HideLabel = hide,
                 Map = canvas.Find(MapPanelName),
             });
+
+            // Off until the key is held.
+            controls.enabled = false;
+        }
+
+        /// <summary>True when the driven model has an aerial ladder (a turntable under it).</summary>
+        private bool HasAerial()
+        {
+            foreach (var child in GetComponentsInChildren<Transform>(false))
+            {
+                if (child.name == "CTRL_Turntable")
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Turns the baked controls line into a vertical key list beside the map, with the keys picked out in colour.</summary>
-        private static void ArrangeControls(TMP_Text text)
+        private static void ArrangeControls(TMP_Text text, bool canSprayWater, bool hasAerial)
         {
-            var lines = new string[ControlsList.Length];
-
-            for (var i = 0; i < lines.Length; i++)
-            {
-                lines[i] = $"<color={ControlsKeyColor}>{ControlsList[i][0]}</color><pos={ControlsKeyColumn}>{ControlsList[i][1]}";
-            }
+            var lines = ControlsList
+                .Where(row => (canSprayWater || row[1] != WaterControl) && (hasAerial || System.Array.IndexOf(AerialControlKeys, row[0]) < 0))
+                .Select(row => $"<color={ControlsKeyColor}>{row[0]}</color><pos={ControlsKeyColumn}>{row[1]}")
+                .ToArray();
 
             text.text = string.Join("\n", lines);
 
@@ -521,6 +672,14 @@ namespace HTownSim.Runtime
         /// <summary>Plays the fire dispatch alert: the station ring recording first, then one single tone, six beeps. Falls back to the beeps alone when no ring is assigned.</summary>
         internal void PlayDispatch()
         {
+            // An EMS unit gets its own tone (no station ring): the two-tone high/low.
+            if (_profile.EmsAlert)
+            {
+                PlayEmsDispatch();
+
+                return;
+            }
+
             if (_dispatchRing == null)
             {
                 PlayAlert(_dispatchClip);
@@ -539,7 +698,7 @@ namespace HTownSim.Runtime
             PlayAlert(_dispatchClip);
         }
 
-        /// <summary>Plays the EMS dispatch alert: a two-tone high/low, eight of each. Ready for medical calls.</summary>
+        /// <summary>Plays the EMS dispatch alert: a two-tone high/low, eight of each, with no station ring. Used by EMS units (the ambulance).</summary>
         internal void PlayEmsDispatch()
         {
             PlayAlert(_emsClip);
@@ -627,6 +786,11 @@ namespace HTownSim.Runtime
                 SetIncidentInfoVisible(!_infoVisible);
             }
 
+            if (_controlsText != null)
+            {
+                _controlsText.enabled = keyboard.tabKey.isPressed;
+            }
+
             if (keyboard.qKey.wasPressedThisFrame)
             {
                 if (_sirenEnabled || _lightsEnabled)
@@ -693,6 +857,11 @@ namespace HTownSim.Runtime
                 ToggleLights();
             }
 
+            if (keyboard.fKey.wasPressedThisFrame)
+            {
+                ToggleSceneLights();
+            }
+
             _siren.mute = !_sirenEnabled || _paused || (_heat > 0f && _remaining <= 0f) || DispatchPlaying;
 
             _water.enabled = false;
@@ -703,14 +872,22 @@ namespace HTownSim.Runtime
 
                 var steering = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
 
-                Drive(new Vector2(steering, throttle), keyboard.spaceKey.isPressed);
+                // With the outriggers out or the ladder up the truck holds still (brakes on, no throttle or steering).
+                if (AerialDeployed)
+                {
+                    Drive(Vector2.zero, true);
+                }
+                else
+                {
+                    Drive(new Vector2(steering, throttle), keyboard.spaceKey.isPressed);
+                }
 
                 if (_heat > 0f)
                 {
                     _remaining = Mathf.Max(0f, _remaining - Time.deltaTime);
                 }
 
-                if (keyboard.eKey.isPressed && Mathf.Abs(_speed) < 0.8f)
+                if (_profile.CanSprayWater && keyboard.eKey.isPressed && Mathf.Abs(_speed) < 0.8f)
                 {
                     Suppress(Time.deltaTime);
                 }
@@ -751,11 +928,37 @@ namespace HTownSim.Runtime
 
             var distance = Vector3.Distance(transform.position, _incident.position);
 
-            _status.text = _paused ? "RESPONSE PAUSED\nESC to resume" : _heat > 0f && Time.time < _alertUntil ? $"NEW CALL!  FIRE / {_incidentLocation}\nCheck the map and respond." : _heat <= 0f ? "FIRE CONTAINED\nGood work, Engine 43.  Free roam: drive anywhere.  R to respond again." : _remaining <= 0f ? "RESPONSE TIME EXCEEDED\nR to retry the call." : distance > MonitorRange ? $"STRUCTURE FIRE\n{_incidentLocation}.  Approach the marked storefront." : "ON SCENE\nStop, then hold E to operate the water monitor.";
+            // The incident text names the unit dispatched (the apparatus being driven).
+            var unit = _profile.UnitName;
+
+            var unitUpper = unit.ToUpperInvariant();
+
+            _status.text = _paused
+                ? "RESPONSE PAUSED\nESC to resume"
+                : _heat > 0f && Time.time < _alertUntil
+                    ? $"NEW CALL!  FIRE / {_incidentLocation}\n{unitUpper} DISPATCHED.  Check the map and respond."
+                    : _heat <= 0f
+                        ? $"FIRE CONTAINED\nGood work, {unit}.  Free roam: drive anywhere.  R to respond again."
+                        : _remaining <= 0f
+                            ? $"RESPONSE TIME EXCEEDED\n{unit}: R to retry the call."
+                            : distance > MonitorRange
+                                ? $"STRUCTURE FIRE  /  {unitUpper} RESPONDING\n{_incidentLocation}.  Approach the marked storefront."
+                                : _profile.CanSprayWater
+                                    ? $"{unitUpper} ON SCENE\nStop, then hold E to operate the water monitor."
+                                    : $"{unitUpper} ON SCENE\nStage here for patient care; {unit} carries no water.";
 
             _telemetry.text = _heat <= 0f
                 ? $"{Mathf.Abs(_speed) * 2.237f:00} MPH     FREE ROAM\nFIRE OUT     NEXT CALL IN {Mathf.Max(0, Mathf.CeilToInt(RoamCallDelay - _roamClock)):00}s"
                 : $"{Mathf.Abs(_speed) * 2.237f:00} MPH     {distance:0} m TO INCIDENT\nFIRE {Mathf.CeilToInt(_heat * 100f):00}%     {Mathf.CeilToInt(_remaining):000}s REMAINING";
+
+            if (AerialDeployed)
+            {
+                var telemetry = _telemetry.text.Split('\n');
+
+                telemetry[0] = _aerial!.StatusLine;
+
+                _telemetry.text = string.Join("\n", telemetry);
+            }
 
             if (!_paused && NearEdge())
             {
@@ -864,10 +1067,22 @@ namespace HTownSim.Runtime
             _spread.Ignite(_incident);
         }
 
-        /// <summary>Orbits only while the right mouse button is held.</summary>
+        /// <summary>Zooms with the mouse wheel at any time; orbits only while the right mouse button is held.</summary>
         private void UpdateCamera()
         {
             var mouse = Mouse.current;
+
+            if (mouse is not null && Application.isFocused)
+            {
+                var wheel = mouse.scroll.ReadValue().y;
+
+                if (wheel != 0f)
+                {
+                    ZoomCamera(Mathf.Abs(wheel) >= 10f ? wheel / WheelUnitsPerNotch : wheel);
+                }
+            }
+
+            EaseZoom();
 
             if (mouse is null || !mouse.rightButton.isPressed || !Application.isFocused)
             {
@@ -892,17 +1107,72 @@ namespace HTownSim.Runtime
 
             _orbitPitch = Mathf.Clamp(_orbitPitch - delta.y * OrbitSensitivity, MinimumPitch, MaximumPitch);
 
-            _follow.FollowOffset = Quaternion.Euler(_orbitPitch, _orbitYaw, 0f) * Vector3.back * _initialCameraOffset.magnitude;
+            ApplyCameraOffset();
         }
 
-        /// <summary>Restores the departure camera framing.</summary>
+        /// <summary>Moves the zoom target by wheel notches (positive = scroll up = closer).</summary>
+        internal void ZoomCamera(float notches)
+        {
+            _zoomTarget = Mathf.Clamp(_zoomTarget * Mathf.Pow(1f - ZoomPerNotch, notches), MinimumZoom, MaximumZoom);
+        }
+
+        /// <summary>Camera distance as a multiple of the authored one, after easing (1 = default framing).</summary>
+        internal float CameraZoom => _zoom;
+
+        /// <summary>Eases the camera distance towards the zoom target (unscaled time, so it also works while paused).</summary>
+        private void EaseZoom()
+        {
+            if (Mathf.Approximately(_zoom, _zoomTarget))
+            {
+                return;
+            }
+
+            _zoom = Mathf.Abs(_zoom - _zoomTarget) < 0.001f ? _zoomTarget : Mathf.Lerp(_zoom, _zoomTarget, 1f - Mathf.Exp(-ZoomEase * Time.unscaledDeltaTime));
+
+            ApplyCameraOffset();
+        }
+
+        /// <summary>Places the follow camera from the orbit angles and the current zoom: distance down to
+        /// <see cref="MinimumDistanceZoom"/>, then a narrower lens for the rest of the way in.</summary>
+        private void ApplyCameraOffset()
+        {
+            var distanceZoom = Mathf.Max(_zoom, MinimumDistanceZoom);
+
+            _follow.FollowOffset = Quaternion.Euler(_orbitPitch, _orbitYaw, 0f) * Vector3.back * (_initialCameraOffset.magnitude * distanceZoom);
+
+            // Below the closest distance the field of view shrinks in proportion: zoom 0.2 = half the authored angle.
+            SetFieldOfView(_defaultFieldOfView * _zoom / MinimumDistanceZoom, _zoom < MinimumDistanceZoom);
+        }
+
+        /// <summary>Applies the telephoto part of the zoom (or restores the authored field of view).</summary>
+        private void SetFieldOfView(float telephoto, bool zoomedPast)
+        {
+            if (_followCamera == null || _defaultFieldOfView <= 0f)
+            {
+                return;
+            }
+
+            var lens = _followCamera.Lens;
+
+            lens.FieldOfView = zoomedPast ? Mathf.Max(telephoto, _defaultFieldOfView * MinimumZoom / MinimumDistanceZoom) : _defaultFieldOfView;
+
+            _followCamera.Lens = lens;
+        }
+
+        /// <summary>Restores the departure camera framing, zoom included.</summary>
         private void ResetCamera()
         {
             _orbitYaw = 0f;
 
             _orbitPitch = Mathf.Atan2(_initialCameraOffset.y, -_initialCameraOffset.z) * Mathf.Rad2Deg;
 
+            _zoom = 1f;
+
+            _zoomTarget = 1f;
+
             _follow.FollowOffset = _initialCameraOffset;
+
+            SetFieldOfView(_defaultFieldOfView, false);
         }
 
         /// <summary>Restores the pointer after orbiting or losing focus.</summary>
@@ -933,11 +1203,20 @@ namespace HTownSim.Runtime
 
             BrakeInput = braking;
 
-            var target = braking ? 0f : input.y * (input.y >= 0f ? 13f : 5f);
+            var target = braking ? 0f : input.y * (input.y >= 0f ? TopSpeed : ReverseSpeed);
 
-            _speed = Mathf.MoveTowards(_speed, target, (braking ? 20f : 6f) * Time.deltaTime);
+            var accelerating = !braking && Mathf.Abs(target) > Mathf.Abs(_speed) && Mathf.Sign(target) == Mathf.Sign(_speed == 0f ? target : _speed);
 
-            transform.Rotate(0f, input.x * _speed * 4f * Time.deltaTime, 0f);
+            _speed = Mathf.MoveTowards(_speed, target, (braking ? 22f : accelerating ? Acceleration : 9f) * Time.deltaTime);
+
+            // The throttle opposing the direction of travel acts as a brake; the rear lights and brake sounds follow it.
+            BrakeLightsOn = braking ? Mathf.Abs(_speed) > 0.2f : (input.y < -0.1f && _speed > 0.5f) || (input.y > 0.1f && _speed < -0.5f);
+
+            ReverseEngaged = !braking && (_speed < -0.1f || (input.y < -0.1f && _speed < 0.5f));
+
+            var steerScale = 1f / (1f + Mathf.Max(0f, Mathf.Abs(_speed) - SteerEaseSpeed) * SteerEaseRate);
+
+            transform.Rotate(0f, input.x * _speed * _profile.TurnRate * steerScale * Time.deltaTime, 0f);
 
             var impactSpeed = _speed;
 
@@ -976,6 +1255,23 @@ namespace HTownSim.Runtime
         /// <summary>The driver's throttle this frame, -1 (reverse) to 1 (forward), for the engine sound.</summary>
         internal float ThrottleInput { get; private set; }
 
+        /// <summary>Top forward speed and reverse speed in metres per second, how fast the engine picks up speed, and how steering eases off above <see cref="SteerEaseSpeed"/>.</summary>
+        private const float TopSpeed = 22f;
+
+        private const float ReverseSpeed = 6f;
+
+        private const float Acceleration = 8.5f;
+
+        private const float SteerEaseSpeed = 10f;
+
+        private const float SteerEaseRate = 0.09f;
+
+        /// <summary>True while the brake lights should show: braking, or the throttle held against the direction of travel.</summary>
+        internal bool BrakeLightsOn { get; private set; }
+
+        /// <summary>True while the engine is in reverse, for the white reverse lights and the backing alarm.</summary>
+        internal bool ReverseEngaged { get; private set; }
+
         /// <summary>True while the driver is braking, for the engine sound.</summary>
         internal bool BrakeInput { get; private set; }
 
@@ -991,11 +1287,17 @@ namespace HTownSim.Runtime
         /// <summary>Applies water only within reach and with a clear line to the incident.</summary>
         internal void Suppress(float seconds)
         {
-            var origin = transform.TransformPoint(new Vector3(0f, 3.15f, 0.98f));
+            // From the ladder tip while the ladder is up (an aerial master stream, with its longer reach), otherwise from
+            // the apparatus's monitor. Raising and extending the ladder can put the tip well over 23 m from the fire.
+            var aerialStream = _aerial != null && _aerial.LadderUp;
+
+            var origin = aerialStream ? _aerial!.TipWorld : transform.TransformPoint(_profile.WaterOrigin);
+
+            var reach = aerialStream ? AerialStreamRange : MonitorRange;
 
             var offset = _incident.position - origin;
 
-            if (_paused || _remaining <= 0f || _heat <= 0f || offset.magnitude > MonitorRange || Mathf.Abs(_speed) >= 0.8f)
+            if (!_profile.CanSprayWater || _paused || _remaining <= 0f || _heat <= 0f || offset.magnitude > reach || Mathf.Abs(_speed) >= 0.8f)
             {
                 return;
             }
@@ -1047,6 +1349,10 @@ namespace HTownSim.Runtime
 
             _lightsEnabled = false;
 
+            SceneLightsOn = false;
+
+            _aerial?.ResetStowed();
+
             _leftSignal = false;
 
             _rightSignal = false;
@@ -1059,6 +1365,8 @@ namespace HTownSim.Runtime
             {
                 _horn.Stop();
             }
+
+            _airHorn?.StopNow();
 
             foreach (var beacon in _beacons)
             {

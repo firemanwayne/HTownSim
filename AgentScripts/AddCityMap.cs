@@ -20,15 +20,17 @@ public static class AddCityMap
 {
     private const string PanelName = "CityMapPanel";
 
-    private const float WorldMinX = -520f;
+    private const string ExpandedData = "Assets/HTownSim/Data/MidtownExpanded.txt";
+
+    private const float WorldMinX = -845f;
 
     private const float WorldMinZ = -450f;
 
-    private const float WorldWidth = 1080f;
+    private const float WorldWidth = 1405f;
 
-    private const float WorldDepth = 1070f;
+    private const float WorldDepth = 2025f;
 
-    private const float MapWidthPixels = 360f;
+    private const float MapWidthPixels = 350f;
 
     private const float PanelPadding = 12f;
 
@@ -38,7 +40,7 @@ public static class AddCityMap
 
     private const float PanelTop = 345f;
 
-    private const float CameraHeight = 250f;
+    private const float CameraHeight = 320f;
 
     private const int UiLayer = 5;
 
@@ -85,6 +87,8 @@ public static class AddCityMap
         var stationMarker = CreateMarker(mapRect, ("StationMarker", new Vector2(12f, 12f), "E6D7B7"));
 
         AddMapLabel(mapRect, ("STN 7", ToMap(StationPosition, mapHeight) + new Vector2(24f, 0f), 0f, 12));
+
+        AddStation8(mapRect, mapHeight);
 
         var incidentMarker = CreateMarker(mapRect, ("IncidentMarker", new Vector2(16f, 16f), "FF5A3C"));
 
@@ -168,7 +172,7 @@ public static class AddCityMap
 
         camera.nearClipPlane = 0.3f;
 
-        camera.farClipPlane = 400f;
+        camera.farClipPlane = 520f;
 
         camera.clearFlags = CameraClearFlags.SolidColor;
 
@@ -267,7 +271,7 @@ public static class AddCityMap
         return image;
     }
 
-    /// <summary>Adds the Midtown street-name labels over the map.</summary>
+    /// <summary>Adds the street-name labels over the map, placing each along its street in the grid frame.</summary>
     private static void AddStreetLabels(RectTransform mapRect, float mapHeight)
     {
         var labels = new List<(string, Vector3, float)>();
@@ -276,29 +280,73 @@ public static class AddCityMap
 
         var eastWest = 0;
 
-        foreach (var line in File.ReadAllLines("Assets/HTownSim/Data/MidtownReal.txt"))
+        var yaw = 0f;
+
+        var lines = File.ReadAllLines(ExpandedData);
+
+        foreach (var line in lines)
         {
-            var f = line.Split('\t');
+            var f = line.Split('	');
+
+            if (f[0] == "Y")
+            {
+                yaw = float.Parse(f[1], System.Globalization.CultureInfo.InvariantCulture) * Mathf.Deg2Rad;
+            }
+        }
+
+        Vector3 FromFrame(float u, float v)
+        {
+            return new Vector3(u * Mathf.Cos(yaw) + v * Mathf.Sin(yaw), 0f, -u * Mathf.Sin(yaw) + v * Mathf.Cos(yaw));
+        }
+
+        foreach (var line in lines)
+        {
+            var f = line.Split('	');
 
             if (f[0] != "G")
             {
                 continue;
             }
 
-            var centre = float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture);
+            var centre = float.Parse(f.Length > 5 ? f[5] : f[2], System.Globalization.CultureInfo.InvariantCulture);
+
+            var name = f[4].ToUpperInvariant();
 
             if (f[1] == "ns" && centre > WorldMinX + 10f && centre < WorldMinX + WorldWidth - 10f)
             {
-                labels.Add((f[4], new Vector3(centre, 0f, WorldMinZ + 90f + (northSouth++ % 3) * 200f), 90f));
+                labels.Add((name, FromFrame(centre, WorldMinZ + 120f + (northSouth++ % 5) * 380f), 90f));
             }
             else if (f[1] == "ew" && centre > WorldMinZ + 10f && centre < WorldMinZ + WorldDepth - 10f)
             {
-                labels.Add((f[4], new Vector3(WorldMinX + 110f + (eastWest++ % 3) * 220f, 0f, centre), 0f));
+                labels.Add((name, FromFrame(WorldMinX + 120f + (eastWest++ % 4) * 330f, centre), 0f));
             }
         }
+
         foreach (var label in labels)
         {
             AddMapLabel(mapRect, (label.Item1, ToMap(label.Item2, mapHeight), label.Item3, 12));
+        }
+    }
+
+    /// <summary>Marks Fire Station 8 on the map with a small square and a label.</summary>
+    private static void AddStation8(RectTransform mapRect, float mapHeight)
+    {
+        foreach (var line in File.ReadAllLines(ExpandedData))
+        {
+            var f = line.Split('	');
+
+            if (f[0] != "H")
+            {
+                continue;
+            }
+
+            var position = ToMap(new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), 0f, float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture)), mapHeight);
+
+            var marker = CreateMarker(mapRect, ("Station8Marker", new Vector2(12f, 12f), "E6D7B7"));
+
+            marker.rectTransform.anchoredPosition = position;
+
+            AddMapLabel(mapRect, ("STN 8", position + new Vector2(24f, 0f), 0f, 12));
         }
     }
 

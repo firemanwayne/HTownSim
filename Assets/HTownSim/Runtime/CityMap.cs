@@ -10,8 +10,9 @@ namespace HTownSim.Runtime
 {
     /// <summary>
     /// Shows a map of the city on the left side of the HUD while the third-person camera is live.
-    /// A top-down orthographic camera renders the static city into a texture once; the engine, the incident
-    /// and the station are live UI markers drawn over it.
+    /// With <see cref="_staticMap"/> assigned (the pre-rendered Blender map) that image is shown as is; otherwise a
+    /// top-down orthographic camera renders the static city into a texture once. Either way the engine, the
+    /// incident and the station are live UI markers drawn over it.
     /// </summary>
     internal sealed class CityMap : MonoBehaviour
     {
@@ -72,6 +73,12 @@ namespace HTownSim.Runtime
         /// <summary>World X and Z extent covered by the map.</summary>
         [SerializeField] private Vector2 _worldSize;
 
+        /// <summary>
+        /// Optional pre-rendered map covering exactly <see cref="_worldMin"/> to <see cref="_worldMin"/> +
+        /// <see cref="_worldSize"/> with +Z at the top. When set, the map camera is never used.
+        /// </summary>
+        [SerializeField] private Texture2D? _staticMap;
+
         /// <summary>Generated assets released on destroy.</summary>
         private readonly List<Object> _generated = new List<Object>();
 
@@ -94,6 +101,26 @@ namespace HTownSim.Runtime
         {
             _brain = FindAnyObjectByType<CinemachineBrain>();
 
+            _mapImage.color = Color.white;
+
+            _playerMarker.sprite = CreateSprite(IsInsideArrow);
+
+            _incidentMarker.sprite = CreateSprite(IsInsideCircle);
+
+            _stationMarker.sprite = CreateSprite(IsInsideSquare);
+
+            // Unity's overloaded != (not 'is not null'): an unassigned field is a fake-null object in the editor.
+            if (_staticMap != null)
+            {
+                _mapImage.texture = _staticMap;
+
+                _mapCamera.enabled = false;
+
+                _rendered = true;
+
+                return;
+            }
+
             var height = Mathf.RoundToInt(MapTextureWidth * _worldSize.y / _worldSize.x);
 
             _texture = new RenderTexture(MapTextureWidth, height, 24) { name = "CityMapTexture" };
@@ -103,14 +130,6 @@ namespace HTownSim.Runtime
             _mapCamera.targetTexture = _texture;
 
             _mapImage.texture = _texture;
-
-            _mapImage.color = Color.white;
-
-            _playerMarker.sprite = CreateSprite(IsInsideArrow);
-
-            _incidentMarker.sprite = CreateSprite(IsInsideCircle);
-
-            _stationMarker.sprite = CreateSprite(IsInsideSquare);
 
             _mapCamera.enabled = true;
 
