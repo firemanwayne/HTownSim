@@ -22,6 +22,7 @@ const NEIGHBORHOODS = {
   // The Texas Medical Center (Fannin / Holcombe / Bertner), south of the city, on Midtown's own grid (Main St runs straight down to it).
   medcorridor: { label: 0, rotationDegrees: 35.06, win: { x0: -450, x1: 650, z0: -3300, z1: -2410 }, file: "Neighborhood_MedCorridor.txt" },
   medcenter: { label: 0, rotationDegrees: 35.06, win: { x0: -450, x1: 650, z0: -4700, z1: -3300 }, file: "Neighborhood_MedCenter.txt" },
+  gapsouth: { label: 0, rotationDegrees: 35.06, win: { x0: -2310, x1: 700, z0: -4710, z1: -2400 }, file: "Gap_South.txt" },
   gap: { label: 0, rotationDegrees: 35.06, win: { x0: -2310, x1: 600, z0: -2410, z1: 1700 }, file: "Gap_Southwest.txt" },
 };
 const NEIGHBORHOOD = process.env.NEIGHBORHOOD ? NEIGHBORHOODS[process.env.NEIGHBORHOOD] : null;

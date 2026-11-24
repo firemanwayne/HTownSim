@@ -4308,7 +4308,7 @@ public static class BuildRealMidtown
     {
         try
         {
-            return ExpandGapCore();
+            return ExpandGapCore(GapDataPath, "Gap_Placeholders", "_Gap", 400000, GapGroundRects);
         }
         finally
         {
@@ -4316,16 +4316,40 @@ public static class BuildRealMidtown
         }
     }
 
-    private static string ExpandGapCore()
+    private const string GapSouthDataPath = "Assets/HTownSim/Data/Gap_South.txt";
+
+    /// <summary>The ground of the south gap (Midtown's frame): everything between the Station 16 and Medical Center neighborhoods and the corridor.</summary>
+    private static readonly Rect[] GapSouthGroundRects =
+    {
+        new Rect(-2310f, -4710f, 1860f, 2310f),
+    };
+
+    /// <summary>Hermann Park and the Museum District corridor: grass ground rather than asphalt (the streets are laid over it by <see cref="AddSouthRoads"/>).</summary>
+    private static readonly Rect GapSouthParkRect = new Rect(-450f, -3300f, 1140f, 890f);
+
+    /// <summary>The same placeholder pass as <see cref="ExpandGap"/> for the area south of it, down to the Medical Center: lots, sidewalks and building squares from the City's parcels. Can be run again.</summary>
+    public static string ExpandGapSouth()
+    {
+        try
+        {
+            return ExpandGapCore(GapSouthDataPath, "Gap_South", "_GapS", 500000, GapSouthGroundRects);
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string ExpandGapCore(string dataPath, string containerName, string suffix, int indexBase, Rect[] groundRects)
     {
         if (EditorApplication.isPlaying)
         {
             return "Exit Play Mode first.";
         }
 
-        if (!File.Exists(GapDataPath))
+        if (!File.Exists(dataPath))
         {
-            return "Missing " + GapDataPath + ". Run: NEIGHBORHOOD=gap node AgentScripts/PrepareMidtownData.js";
+            return "Missing " + dataPath + ". Run: NEIGHBORHOOD=gap (or gapsouth) node AgentScripts/PrepareMidtownData.js";
         }
 
         var cityRoot = GameObject.Find(RootName);
@@ -4335,7 +4359,7 @@ public static class BuildRealMidtown
             return "Build the city first (BuildRealMidtown.Build).";
         }
 
-        _data = Parse(File.ReadAllLines(GapDataPath));
+        _data = Parse(File.ReadAllLines(dataPath));
 
         ResetState();
 
@@ -4343,18 +4367,18 @@ public static class BuildRealMidtown
 
         _expanding = true;
 
-        _suffix = "_Gap";
+        _suffix = suffix;
 
-        _indexBase = 400000;
+        _indexBase = indexBase;
 
-        var old = cityRoot.transform.Find("Gap_Placeholders");
+        var old = cityRoot.transform.Find(containerName);
 
         if (old != null)
         {
             Object.DestroyImmediate(old.gameObject);
         }
 
-        var container = new GameObject("Gap_Placeholders").transform;
+        var container = new GameObject(containerName).transform;
 
         container.SetParent(cityRoot.transform, false);
 
@@ -4398,10 +4422,15 @@ public static class BuildRealMidtown
 
         Section("Ground", _root);
 
-        foreach (var rect in GapGroundRects)
+        foreach (var rect in groundRects)
         {
             // Just under the Midtown and neighborhood asphalt, so where they overlap theirs wins.
             Make(new Spec("Streets", new Vector3(rect.center.x, -0.03f, rect.center.y), new Vector3(rect.width, RoadTop * 2f, rect.height), _asphalt, PrimitiveType.Cube, true));
+        }
+
+        if (containerName == "Gap_South")
+        {
+            Make(new Spec("CorridorPark", new Vector3(GapSouthParkRect.center.x, -0.03f, GapSouthParkRect.center.y), new Vector3(GapSouthParkRect.width, RoadTop * 2f, GapSouthParkRect.height), _park, PrimitiveType.Cube, true));
         }
 
         BuildParcelSlabs(parcels);
@@ -4996,7 +5025,7 @@ public static class BuildRealMidtown
 
                     var direction = (b - a).normalized;
 
-                    var piece = Make(new Spec("Street", new Vector3(middle.x, 0f, middle.y), new Vector3(width, 0.06f, Vector2.Distance(a, b) + 0.6f), _asphalt, PrimitiveType.Cube, false));
+                    var piece = Make(new Spec("Street", new Vector3(middle.x, 0.08f, middle.y), new Vector3(width, 0.06f, Vector2.Distance(a, b) + 0.6f), _asphalt, PrimitiveType.Cube, false));
 
                     piece.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(direction.x, direction.y) * Mathf.Rad2Deg, 0f);
 
@@ -5007,7 +5036,7 @@ public static class BuildRealMidtown
 
         // The City's centre lines stop in Hermann Park, so the last stretch of Main St to the Medical Center is a straight 16 m road along the
         // Main St axis of the Medical Center window (x -392), so there is a way to drive there.
-        var spine = Make(new Spec("MainStSpine", new Vector3(-392f, 0f, (-2700f + MedCenterNeighborhood.MaxZ) / 2f), new Vector3(16f, 0.06f, Mathf.Abs(-2700f - MedCenterNeighborhood.MaxZ)), _asphalt, PrimitiveType.Cube, false));
+        var spine = Make(new Spec("MainStSpine", new Vector3(-392f, 0.08f, (-2700f + MedCenterNeighborhood.MaxZ) / 2f), new Vector3(16f, 0.06f, Mathf.Abs(-2700f - MedCenterNeighborhood.MaxZ)), _asphalt, PrimitiveType.Cube, false));
 
         spine.name = "MainStSpine";
 
