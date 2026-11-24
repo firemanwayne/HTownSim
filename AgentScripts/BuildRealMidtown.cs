@@ -1956,6 +1956,14 @@ public static class BuildRealMidtown
 
             var own = i == 0 ? floors : Mathf.Min(floors, 2);
 
+            if (CampusParcels.Contains(parcel) && i > 0)
+            {
+                // Campus blocks step down from the tower: 60%, 40%, a three-storey wing, 75% of the lot's floors, and so on.
+                var steps = new[] { 0.6f, 0.4f, 0.2f, 0.75f };
+
+                own = Mathf.Clamp(Mathf.RoundToInt(floors * steps[i % steps.Length]), 3, floors);
+            }
+
             specs.Add(DescribeOne(parcel, forceShop && i == 0, index * 20 + i, box, own));
         }
 
@@ -4220,32 +4228,113 @@ public static class BuildRealMidtown
         return "Neighborhood " + def.Name + ": " + parcels.Count + " parcels, root rotated " + psi.ToString("0.00") + " degrees; world x " + union.xMin.ToString("0") + ".." + union.xMax.ToString("0") + ", z " + union.yMin.ToString("0") + ".." + union.yMax.ToString("0") + "; traffic: " + trafficNote;
     }
 
-    /// <summary>The streets whose large exempt lots in the Medical Center are hospital and university campuses (the rest, like the park, stay as they are).</summary>
-    private static readonly string[] CampusStreets = { "FANNIN ST", "HOLCOMBE ST", "TAUB LOOP", "BAYLOR PLZ", "PRESSLER ST", "BERTNER AVE", "MOURSUND ST", "BATES ST", "MAIN ST" };
+    /// <summary>The campus lots of the Medical Center, so their buildings get varied heights (see <see cref="Describe"/>).</summary>
+    private static readonly HashSet<Parcel> CampusParcels = new HashSet<Parcel>();
 
     /// <summary>
-    /// The City's tax data carries no floor count for most of the Medical Center's exempt campuses, so they would come out as park. A large
-    /// exempt lot on a campus street gets a tall building: floors from the lot area, and a footprint inset 12 m from the lot when it has none.
+    /// The City's tax data carries no floor count for most of the Medical Center's exempt campuses, so they would come out as park, and each
+    /// campus is one lot of tens of thousands of square metres. A large lot on a campus street gets tall buildings: floors from the lot area, and a
+    /// campus of building blocks (a grid of wings and towers about 70 x 55 m with 20 m between them for drives and plazas), kept inside the lot's
+    /// outline and clear of any real footprint the lot already has.
     /// </summary>
     private static void AddHospitalCampuses(List<Parcel> parcels)
     {
+        CampusParcels.Clear();
+
         foreach (var parcel in parcels)
         {
-            if (parcel.f != 0 || !parcel.k.StartsWith("X", StringComparison.Ordinal) || parcel.a < 8000 || Array.IndexOf(CampusStreets, parcel.s) < 0)
+            // Exempt lots of 8,000 to 120,000 m2 in the hospital part of the window (south of z -3500; the zoo and the golf course are bigger, and the
+            // streets named for the park are park lots).
+            var park = parcel.s.Contains("MACGREGOR") || parcel.s.Contains("HERMANN") || parcel.s.Contains("HERAMANN");
+
+            if (!parcel.k.StartsWith("X", StringComparison.Ordinal) || parcel.a < 8000 || parcel.a > 120000 || parcel.c[1] > -3500f || park)
             {
                 continue;
             }
 
-            parcel.f = Mathf.Clamp(Mathf.RoundToInt(parcel.a / 5000f) + 6, 8, 18);
-
-            if (parcel.fb.Length >= 4)
+            if (parcel.f == 0)
             {
-                continue;
+                parcel.f = Mathf.Clamp(Mathf.RoundToInt(parcel.a / 5000f) + 6, 8, 18);
             }
 
-            var inset = Mathf.Min(12f, Mathf.Min(parcel.b[2] - parcel.b[0], parcel.b[3] - parcel.b[1]) / 4f);
+            var boxes = new List<float[]>();
 
-            parcel.fb = new[] { parcel.b[0] + inset, parcel.b[1] + inset, parcel.b[2] - inset, parcel.b[3] - inset };
+            for (var i = 0; i + 3 < parcel.fb.Length; i += 4)
+            {
+                boxes.Add(new[] { parcel.fb[i], parcel.fb[i + 1], parcel.fb[i + 2], parcel.fb[i + 3] });
+            }
+
+            var outline = ToPolygon(parcel.p);
+
+            const float CellWidth = 70f;
+
+            const float CellDepth = 55f;
+
+            const float Gap = 20f;
+
+            var generated = 0;
+
+            for (var x = parcel.b[0] + 8f; x + CellWidth <= parcel.b[2] - 8f + 0.01f; x += CellWidth)
+            {
+                for (var z = parcel.b[1] + 8f; z + CellDepth <= parcel.b[3] - 8f + 0.01f; z += CellDepth)
+                {
+                    var hash = Mathf.Abs(Mathf.Sin((x * 12.9898f) + (z * 78.233f)) * 43758.5453f) % 1f;
+
+                    if (hash < 0.18f)
+                    {
+                        continue;
+                    }
+
+                    var box = new[] { x + (Gap / 2f), z + (Gap / 2f), x + CellWidth - (Gap / 2f), z + CellDepth - (Gap / 2f) };
+
+                    if (!PointInPolygon(outline, new Vector2((box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)))
+                    {
+                        continue;
+                    }
+
+                    var clear = true;
+
+                    foreach (var existing in boxes)
+                    {
+                        if (box[0] < existing[2] + 4f && box[2] > existing[0] - 4f && box[1] < existing[3] + 4f && box[3] > existing[1] - 4f)
+                        {
+                            clear = false;
+
+                            break;
+                        }
+                    }
+
+                    if (!clear)
+                    {
+                        continue;
+                    }
+
+                    boxes.Add(box);
+
+                    generated++;
+                }
+            }
+
+            if (boxes.Count == 0)
+            {
+                var inset = Mathf.Min(12f, Mathf.Min(parcel.b[2] - parcel.b[0], parcel.b[3] - parcel.b[1]) / 4f);
+
+                boxes.Add(new[] { parcel.b[0] + inset, parcel.b[1] + inset, parcel.b[2] - inset, parcel.b[3] - inset });
+            }
+
+            // Largest first: the first box carries the lot's full floor count.
+            boxes.Sort((a, b) => ((b[2] - b[0]) * (b[3] - b[1])).CompareTo((a[2] - a[0]) * (a[3] - a[1])));
+
+            var flat = new float[boxes.Count * 4];
+
+            for (var i = 0; i < boxes.Count; i++)
+            {
+                Array.Copy(boxes[i], 0, flat, i * 4, 4);
+            }
+
+            parcel.fb = flat;
+
+            CampusParcels.Add(parcel);
         }
     }
 
