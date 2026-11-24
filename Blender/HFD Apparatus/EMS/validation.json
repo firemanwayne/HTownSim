@@ -1,0 +1,30 @@
+[
+  {
+    "pass": true,
+    "check": "Headlights switch off"
+  },
+  {
+    "pass": true,
+    "check": "Headlights switch on"
+  },
+  {
+    "pass": true,
+    "check": "Brake lights switch on"
+  },
+  {
+    "pass": true,
+    "check": "Emergency flashers illuminate"
+  },
+  {
+    "pass": true,
+    "check": "Wheels roll by distance / radius"
+  },
+  {
+    "pass": true,
+    "check": "Front steering follows control"
+  },
+  {
+    "pass": true,
+    "check": "Two cab seats"
+  }
+]

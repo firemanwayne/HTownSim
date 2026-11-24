@@ -1,0 +1,10 @@
+# Blender binaries (over GitHub's 100 MB limit, rebuilt by the scripts) and backups
+*.blend
+*.blend1
+*.blend2
+*.glb
+__pycache__/
+*.pyc
+*.log
+# Raw Poly Haven scans (CC0, re-download; see HTown/README.md)
+HTown/textures/polyhaven/

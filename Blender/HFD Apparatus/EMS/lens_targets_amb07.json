@@ -1,0 +1,989 @@
+[
+ {
+  "name": "BoxFrontCorner_R",
+  "group": "BoxFront",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.1200000047683716,
+   -0.6449999809265137,
+   2.7799999713897705
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.22,
+   0.12,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFrontCorner_L",
+  "group": "BoxFront",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.1200000047683716,
+   -0.6449999809265137,
+   2.7799999713897705
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.22,
+   0.12,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFront_0",
+  "group": "BoxFront",
+  "material": "LensRedWarn",
+  "centre": [
+   -0.7599999904632568,
+   -0.6449999809265137,
+   2.4600000381469727
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.26,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFront_1",
+  "group": "BoxFront",
+  "material": "LensRedWarn",
+  "centre": [
+   -0.3799999952316284,
+   -0.6449999809265137,
+   2.4600000381469727
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.26,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFront_2",
+  "group": "BoxFront",
+  "material": "LensRedWarn2",
+  "centre": [
+   0.0,
+   -0.6449999809265137,
+   2.4600000381469727
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.26,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFront_3",
+  "group": "BoxFront",
+  "material": "LensRedWarn",
+  "centre": [
+   0.3799999952316284,
+   -0.6449999809265137,
+   2.4600000381469727
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.26,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxFront_4",
+  "group": "BoxFront",
+  "material": "LensRedWarn",
+  "centre": [
+   0.7599999904632568,
+   -0.6449999809265137,
+   2.4600000381469727
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.26,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Headlight_R",
+  "group": "Headlight",
+  "material": "LensClear",
+  "centre": [
+   -0.8299999833106995,
+   -3.455000162124634,
+   1.1299999952316284
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.3,
+   0.16,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Turn_R",
+  "group": "Turn",
+  "material": "LensAmber",
+  "centre": [
+   -0.8299999833106995,
+   -3.455000162124634,
+   0.925000011920929
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.3,
+   0.07,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "GrilleLed_R",
+  "group": "Grille",
+  "material": "LensRedWarn",
+  "centre": [
+   -0.30000001192092896,
+   -3.4800000190734863,
+   1.1799999475479126
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.14,
+   0.04,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Fog_R",
+  "group": "Fog",
+  "material": "LensClear",
+  "centre": [
+   -0.6200000047683716,
+   -3.565000057220459,
+   0.6499999761581421
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.14,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop0_R",
+  "group": "SideTop",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.2450000047683716,
+   -0.20000000298023224,
+   2.799999952316284
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop1_R",
+  "group": "SideTop",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.2450000047683716,
+   1.399999976158142,
+   2.799999952316284
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop2_R",
+  "group": "SideTop",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.2450000047683716,
+   3.049999952316284,
+   2.799999952316284
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerA_R",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   -1.2450000047683716,
+   0.75,
+   1.2699999809265137
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerB_R",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   -1.2450000047683716,
+   2.450000047683716,
+   1.2699999809265137
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerC_R",
+  "group": "SideMarker",
+  "material": "LensRed",
+  "centre": [
+   -1.2450000047683716,
+   3.1500000953674316,
+   1.2699999809265137
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "FenderMarker_R",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   -1.0399999618530273,
+   -3.049999952316284,
+   1.2000000476837158
+  ],
+  "normal": [
+   -1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.1,
+   0.05,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner0_R",
+  "group": "RearCorner",
+  "material": "LensAmberWarn",
+  "centre": [
+   -1.1399999856948853,
+   3.2750000953674316,
+   1.5499999523162842
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner1_R",
+  "group": "RearCorner",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.1399999856948853,
+   3.2750000953674316,
+   1.899999976158142
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner2_R",
+  "group": "RearCorner",
+  "material": "LensAmberWarn",
+  "centre": [
+   -1.1399999856948853,
+   3.2750000953674316,
+   2.25
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner3_R",
+  "group": "RearCorner",
+  "material": "LensRedWarn",
+  "centre": [
+   -1.1399999856948853,
+   3.2750000953674316,
+   2.5999999046325684
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Stop_R",
+  "group": "Stop",
+  "material": "LensRed",
+  "centre": [
+   -1.0199999809265137,
+   3.2750000953674316,
+   0.800000011920929
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.11,
+   0.11,
+   0.03
+  ],
+  "round": true
+ },
+ {
+  "name": "Backup_R",
+  "group": "Backup",
+  "material": "LensClear",
+  "centre": [
+   -0.7599999904632568,
+   3.2750000953674316,
+   0.800000011920929
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.11,
+   0.11,
+   0.03
+  ],
+  "round": true
+ },
+ {
+  "name": "RearTurn_R",
+  "group": "RearTurn",
+  "material": "LensAmber",
+  "centre": [
+   -1.1399999856948853,
+   3.2750000953674316,
+   1.149999976158142
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.12,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Headlight_L",
+  "group": "Headlight",
+  "material": "LensClear",
+  "centre": [
+   0.8299999833106995,
+   -3.455000162124634,
+   1.1299999952316284
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.3,
+   0.16,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Turn_L",
+  "group": "Turn",
+  "material": "LensAmber",
+  "centre": [
+   0.8299999833106995,
+   -3.455000162124634,
+   0.925000011920929
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.3,
+   0.07,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "GrilleLed_L",
+  "group": "Grille",
+  "material": "LensRedWarn",
+  "centre": [
+   0.30000001192092896,
+   -3.4800000190734863,
+   1.1799999475479126
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.14,
+   0.04,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Fog_L",
+  "group": "Fog",
+  "material": "LensClear",
+  "centre": [
+   0.6200000047683716,
+   -3.565000057220459,
+   0.6499999761581421
+  ],
+  "normal": [
+   0.0,
+   -1.0,
+   0.0
+  ],
+  "size": [
+   0.14,
+   0.1,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop0_L",
+  "group": "SideTop",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.2450000047683716,
+   -0.20000000298023224,
+   2.799999952316284
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop1_L",
+  "group": "SideTop",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.2450000047683716,
+   1.399999976158142,
+   2.799999952316284
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "BoxTop2_L",
+  "group": "SideTop",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.2450000047683716,
+   3.049999952316284,
+   2.799999952316284
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.2,
+   0.08,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerA_L",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   1.2450000047683716,
+   0.75,
+   1.2699999809265137
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerB_L",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   1.2450000047683716,
+   2.450000047683716,
+   1.2699999809265137
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "SideMarkerC_L",
+  "group": "SideMarker",
+  "material": "LensRed",
+  "centre": [
+   1.2450000047683716,
+   3.1500000953674316,
+   1.2699999809265137
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.12,
+   0.06,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "FenderMarker_L",
+  "group": "SideMarker",
+  "material": "LensAmber",
+  "centre": [
+   1.0399999618530273,
+   -3.049999952316284,
+   1.2000000476837158
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "size": [
+   0.1,
+   0.05,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner0_L",
+  "group": "RearCorner",
+  "material": "LensAmberWarn",
+  "centre": [
+   1.1399999856948853,
+   3.2750000953674316,
+   1.5499999523162842
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner1_L",
+  "group": "RearCorner",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.1399999856948853,
+   3.2750000953674316,
+   1.899999976158142
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner2_L",
+  "group": "RearCorner",
+  "material": "LensAmberWarn",
+  "centre": [
+   1.1399999856948853,
+   3.2750000953674316,
+   2.25
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearCorner3_L",
+  "group": "RearCorner",
+  "material": "LensRedWarn2",
+  "centre": [
+   1.1399999856948853,
+   3.2750000953674316,
+   2.5999999046325684
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.14,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "Stop_L",
+  "group": "Stop",
+  "material": "LensRed",
+  "centre": [
+   1.0199999809265137,
+   3.2750000953674316,
+   0.800000011920929
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.11,
+   0.11,
+   0.03
+  ],
+  "round": true
+ },
+ {
+  "name": "Backup_L",
+  "group": "Backup",
+  "material": "LensClear",
+  "centre": [
+   0.7599999904632568,
+   3.2750000953674316,
+   0.800000011920929
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.11,
+   0.11,
+   0.03
+  ],
+  "round": true
+ },
+ {
+  "name": "RearTurn_L",
+  "group": "RearTurn",
+  "material": "LensAmber",
+  "centre": [
+   1.1399999856948853,
+   3.2750000953674316,
+   1.149999976158142
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.07,
+   0.12,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearTop_0",
+  "group": "RearTop",
+  "material": "LensRedWarn",
+  "centre": [
+   -0.800000011920929,
+   3.2750000953674316,
+   2.819999933242798
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.18,
+   0.07,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearTop_1",
+  "group": "RearTop",
+  "material": "LensRedWarn",
+  "centre": [
+   -0.27000001072883606,
+   3.2750000953674316,
+   2.819999933242798
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.18,
+   0.07,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearTop_2",
+  "group": "RearTop",
+  "material": "LensRedWarn2",
+  "centre": [
+   0.27000001072883606,
+   3.2750000953674316,
+   2.819999933242798
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.18,
+   0.07,
+   0.03
+  ],
+  "round": false
+ },
+ {
+  "name": "RearTop_3",
+  "group": "RearTop",
+  "material": "LensRedWarn2",
+  "centre": [
+   0.800000011920929,
+   3.2750000953674316,
+   2.819999933242798
+  ],
+  "normal": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "size": [
+   0.18,
+   0.07,
+   0.03
+  ],
+  "round": false
+ }
+]
