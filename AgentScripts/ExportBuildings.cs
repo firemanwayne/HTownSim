@@ -6,13 +6,13 @@ using UnityEngine;
 
 /// <summary>
 /// Writes every procedural building (shops, apartments, towers and houses) under MidtownReal/Buildings and
-/// Buildings_Exp to J:\Blender\Projects\HTown\data\unity_buildings.json, so the Blender building pass can rebuild them
+/// Buildings_Exp to Blender\HTown\data\unity_buildings.json, so the Blender building pass can rebuild them
 /// on their real footprints at exactly the same heights and wall materials. Read-only: the scene is not changed.
 /// </summary>
 public static class ExportBuildings
 {
     /// <summary>Where the Blender project reads the list from.</summary>
-    private const string OutputPath = @"J:\Blender\Projects\HTown\data\unity_buildings.json";
+    private static readonly string OutputPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "data", "unity_buildings.json"));
 
     /// <summary>Section roots that hold the buildings.</summary>
     private static readonly string[] Roots = { "Buildings", "Buildings_Exp" };

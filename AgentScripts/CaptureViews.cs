@@ -4,13 +4,13 @@ using UnityEngine;
 
 /// <summary>
 /// Renders fixed comparison views of the city to PNGs (run in Play Mode so sky, traffic and lighting are live).
-/// Entries <c>CaptureViews.RunBefore</c> / <c>RunAfter</c> write J:\Blender\Projects\HTown\renders\unity_&lt;tag&gt;_&lt;view&gt;.png.
+/// Entries <c>CaptureViews.RunBefore</c> / <c>RunAfter</c> write Blender\HTown\renders\unity_&lt;tag&gt;_&lt;view&gt;.png.
 /// Uses a temporary camera that is destroyed afterwards; nothing in the scene changes.
 /// </summary>
 public static class CaptureViews
 {
     /// <summary>Output folder.</summary>
-    private const string Folder = @"J:\Blender\Projects\HTown\renders";
+    private static readonly string Folder = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "renders"));
 
     /// <summary>Output width; height follows 16:9.</summary>
     private const int Width = 1600;

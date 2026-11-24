@@ -6,4 +6,4 @@ Blender-side work for HTownSim, kept in the same repo as the Unity project.
 - `HFD Apparatus/` - Houston Fire Department engine and ambulance models.
 
 `.blend`, `.glb` and the raw Poly Haven scans are not tracked (too large for GitHub); regenerate them with the scripts.
-Several Unity editor scripts in `AgentScripts/` still read and write `J:\Blender\Projects\...` directly.
+Unity editor scripts in `AgentScripts/` read and write this folder at `<repo>/Blender/...`, resolved from the Unity project path, so the repo can live anywhere. Blender scripts find their data relative to their own location; when run through `exec(open(...).read())` they fall back to `J:\Unity\projects\HTownSim\Blender`.

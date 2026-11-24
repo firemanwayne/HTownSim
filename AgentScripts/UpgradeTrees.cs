@@ -11,7 +11,7 @@ using UnityEngine.Rendering;
 /// <summary>
 /// Replaces the generic street trees with the City of Houston tree inventory (HPARD Urban Forestry): every tree at its
 /// real position, as its species (live oak, crape myrtle, laurel/water oak, broadleaf, bald cypress, magnolia, palm), sized
-/// from its trunk-diameter class. Models come from J:\Blender\Projects\HTown (scripts/build_trees.py ->
+/// from its trunk-diameter class. Models come from Blender\HTown (scripts/build_trees.py ->
 /// data/tree_models.txt and data/tree_places.txt); trunks use the Poly Haven bark scan.
 ///
 /// The old StreetTrees and StreetTrees_Exp sections are switched off, never deleted. Each new tree has a trunk
@@ -20,9 +20,9 @@ using UnityEngine.Rendering;
 /// </summary>
 public static class UpgradeTrees
 {
-    private const string ModelPath = @"J:\Blender\Projects\HTown\data\tree_models.txt";
+    private static readonly string ModelPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "data", "tree_models.txt"));
 
-    private const string PlacePath = @"J:\Blender\Projects\HTown\data\tree_places.txt";
+    private static readonly string PlacePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "data", "tree_places.txt"));
 
     private const string MeshAssetPath = "Assets/HTownSim/Generated/InventoryTrees.asset";
 

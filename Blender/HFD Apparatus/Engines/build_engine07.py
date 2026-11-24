@@ -1,7 +1,7 @@
 """Clean hard-surface Engine 07, built at the Hi3D truck's measured dimensions (Blender: front at -Y, Z up, metres).
 
 Run inside Blender (with the Hi3D work scene "Engine43" in the open file, used as the bake source):
-    exec(open(r"J:\\Blender\\Projects\\HFD Apparatus\\Engines\\build_engine07.py").read())
+    exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HFD Apparatus\\Engines\\build_engine07.py").read())
 
 Builds scene "Engine07Clean":
   Engine07_Shell   cab, pump house, compartment body, front bumper, tailboard: bevelled boxes with booleans for the
@@ -21,7 +21,10 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-HERE = r"J:\Blender\Projects\HFD Apparatus\Engines"
+try:
+    HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    HERE = r"J:\Unity\projects\HTownSim\Blender\HFD Apparatus\Engines"
 SCENE = "Engine07Clean"
 DROP = 0.15
 

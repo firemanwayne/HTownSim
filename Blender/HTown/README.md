@@ -39,8 +39,8 @@ node scripts/fetch_houston.js
 Then in Blender's Python console (or through the MCP):
 
 ```python
-exec(open(r"J:\Blender\Projects\HTown\scripts\build_map.py").read())
-exec(open(r"J:\Blender\Projects\HTown\scripts\render_all.py").read())
+exec(open(r"J:\Unity\projects\HTownSim\Blender\HTown\scripts\build_map.py").read())
+exec(open(r"J:\Unity\projects\HTownSim\Blender\HTown\scripts\render_all.py").read())
 ```
 
 The build takes about 90 seconds, most of it spent placing street trees. Rendering takes about 6 seconds and

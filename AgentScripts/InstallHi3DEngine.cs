@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Puts the Hi3D-generated engine (prepared in Blender: J:\Blender\Projects\HFD Apparatus\Engines\Engine07_Hi3D.blend)
+/// Puts the Hi3D-generated engine (prepared in Blender: Blender\HFD Apparatus\Engines\Engine07_Hi3D.blend)
 /// on Engine07, numbered 07.
 ///
 /// Model: Assets/HTownSim/Vehicles/Engine07Hi3D/Engine07Hi3D.fbx, 10.1 m long, wheelbase 5.05 m like the gameplay

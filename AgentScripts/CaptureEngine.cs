@@ -6,12 +6,12 @@ using UnityEngine;
 
 /// <summary>
 /// Play Mode look at Engine 07: moves it to an open street (Milam St), renders four views (front three-quarter, right
-/// side, rear, and front three-quarter with the emergency lights on) to J:\Blender\Projects\HFD Apparatus\Engines\unity_*.png,
+/// side, rear, and front three-quarter with the emergency lights on) to Blender\HFD Apparatus\Engines\unity_*.png,
 /// then drives forward a little and reports how far the wheels rolled. Start via CaptureEngine.Start; Report ~6 s later.
 /// </summary>
 public static class CaptureEngine
 {
-    public const string Folder = @"J:\Blender\Projects\HFD Apparatus\Engines";
+    public static readonly string Folder = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HFD Apparatus", "Engines"));
 
     public const string LogPath = "J:/Unity/projects/HTownSim/Temp/capture_engine.log";
 

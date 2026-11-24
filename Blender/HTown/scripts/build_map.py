@@ -1,6 +1,6 @@
 """Builds the HTown city map scene in Blender from data/htown_map.json.
 
-Run inside Blender:  exec(open(r"J:\\Blender\\Projects\\HTown\\scripts\\build_map.py").read())
+Run inside Blender:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_map.py").read())
 
 Frame: HTownSim scene metres. Unity X -> Blender X, Unity Z -> Blender Y, up is Z. The Unity HUD map camera
 covers x -845..560, z -450..1575, so the "MapTop" camera renders exactly that window.
@@ -12,7 +12,10 @@ import os
 import bmesh
 import bpy
 
-ROOT = r"J:\Blender\Projects\HTown"
+try:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 DATA = os.path.join(ROOT, "data", "htown_map.json")
 
 WIN = dict(x0=-845.0, x1=560.0, z0=-450.0, z1=1575.0)

@@ -160,11 +160,11 @@ Editor handoff: HoustonResponse remains open, Play Mode stopped, run-in-backgrou
 
 ## Blender city map
 
-The HUD map shows a pre-rendered image, `Assets/HTownSim/Textures/Map/CityMapBlender.png` (1421 x 2048). It is assigned to `CityMap._staticMap` on Engine07, so the top-down map camera is not used. The image is made in Blender from City of Houston GIS data in `J:\Blender\Projects\HTown` (see that folder's README): 2018 LiDAR building outlines at this game's floor counts, road classes, parks, the station lots and the METRORail line, all in this scene's frame. It covers exactly x -845..560, z -450..1575, with +Z at the top. To update it, copy a new `renders/htown_map_hud.png` over the file and run `UseBlenderCityMap.Apply` (`unity command script run --file AgentScripts/UseBlenderCityMap.cs --entry UseBlenderCityMap.Apply`). `UseBlenderCityMap.Revert` goes back to the live camera render. Both refuse to run if the open scene has unsaved changes. If the world bounds change, the image has to be re-rendered to match.
+The HUD map shows a pre-rendered image, `Assets/HTownSim/Textures/Map/CityMapBlender.png` (1421 x 2048). It is assigned to `CityMap._staticMap` on Engine07, so the top-down map camera is not used. The image is made in Blender from City of Houston GIS data in `Blender/HTown` (see that folder's README): 2018 LiDAR building outlines at this game's floor counts, road classes, parks, the station lots and the METRORail line, all in this scene's frame. It covers exactly x -845..560, z -450..1575, with +Z at the top. To update it, copy a new `renders/htown_map_hud.png` over the file and run `UseBlenderCityMap.Apply` (`unity command script run --file AgentScripts/UseBlenderCityMap.cs --entry UseBlenderCityMap.Apply`). `UseBlenderCityMap.Revert` goes back to the live camera render. Both refuse to run if the open scene has unsaved changes. If the world bounds change, the image has to be re-rendered to match.
 
 ## Real-footprint buildings
 
-All 1,512 procedural buildings (shops, apartments, towers and houses) are rebuilt in Blender (`J:\Blender\Projects\HTown`, `scripts/build_buildings.py`) on their real 2018 LiDAR outlines instead of bounding boxes: 1,384 match an outline, including 319 L, U and courtyard shapes, and 128 with no matching outline keep their box. Each building keeps the height and wall material it had here. The facades are new:
+All 1,512 procedural buildings (shops, apartments, towers and houses) are rebuilt in Blender (`Blender/HTown`, `scripts/build_buildings.py`) on their real 2018 LiDAR outlines instead of bounding boxes: 1,384 match an outline, including 319 L, U and courtyard shapes, and 128 with no matching outline keep their box. Each building keeps the height and wall material it had here. The facades are new:
 - **Houses:** shuttered sash windows on every wall except party walls, and front doors on the street side. 949 get a gable or hip roof on their real orientation, with the same pitch, gable/hip choice, shingle colour and chimney that `BuildRealMidtown`'s hash picked, plus soffits under the eaves. The 63 irregular townhome compounds get a flat roof behind a low parapet.
 - **Windows:** framed windows with sills on every wall except party walls, with rows on the real floor lines.
 - **Shops:** a bronze storefront band on the street side.
@@ -186,7 +186,7 @@ A Silverado 3500HD cab with a Frazer-type box, 7.3 m long (wheelbase 4.18 m, box
 
 **Why a rebuild:** the supplied Hi3D GLB was one 4.96-million-triangle mesh with two 8K textures. The wheels couldn't spin, the glass and lights weren't separate parts, and the numbers were a mash-up (68, 08, 2, 10), the same problems as the Hi3D engine. It was used for measurements only (length, wheelbase, axle and tyre positions, box and cab heights, widths).
 
-**Files** (`J:\Blender\Projects\HFD Apparatus\EMS`, run headless: `blender -b --python build_ambulance07.py -- previews export`):
+**Files** (`Blender/HFD Apparatus/EMS`, run headless: `blender -b --python build_ambulance07.py -- previews export`):
 - `amb_layout.py`: the shared dimensions and atlas layout.
 - `build_ambulance07.py`: builds the model, about 12.6k triangles.
 - `make_livery_amb.py` (system Python + Pillow): draws the livery atlas.
@@ -342,7 +342,7 @@ Front roof:
 
 `VerifyHouston` now also checks the scene lights (38 checks).
 
-Two game flashers moved onto the bumper: the inner red front flashers now light the face M6s, and the front side markers light the intersection lights. `InstallCleanEngine.Apply` also saves every lens in its "off" state. Source: `J:\Blender\Projects\HFD Apparatus\Engines\build_engine07.py` (run inside Blender) and `make_livery.py` (system Python + Pillow), saved as `Engine07_Clean.blend`.
+Two game flashers moved onto the bumper: the inner red front flashers now light the face M6s, and the front side markers light the intersection lights. `InstallCleanEngine.Apply` also saves every lens in its "off" state. Source: `Blender/HFD Apparatus/Engines\build_engine07.py` (run inside Blender) and `make_livery.py` (system Python + Pillow), saved as `Engine07_Clean.blend`.
 - **Model:** `Engine07Clean.fbx` (about 100k triangles): bevelled shell, glass, chrome and dark trim, four wheels pivoting on their axles, and a light fixture (housing and coloured lens cap) at every warning light.
 - **Livery:** `Engine07_Livery.png` (4096×2048, planar UVs at 200 px/m). It has HFD red with the white band sweeping up on the body, the door shield, the Station 07 patch, the Texas flag and the gold motto. It also has the pump panel, "07" on the sides, roof and rear, the rear chevrons and the ENGINE 07 HOUSTON plate.
 - **Lights:** `AgentScripts/InstallCleanEngine.cs` (`Apply` / `Revert`) adds the model as `Engine07CleanVisual` and turns each of the 91 ApparatusLights lenses into a box over its fixture's cap, using `lens_targets_engine07.json`. The flashes now line up with the modelled lights. `Revert` brings back the Hi3D visual below, which `Apply` only deactivates.
@@ -351,7 +351,7 @@ Two game flashers moved onto the bumper: the inner red front flashers now light 
 
 ## Engine 07 model (Hi3D, replaced)
 
-Engine07 previously showed a Hi3D-generated pumper (private use only: it was generated from screenshots of another game's Engine 43). It was prepared in Blender (`J:\Blender\Projects\HFD Apparatus\Engines\Engine07_Hi3D.blend`):
+Engine07 previously showed a Hi3D-generated pumper (private use only: it was generated from screenshots of another game's Engine 43). It was prepared in Blender (`Blender/HFD Apparatus/Engines\Engine07_Hi3D.blend`):
 - **Size:** scaled to the gameplay truck's 5.05 m wheelbase (10.1 m long), and decimated from 5 million to 90k triangles.
 - **Wheels:** split into `WheelFront*`/`WheelRear*` objects pivoting on their axles (0.54 m tyres, so `WheelSpin.WheelRadius` is 0.54).
 - **Textures:** 2K, with the paint made non-metallic so it reads as red paint, not chrome.
@@ -361,7 +361,7 @@ Engine07 previously showed a Hi3D-generated pumper (private use only: it was gen
 
 ## Ground, trees and building variety (Blender + City of Houston data + Poly Haven)
 
-These are built in `J:\Blender\Projects\HTown` (see its README) and applied by three editor scripts. Each one hides what it replaces and never deletes it, can be run again, has a `Revert`, refuses to run with unsaved scene changes, and reloads the scene after saving (see "GPU Resident Drawer" below).
+These are built in `Blender/HTown` (see its README) and applied by three editor scripts. Each one hides what it replaces and never deletes it, can be run again, has a `Revert`, refuses to run with unsaved scene changes, and reloads the scene after saving (see "GPU Resident Drawer" below).
 
 - **Ground (`UpgradeGround.Apply`):** every lot's surface comes from HCAD land use: lawns, parking asphalt with 4,344 painted stalls, vacant ground and parks.
   - **Houses:** a concrete driveway and front walk, a mulch bed with shrubs along the front, and 1.8 m wood privacy fences on lot lines shared with a neighbour (never along a street).

@@ -7,14 +7,14 @@ using UnityEngine;
 
 /// <summary>
 /// Writes Engine07's warning-light lenses (ApparatusLights._lenses) to
-/// J:\Blender\Projects\HFD Apparatus\Engines\lenses_engine07.json: index, object name, mesh name, a role group, and the
+/// Blender\HFD Apparatus\Engines\lenses_engine07.json: index, object name, mesh name, a role group, and the
 /// lens centre and size in the procedural Engine43Visual's own unstretched frame, expressed in Engine07 space
 /// (x right, y up, z forward). The Blender rebuild maps each group onto the new truck's lights and models a fixture at
 /// every lens; InstallCleanEngine then moves each lens to its fixture. Read-only.
 /// </summary>
 public static class ExportEngineLenses
 {
-    private const string OutPath = @"J:\Blender\Projects\HFD Apparatus\Engines\lenses_engine07.json";
+    private static readonly string OutPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HFD Apparatus", "Engines", "lenses_engine07.json"));
 
     public static string Run()
     {

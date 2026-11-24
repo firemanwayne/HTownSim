@@ -1,7 +1,7 @@
 """Models HTownSim's street-tree species and places the City of Houston tree inventory.
 
 Run inside Blender (after build_buildings.py):
-    exec(open(r"J:\\Blender\\Projects\\HTown\\scripts\\build_trees.py").read())
+    exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_trees.py").read())
 
 Models (data/tree_models.txt, read by UpgradeTrees.Apply): low-poly, flat-shaded species in the project's style,
 3 variants each, built at a reference size (metres) and scaled per tree in Unity. Trunks carry bark UVs (Poly Haven
@@ -26,7 +26,7 @@ import sys
 
 import bpy
 
-sys.path.insert(0, r"J:\Blender\Projects\HTown\scripts")
+sys.path.insert(0, r"J:\Unity\projects\HTownSim\Blender\HTown\scripts")  # fallback when run via exec()
 import importlib  # noqa: E402
 
 import geom  # noqa: E402
@@ -34,7 +34,10 @@ import geom  # noqa: E402
 importlib.reload(geom)
 from geom import Grid, Parts, ccw, centroid, dist_to_poly_edges, point_in  # noqa: E402
 
-ROOT = r"J:\Blender\Projects\HTown"
+try:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 UNITY_DATA = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Data"
 WIN = (-845.0, 560.0, -450.0, 1575.0)
 SIDEWALK = 2.4

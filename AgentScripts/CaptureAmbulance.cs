@@ -6,11 +6,11 @@ using UnityEngine;
 
 /// <summary>
 /// Play Mode look at the driven Ambulance 07 with its emergency lights and headlights on: front and rear three-quarter views
-/// and a close side view, written to J:\Blender\Projects\HFD Apparatus\EMS\unity_amb_*.png. Start via CaptureAmbulance.Start.
+/// and a close side view, written to Blender\HFD Apparatus\EMS\unity_amb_*.png. Start via CaptureAmbulance.Start.
 /// </summary>
 public static class CaptureAmbulance
 {
-    public const string Folder = @"J:\Blender\Projects\HFD Apparatus\EMS";
+    public static readonly string Folder = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HFD Apparatus", "EMS"));
 
     public const string LogPath = "J:/Unity/projects/HTownSim/Temp/capture_amb.log";
 

@@ -9,7 +9,7 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Replaces the box visuals of the procedural shops, apartments and towers with the Blender rebuild from
-/// J:\Blender\Projects\HTown (scripts/build_buildings.py -> data/upgraded_buildings.json): real 2018 LiDAR outlines at
+/// Blender\HTown (scripts/build_buildings.py -> data/upgraded_buildings.json): real 2018 LiDAR outlines at
 /// the same heights and wall materials, windows on every street wall, storefront bands, curtain-wall towers,
 /// parapets that follow the outline and rooftop units inside the real roof.
 ///
@@ -23,7 +23,7 @@ using UnityEngine.Rendering;
 public static class UpgradeBuildings
 {
     /// <summary>Blender output.</summary>
-    private const string DataPath = @"J:\Blender\Projects\HTown\data\upgraded_buildings.txt";
+    private static readonly string DataPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "data", "upgraded_buildings.txt"));
 
     /// <summary>Holds every generated mesh as sub-assets.</summary>
     private const string MeshAssetPath = "Assets/HTownSim/Generated/UpgradedBuildings.asset";

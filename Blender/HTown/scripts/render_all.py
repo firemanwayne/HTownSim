@@ -1,6 +1,6 @@
 """Renders every HTown map output from the scene build_map.py made.
 
-Run inside Blender after build_map.py:  exec(open(r"J:\\Blender\\Projects\\HTown\\scripts\\render_all.py").read())
+Run inside Blender after build_map.py:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\render_all.py").read())
 
 Outputs (renders/):
   htown_map_hud.png       1421x2048, no street trees: for the 350 px HUD map, where trees read as speckle.
@@ -14,7 +14,10 @@ import os
 
 import bpy
 
-OUT = r"J:\Blender\Projects\HTown\renders"
+try:
+    OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "renders")
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    OUT = r"J:\Unity\projects\HTownSim\Blender\HTown\renders"
 os.makedirs(OUT, exist_ok=True)
 scene = bpy.context.scene
 cols = bpy.data.collections
@@ -83,5 +86,5 @@ sun.data.color = (1.0, 0.76, 0.48)
 sun.data.energy = 3.2
 sky.inputs["Strength"].default_value = 1.0
 scene.camera = bpy.data.objects["MapTop"]
-bpy.ops.wm.save_as_mainfile(filepath=r"J:\Blender\Projects\HTown\HTownMap.blend")
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(OUT), "HTownMap.blend"))
 print("saved HTownMap.blend")

@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Replaces the flat lot colours with the Blender ground pass (J:\Blender\Projects\HTown, scripts/build_ground.py ->
+/// Replaces the flat lot colours with the Blender ground pass (Blender\HTown, scripts/build_ground.py ->
 /// data/upgraded_ground.txt): real lot surfaces from City of Houston land use (lawns, parking asphalt, vacant ground,
 /// parks), driveways and front walks, mulch beds with shrubs, wood privacy fences and painted parking stalls. Surfaces
 /// use Poly Haven CC0 scans (Textures/Ground) through the project's WorldTriplanar shader; sidewalks switch to the
@@ -22,7 +22,7 @@ using UnityEngine.Rendering;
 /// </summary>
 public static class UpgradeGround
 {
-    private const string DataPath = @"J:\Blender\Projects\HTown\data\upgraded_ground.txt";
+    private static readonly string DataPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HTown", "data", "upgraded_ground.txt"));
 
     private const string MeshAssetPath = "Assets/HTownSim/Generated/UpgradedGround.asset";
 

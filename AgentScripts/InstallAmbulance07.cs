@@ -9,7 +9,7 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Swaps the parked Medic 07 prop in Station 7's third bay for the clean Ambulance 07 model
-/// (Assets/HTownSim/Vehicles/Ambulance07/Ambulance07.fbx, built by J:\Blender\Projects\HFD Apparatus\EMS\build_ambulance07.py:
+/// (Assets/HTownSim/Vehicles/Ambulance07/Ambulance07.fbx, built by Blender\HFD Apparatus\EMS\build_ambulance07.py:
 /// a Silverado 3500HD cab with a Frazer-type box, 7.3 m long, with real glass, round wheels on their axles (WheelFront* /
 /// WheelRear*, duals at the rear), and a coloured lens cap on every warning, marker and tail light).
 ///

@@ -4,7 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 /// <summary>
-/// Switches the HUD city map to the pre-rendered Blender map (J:\Blender\Projects\HTown, renders/htown_map_hud.png,
+/// Switches the HUD city map to the pre-rendered Blender map (Blender\HTown, renders/htown_map_hud.png,
 /// copied to <see cref="TexturePath"/>). Sets the texture's import settings, assigns it to CityMap._staticMap on the
 /// engine and saves the scene. Refuses to run if the open scene already has unsaved changes, so it never saves
 /// someone else's edits. Run it again after replacing the PNG; Revert clears the field (back to the live camera).

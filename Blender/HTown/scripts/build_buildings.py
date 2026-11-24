@@ -1,6 +1,6 @@
 """Rebuilds HTownSim's shops, apartments and towers on their real 2018 LiDAR footprints.
 
-Run inside Blender:  exec(open(r"J:\\Blender\\Projects\\HTown\\scripts\\build_buildings.py").read())
+Run inside Blender:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_buildings.py").read())
 
 Inputs:  data/unity_buildings.json (exported from Unity by AgentScripts/ExportBuildings.cs: heights, wall material,
          street-facing side) and data/htown_map.json (real footprints, same scene frame).
@@ -24,7 +24,10 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-ROOT = r"J:\Blender\Projects\HTown"
+try:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 UNITY = os.path.join(ROOT, "data", "unity_buildings.json")
 MAP = os.path.join(ROOT, "data", "htown_map.json")
 OUT = os.path.join(ROOT, "data", "upgraded_buildings.txt")

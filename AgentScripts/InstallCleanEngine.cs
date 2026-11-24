@@ -12,7 +12,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Puts the clean hard-surface Engine 07 (built in Blender by J:\Blender\Projects\HFD Apparatus\Engines\build_engine07.py,
+/// Puts the clean hard-surface Engine 07 (built in Blender by Blender\HFD Apparatus\Engines\build_engine07.py,
 /// livery drawn by make_livery.py) on Engine07, replacing the lumpy Hi3D visual.
 ///
 /// Model: Assets/HTownSim/Vehicles/Engine07Hi3D/Engine07Clean.fbx: Engine07_Shell (livery atlas), Engine07_Glass
@@ -38,7 +38,7 @@ public static class InstallCleanEngine
     /// <summary>Texas state flag for both cab sides above the front wheel, cut out by make_livery.py.</summary>
     private const string TexasPath = Folder + "Texas_Flag.png";
 
-    private const string TargetsPath = @"J:\Blender\Projects\HFD Apparatus\Engines\lens_targets_engine07.json";
+    private static readonly string TargetsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "Blender", "HFD Apparatus", "Engines", "lens_targets_engine07.json"));
 
     private const string VisualName = "Engine07CleanVisual";
 

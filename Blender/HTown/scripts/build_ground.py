@@ -1,7 +1,7 @@
 """Builds HTownSim's lot surfaces, driveways, front walks, planting beds, shrubs, fences and parking stalls.
 
 Run inside Blender (after build_buildings.py, which writes data/footprints_used.json):
-    exec(open(r"J:\\Blender\\Projects\\HTown\\scripts\\build_ground.py").read())
+    exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_ground.py").read())
 
 Inputs:
   HTownSim's own parcel files (Assets/HTownSim/Data/MidtownReal.txt and MidtownExpanded.txt), filtered exactly as
@@ -26,7 +26,7 @@ import sys
 
 import bpy
 
-sys.path.insert(0, r"J:\Blender\Projects\HTown\scripts")
+sys.path.insert(0, r"J:\Unity\projects\HTownSim\Blender\HTown\scripts")  # fallback when run via exec()
 import importlib  # noqa: E402
 
 import geom  # noqa: E402
@@ -34,7 +34,10 @@ import geom  # noqa: E402
 importlib.reload(geom)
 from geom import Grid, Parts, area, ccw, centroid, dist_to_poly_edges, edge_normal, offset_poly, point_in  # noqa: E402
 
-ROOT = r"J:\Blender\Projects\HTown"
+try:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+except NameError:  # exec()'d from Blender's console, where __file__ is not defined
+    ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 UNITY_DATA = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Data"
 OUT = os.path.join(ROOT, "data", "upgraded_ground.txt")
 
