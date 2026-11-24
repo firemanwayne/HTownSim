@@ -137,19 +137,44 @@ namespace HTownSim.Runtime
             _diesel.rolloffMode = AudioRolloffMode.Linear;
 
             // Native-backed objects must not be created in field initializers of a serialized MonoBehaviour.
-            _roadMaterials = new Material[_roads.Length];
+            // One wet-able copy per distinct road material, shared by every renderer that used it (a copy per renderer would give
+            // thousands of materials and break batching). Renderers removed by a rebuild are skipped.
+            var copies = new System.Collections.Generic.Dictionary<Material, Material>();
 
-            _roadColors = new Color[_roads.Length];
-
-            _roadSmoothness = new float[_roads.Length];
-
-            for (var i = 0; i < _roads.Length; i++)
+            foreach (var road in _roads)
             {
-                _roadMaterials[i] = _roads[i].material;
+                if (road == null || road.sharedMaterial == null)
+                {
+                    continue;
+                }
 
-                _roadColors[i] = _roads[i].sharedMaterial.GetColor("_BaseColor");
+                if (!copies.TryGetValue(road.sharedMaterial, out var copy))
+                {
+                    copy = new Material(road.sharedMaterial);
 
-                _roadSmoothness[i] = _roads[i].sharedMaterial.GetFloat("_Smoothness");
+                    copies[road.sharedMaterial] = copy;
+                }
+
+                road.sharedMaterial = copy;
+            }
+
+            _roadMaterials = new Material[copies.Count];
+
+            _roadColors = new Color[copies.Count];
+
+            _roadSmoothness = new float[copies.Count];
+
+            var index = 0;
+
+            foreach (var pair in copies)
+            {
+                _roadMaterials[index] = pair.Value;
+
+                _roadColors[index] = pair.Key.GetColor("_BaseColor");
+
+                _roadSmoothness[index] = pair.Key.GetFloat("_Smoothness");
+
+                index++;
             }
 
             SetWeather(WeatherPreset.Clear);
@@ -254,9 +279,9 @@ namespace HTownSim.Runtime
                 _sky.SetColor("_SkyTint", Color.Lerp(_skyTint, new Color(0.46f, 0.48f, 0.52f), _cloud));
             }
 
-            for (var i = 0; i < _roads.Length; i++)
+            for (var i = 0; i < _roadMaterials.Length; i++)
             {
-                // Per-renderer material instances: a MaterialPropertyBlock would replace the road shader's other settings.
+                // Shared copies of the road materials: a MaterialPropertyBlock would replace the road shader's other settings.
                 _roadMaterials[i].SetColor("_BaseColor", Color.Lerp(_roadColors[i], _roadColors[i] * 0.62f, _rainAmount));
 
                 _roadMaterials[i].SetFloat("_Smoothness", Mathf.Lerp(_roadSmoothness[i], 0.78f, _rainAmount));

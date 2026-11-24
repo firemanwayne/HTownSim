@@ -16,6 +16,55 @@ Shader "HTownSim/WorldTriplanar"
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
 
+        // One material-property block for every pass (the SRP Batcher and the GPU Resident Drawer need the same layout in all of them).
+        HLSLINCLUDE
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+        TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
+        TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
+        CBUFFER_START(UnityPerMaterial)
+            float4 _BaseColor;
+            float4 _BaseMap_ST;
+            float _BumpScale;
+            float _TileSize;
+            float _DetailStrength;
+            float _MacroStrength;
+            float _Smoothness;
+            float _Metallic;
+        CBUFFER_END
+
+        #ifdef UNITY_DOTS_INSTANCING_ENABLED
+        UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+            UNITY_DOTS_INSTANCED_PROP(float4, _BaseColor)
+            UNITY_DOTS_INSTANCED_PROP(float, _BumpScale)
+            UNITY_DOTS_INSTANCED_PROP(float, _TileSize)
+            UNITY_DOTS_INSTANCED_PROP(float, _DetailStrength)
+            UNITY_DOTS_INSTANCED_PROP(float, _MacroStrength)
+            UNITY_DOTS_INSTANCED_PROP(float, _Smoothness)
+            UNITY_DOTS_INSTANCED_PROP(float, _Metallic)
+        UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+        #endif
+
+        // Reads every material property, so the depth passes keep the same UnityPerMaterial layout as the forward pass (an unused member is
+        // stripped from a pass, and the SRP Batcher / GPU Resident Drawer then reject the shader). The result is always 0 in practice.
+        float MaterialTouch()
+        {
+            #ifdef UNITY_DOTS_INSTANCING_ENABLED
+            float s = UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _BaseColor).x
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _BumpScale)
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _TileSize)
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _DetailStrength)
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _MacroStrength)
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _Smoothness)
+                + UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float, _Metallic)
+                + _BaseMap_ST.x;
+            #else
+            float s = _BaseColor.x + _BaseMap_ST.x + _BumpScale + _TileSize + _DetailStrength + _MacroStrength + _Smoothness + _Metallic;
+            #endif
+            return step(1e30, s);
+        }
+        ENDHLSL
+
         Pass
         {
             Name "ForwardLit"
@@ -33,33 +82,7 @@ Shader "HTownSim/WorldTriplanar"
             #pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
             #pragma multi_compile _ DOTS_INSTANCING_ON
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-
-            TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
-            TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
-            CBUFFER_START(UnityPerMaterial)
-                float4 _BaseColor;
-                float4 _BaseMap_ST;
-                float _BumpScale;
-                float _TileSize;
-                float _DetailStrength;
-                float _MacroStrength;
-                float _Smoothness;
-                float _Metallic;
-            CBUFFER_END
-
-            #ifdef UNITY_DOTS_INSTANCING_ENABLED
-            UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-                UNITY_DOTS_INSTANCED_PROP(float4, _BaseColor)
-                UNITY_DOTS_INSTANCED_PROP(float, _BumpScale)
-                UNITY_DOTS_INSTANCED_PROP(float, _TileSize)
-                UNITY_DOTS_INSTANCED_PROP(float, _DetailStrength)
-                UNITY_DOTS_INSTANCED_PROP(float, _MacroStrength)
-                UNITY_DOTS_INSTANCED_PROP(float, _Smoothness)
-                UNITY_DOTS_INSTANCED_PROP(float, _Metallic)
-            UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
-            #endif
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct Varyings
@@ -156,14 +179,131 @@ Shader "HTownSim/WorldTriplanar"
                 s.occlusion = 1;
                 s.alpha = 1;
                 half4 c = UniversalFragmentPBR(inputData, s);
-                c.rgb = MixFog(c.rgb, inputData.fogCoord);
+                c.rgb = MixFog(c.rgb, inputData.fogCoord) + MaterialTouch();
                 return c;
             }
             ENDHLSL
         }
 
-        UsePass "Universal Render Pipeline/Lit/ShadowCaster"
-        UsePass "Universal Render Pipeline/Lit/DepthOnly"
-        UsePass "Universal Render Pipeline/Lit/DepthNormals"
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode"="ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings { float4 positionCS : SV_POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings o = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, o);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                #if _CASTING_PUNCTUAL_LIGHT_SHADOW
+                    float3 lightDirectionWS = normalize(_LightPosition - positionWS);
+                #else
+                    float3 lightDirectionWS = _LightDirection;
+                #endif
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+                #if UNITY_REVERSED_Z
+                    positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE * positionCS.w);
+                #else
+                    positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE * positionCS.w);
+                #endif
+                o.positionCS = positionCS;
+                return o;
+            }
+
+            half4 frag(Varyings i) : SV_Target { UNITY_SETUP_INSTANCE_ID(i); return MaterialTouch(); }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode"="DepthOnly" }
+            ZWrite On
+            ColorMask R
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+
+            struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings { float4 positionCS : SV_POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings o = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, o);
+                o.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                return o;
+            }
+
+            half frag(Varyings i) : SV_Target { UNITY_SETUP_INSTANCE_ID(i); return i.positionCS.z + MaterialTouch(); }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthNormals"
+            Tags { "LightMode"="DepthNormals" }
+            ZWrite On
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_instancing
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+            #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 normalWS : TEXCOORD1; UNITY_VERTEX_INPUT_INSTANCE_ID };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings o = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, o);
+                o.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                o.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                return o;
+            }
+
+            half4 frag(Varyings i) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(i);
+                float3 normalWS = normalize(i.normalWS);
+                #if defined(_GBUFFER_NORMALS_OCT)
+                    float2 octNormalWS = PackNormalOctQuadEncode(normalWS);
+                    float2 remapped = octNormalWS * 0.5 + 0.5;
+                    return half4(PackFloat2To888(remapped), MaterialTouch());
+                #else
+                    return half4(normalWS, MaterialTouch());
+                #endif
+            }
+            ENDHLSL
+        }
     }
 }
