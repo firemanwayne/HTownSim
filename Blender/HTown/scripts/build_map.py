@@ -3,7 +3,7 @@
 Run inside Blender:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_map.py").read())
 
 Frame: HTownSim scene metres. Unity X -> Blender X, Unity Z -> Blender Y, up is Z. The Unity HUD map camera
-covers x -2250..560, z -2350..1575, so the "MapTop" camera renders exactly that window.
+covers x -2250..690, z -4740..1575, so the "MapTop" camera renders exactly that window.
 """
 import json
 import math
@@ -18,7 +18,7 @@ except NameError:  # exec()'d from Blender's console, where __file__ is not defi
     ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 DATA = os.path.join(ROOT, "data", "htown_map.json")
 
-WIN = dict(x0=-2250.0, x1=560.0, z0=-2350.0, z1=1575.0)
+WIN = dict(x0=-2250.0, x1=690.0, z0=-4740.0, z1=1575.0)
 FLOOR_H = 3.6
 LOT_H = 0.15
 
@@ -295,7 +295,8 @@ def build():
     bm = bmesh.new()
     for pts in parks:
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-        step = 9.0
+        # Big parks (Hermann Park and its golf course) get a sparser grid so the tree count and the point tests stay bounded.
+        step = max(9.0, math.sqrt((max(xs) - min(xs)) * (max(ys) - min(ys)) / 6000.0))
         x = min(xs) + step / 2
         while x < max(xs):
             y = min(ys) + step / 2
@@ -455,8 +456,8 @@ def setup_render():
     bg.inputs["Strength"].default_value = 1.0
 
     r = scene.render
-    r.resolution_y = 2048
-    r.resolution_x = round(2048 * width / depth)
+    r.resolution_y = 2148
+    r.resolution_x = round(2148 * width / depth)
     r.resolution_percentage = 100
     r.film_transparent = False
     # The view-transform enum is dynamic (OCIO config), so try the flat-colour one and keep the default if missing.

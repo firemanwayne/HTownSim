@@ -24,13 +24,13 @@ public static class AddCityMap
 
     private const float WorldMinX = -2250f;
 
-    private const float WorldMinZ = -2350f;
+    private const float WorldMinZ = -4740f;
 
-    private const float WorldWidth = 2810f;
+    private const float WorldWidth = 2940f;
 
-    private const float WorldDepth = 3925f;
+    private const float WorldDepth = 6315f;
 
-    private const float MapWidthPixels = 350f;
+    private const float MapWidthPixels = 230f;
 
     private const float PanelPadding = 12f;
 

@@ -4903,4 +4903,118 @@ public static class BuildRealMidtown
 
         return false;
     }
+
+    // ------------------------------------------------------------------ south roads
+
+    private const string SouthRoadsPath = "Assets/HTownSim/Data/SouthRoads.txt";
+
+    /// <summary>
+    /// Streets over the plain ground south of the gap (z below -2410, outside the Medical Center window): asphalt ribbons along the City's
+    /// road centre lines, 14 m for major streets and 9 m for local ones. They are flat, with no markings or traffic. Data: <c>node AgentScripts/ExtractSouthRoads.js</c>. Can be run again.
+    /// </summary>
+    public static string AddSouthRoads()
+    {
+        try
+        {
+            return AddSouthRoadsCore();
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string AddSouthRoadsCore()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        var cityRoot = GameObject.Find(RootName);
+
+        if (cityRoot == null || !File.Exists(SouthRoadsPath))
+        {
+            return "Build the city and run node AgentScripts/ExtractSouthRoads.js first.";
+        }
+
+        ResetState();
+
+        var old = cityRoot.transform.Find("Roads_South");
+
+        if (old != null)
+        {
+            Object.DestroyImmediate(old.gameObject);
+        }
+
+        _root = new GameObject("Roads_South").transform;
+
+        _root.SetParent(cityRoot.transform, false);
+
+        LoadMaterials();
+
+        Section("Streets", _root);
+
+        var med = NeighborhoodWorldRect(MedCenterNeighborhood, 0f);
+
+        var segments = 0;
+
+        foreach (var line in File.ReadAllLines(SouthRoadsPath))
+        {
+            var fields = line.Split('	');
+
+            if (fields.Length < 3 || fields[0] != "R")
+            {
+                continue;
+            }
+
+            var width = fields[1] == "MAJOR" ? 14f : 9f;
+
+            var points = ParsePolygon(fields[2], System.Globalization.CultureInfo.InvariantCulture);
+
+            for (var i = 0; i + 3 < points.Length; i += 2)
+            {
+                var start = new Vector2(points[i], points[i + 1]);
+
+                var end = new Vector2(points[i + 2], points[i + 3]);
+
+                // Cut the segment into pieces of about 25 m so the Medical Center window can be left out piece by piece.
+                var pieces = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(start, end) / 25f));
+
+                for (var j = 0; j < pieces; j++)
+                {
+                    var a = Vector2.Lerp(start, end, j / (float)pieces);
+
+                    var b = Vector2.Lerp(start, end, (j + 1) / (float)pieces);
+
+                    var middle = (a + b) / 2f;
+
+                    if (middle.y > -2410f || middle.y < -4700f || middle.x < -2250f || middle.x > 690f || med.Contains(middle) || Vector2.Distance(a, b) < 0.5f)
+                    {
+                        continue;
+                    }
+
+                    var direction = (b - a).normalized;
+
+                    var piece = Make(new Spec("Street", new Vector3(middle.x, 0f, middle.y), new Vector3(width, 0.06f, Vector2.Distance(a, b) + 0.6f), _asphalt, PrimitiveType.Cube, false));
+
+                    piece.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(direction.x, direction.y) * Mathf.Rad2Deg, 0f);
+
+                    segments++;
+                }
+            }
+        }
+
+        // The City's centre lines stop in Hermann Park, so the last stretch of Main St to the Medical Center is a straight 16 m road along the
+        // Main St axis of the Medical Center window (x -392), so there is a way to drive there.
+        var spine = Make(new Spec("MainStSpine", new Vector3(-392f, 0f, (-2700f + MedCenterNeighborhood.MaxZ) / 2f), new Vector3(16f, 0.06f, Mathf.Abs(-2700f - MedCenterNeighborhood.MaxZ)), _asphalt, PrimitiveType.Cube, false));
+
+        spine.name = "MainStSpine";
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        return "South roads: " + segments + " street segments.";
+    }
 }

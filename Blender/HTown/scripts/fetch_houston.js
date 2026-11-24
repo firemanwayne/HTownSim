@@ -23,7 +23,7 @@ const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320 * Math.cos((LAT0 * Math.PI) / 180);
 const ROT = (35.06 * Math.PI) / 180;
 // Unity playable window plus a margin so the map has context past the walls.
-const WIN = { x0: -2250, x1: 560, z0: -2350, z1: 1575 };
+const WIN = { x0: -2250, x1: 690, z0: -4740, z1: 1575 };
 const MARGIN = 180;
 
 const toScene = (lon, lat) => {
