@@ -64,8 +64,17 @@ namespace HTownSim.Runtime
             "Engine 07", 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
             new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true);
 
+        /// <summary>Values supplied at run time by <see cref="ApparatusLoadout"/>, which win over the serialized fields.</summary>
+        private ApparatusProfileValues? _runtimeValues;
+
+        /// <summary>Replaces this profile's values for the rest of the session without touching the saved scene.</summary>
+        internal void Use(ApparatusProfileValues values)
+        {
+            _runtimeValues = values;
+        }
+
         /// <summary>This profile's values.</summary>
-        internal ApparatusProfileValues Values => new ApparatusProfileValues(
+        internal ApparatusProfileValues Values => _runtimeValues ?? new ApparatusProfileValues(
             _unitName, _wheelRadius, _wheelbase, _frontWheelPrefixes, _rearWheelPrefixes, _turnRate, _cameraDistanceScale,
             _waterOrigin, _sceneLight, _rearLamps, _flashGroupA, _flashGroupB, _steadyLenses, _airHorn, _canSprayWater, _lensHalos, _emsAlert);
 

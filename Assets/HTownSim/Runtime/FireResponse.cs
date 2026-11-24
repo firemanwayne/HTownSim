@@ -10,6 +10,7 @@ namespace HTownSim.Runtime
 {
     /// <summary>Owns the small driving and fire-suppression demo loop.</summary>
     [RequireComponent(typeof(CharacterController))]
+    [DefaultExecutionOrder(-10000)]
     internal sealed class FireResponse : MonoBehaviour
     {
         /// <summary>Initial dispatch time in seconds.</summary>
@@ -113,6 +114,9 @@ namespace HTownSim.Runtime
 
         /// <summary>The driven apparatus's fit-out, for the other apparatus components.</summary>
         internal ApparatusProfileValues Profile => _profile;
+
+        /// <summary>The roof beacon lights, which <see cref="ApparatusLoadout"/> moves when it changes the apparatus.</summary>
+        internal Light[] Beacons => _beacons;
 
         /// <summary>The aerial, when the driven apparatus has one (Ladder 07); the truck holds still unless it is stowed.</summary>
         private AerialController? _aerial;
@@ -237,6 +241,14 @@ namespace HTownSim.Runtime
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
+
+            // Fit the apparatus picked on the start screen before anything reads the profile or the bay position.
+            var picked = StartingTruckChoice.Saved;
+
+            if (picked is not null)
+            {
+                ApparatusLoadout.Fit(new LoadoutRequest(this, picked.Value));
+            }
 
             _profile = ApparatusProfile.For(gameObject);
 
