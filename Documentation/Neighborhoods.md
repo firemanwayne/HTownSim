@@ -63,3 +63,22 @@ angle is the bearing that makes the neighborhood's streets axis-aligned; the dat
 Objects built by a script and then moved (here, by rotating the neighborhood root) can show stale, un-rotated copies in the Scene and Game
 views until the scene is reloaded. If buildings look axis-aligned over rotated lots after a build, reopen the scene before
 judging it; the saved transforms are correct.
+
+## Filling the gap
+
+Between Midtown and the Station 16 neighborhood there are about 6,500 more lots. `BuildRealMidtown.ExpandGap` fills them with a first
+layer, in the world frame (Midtown's), so the whole area is drivable:
+
+- **Roads:** an asphalt base over the part of the data rectangle outside Midtown. The gaps between lots are the streets, as in the other builders.
+- **Lots:** each lot gets its sidewalk, curb and surface (grass, paving or parking), with a mesh collider on the sidewalks.
+- **Building squares:** a plain gray box per built lot, turned to the lot's own angle (the minimum-area rectangle of the lot polygon),
+  pulled in from its edges, with a height from the floor count (3.4 to 80 m) and a collider.
+- Lots already built (the Midtown window and the Station 16 neighborhood) are left out. Everything is under `Gap_Placeholders` and the pass
+  replaces its own earlier output.
+
+Data: `NEIGHBORHOOD=gap node AgentScripts/PrepareMidtownData.js` writes `Assets/HTownSim/Data/Gap_Southwest.txt`
+(the whole rectangle in Midtown's frame; use the same `MIDTOWN_CACHE` folder as an earlier download to skip the download).
+
+Not there yet: lane markings, crosswalks, signals and traffic in the gap, real buildings, trees, props and parked cars, and the far
+south-west corners outside the data (plain ground). The next step is real neighborhoods for the gap, built the same way as Station 16 and
+replacing the placeholders under their area.

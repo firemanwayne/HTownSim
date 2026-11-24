@@ -16,6 +16,8 @@ const BASE = "https://mycity2.houstontx.gov/gisweb02/rest/services/HoustonMap";
 // builders and traffic code work inside it.
 const NEIGHBORHOODS = {
   station16: { label: 16, lat: 29.73431865, lon: -95.40213039, rotationDegrees: 0.1, half: 650, file: "Neighborhood_Station16.txt" },
+  // The whole rectangle between Midtown and Station 16, in Midtown's own frame: lots only, for the placeholder pass (BuildRealMidtown.ExpandGap).
+  gap: { label: 0, rotationDegrees: 35.06, win: { x0: -2310, x1: 600, z0: -2410, z1: 1700 }, file: "Gap_Southwest.txt" },
 };
 const NEIGHBORHOOD = process.env.NEIGHBORHOOD ? NEIGHBORHOODS[process.env.NEIGHBORHOOD] : null;
 if (process.env.NEIGHBORHOOD && !NEIGHBORHOOD) throw new Error("Unknown NEIGHBORHOOD " + process.env.NEIGHBORHOOD);
@@ -38,8 +40,10 @@ const toLocalFrame = (lon, lat) => {
   const t = (FIXED_ROT * Math.PI) / 180;
   return [e * Math.cos(t) - n * Math.sin(t), e * Math.sin(t) + n * Math.cos(t)];
 };
-const NEIGHBORHOOD_CENTRE = NEIGHBORHOOD ? toLocalFrame(NEIGHBORHOOD.lon, NEIGHBORHOOD.lat) : null;
-const WIN = NEIGHBORHOOD
+const NEIGHBORHOOD_CENTRE = NEIGHBORHOOD && !NEIGHBORHOOD.win ? toLocalFrame(NEIGHBORHOOD.lon, NEIGHBORHOOD.lat) : null;
+const WIN = NEIGHBORHOOD && NEIGHBORHOOD.win
+  ? NEIGHBORHOOD.win
+  : NEIGHBORHOOD
   ? { x0: NEIGHBORHOOD_CENTRE[0] - NEIGHBORHOOD.half, x1: NEIGHBORHOOD_CENTRE[0] + NEIGHBORHOOD.half, z0: NEIGHBORHOOD_CENTRE[1] - NEIGHBORHOOD.half, z1: NEIGHBORHOOD_CENTRE[1] + NEIGHBORHOOD.half }
   : EXPANDED
     ? { x0: -900, x1: 600, z0: -520, z1: 1700 }

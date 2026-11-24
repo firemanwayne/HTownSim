@@ -4126,4 +4126,291 @@ public static class BuildRealMidtown
 
         return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
+
+    // ------------------------------------------------------------------ gap placeholders
+
+    private const string GapDataPath = "Assets/HTownSim/Data/Gap_Southwest.txt";
+
+    /// <summary>The part of the data window (Midtown's frame) that holds the gap: west of the Midtown window and south of it.</summary>
+    private static readonly Rect[] GapGroundRects =
+    {
+        new Rect(-2310f, -2410f, 1465f, 4110f),
+        new Rect(-845f, -2410f, 1405f, 1960f),
+    };
+
+    /// <summary>Roads, lots and placeholder building squares for the rectangle between Midtown and the Station 16 neighborhood. Every lot gets its sidewalk and surface, and every built lot a plain box on its own lot angle, to be replaced neighborhood by neighborhood.</summary>
+    public static string ExpandGap()
+    {
+        try
+        {
+            return ExpandGapCore();
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string ExpandGapCore()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        if (!File.Exists(GapDataPath))
+        {
+            return "Missing " + GapDataPath + ". Run: NEIGHBORHOOD=gap node AgentScripts/PrepareMidtownData.js";
+        }
+
+        var cityRoot = GameObject.Find(RootName);
+
+        if (cityRoot == null)
+        {
+            return "Build the city first (BuildRealMidtown.Build).";
+        }
+
+        _data = Parse(File.ReadAllLines(GapDataPath));
+
+        ResetState();
+
+        _neighborhood = true;
+
+        _expanding = true;
+
+        _suffix = "_Gap";
+
+        _indexBase = 400000;
+
+        var old = cityRoot.transform.Find("Gap_Placeholders");
+
+        if (old != null)
+        {
+            Object.DestroyImmediate(old.gameObject);
+        }
+
+        var container = new GameObject("Gap_Placeholders").transform;
+
+        container.SetParent(cityRoot.transform, false);
+
+        _root = container;
+
+        LoadMaterials();
+
+        // Lots already built elsewhere are left out: the Midtown window, and the Station 16 neighborhood (checked in its own rotated frame).
+        var neighborhood = Station16Neighborhood;
+
+        var toNeighborhood = Quaternion.Euler(0f, MidtownGridDegrees - 0.1f, 0f);
+
+        var parcels = new List<Parcel>();
+
+        foreach (var parcel in _data.parcels)
+        {
+            var x = parcel.c[0];
+
+            var z = parcel.c[1];
+
+            if (x >= NewMinX && x <= NewMaxX && z >= NewMinZ && z <= NewMaxZ)
+            {
+                continue;
+            }
+
+            var local = toNeighborhood * new Vector3(x, 0f, z);
+
+            if (local.x >= neighborhood.MinX && local.x <= neighborhood.MaxX && local.z >= neighborhood.MinZ && local.z <= neighborhood.MaxZ)
+            {
+                continue;
+            }
+
+            parcels.Add(parcel);
+        }
+
+        Section("Ground", _root);
+
+        foreach (var rect in GapGroundRects)
+        {
+            // Just under the Midtown and neighborhood asphalt, so where they overlap theirs wins.
+            Make(new Spec("Streets", new Vector3(rect.center.x, -0.03f, rect.center.y), new Vector3(rect.width, RoadTop * 2f, rect.height), _asphalt, PrimitiveType.Cube, true));
+        }
+
+        BuildParcelSlabs(parcels);
+
+        var boxes = BuildPlaceholderBuildings(parcels);
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        AssetDatabase.SaveAssets();
+
+        return "Gap: " + parcels.Count + " lots (of " + _data.parcels.Length + " in the data) with sidewalks and surfaces, " + boxes + " placeholder building squares.";
+    }
+
+    /// <summary>One plain box per built lot, on the lot's own angle and pulled in from its edges; returns how many.</summary>
+    private static int BuildPlaceholderBuildings(List<Parcel> parcels)
+    {
+        Section("PlaceholderBuildings", _root);
+
+        var material = Mat("GapBuilding", "8E9296");
+
+        var count = 0;
+
+        foreach (var parcel in parcels)
+        {
+            if ((parcel.f == 0 && parcel.m == 0) || parcel.a < 60 || IsPark(parcel))
+            {
+                continue;
+            }
+
+            if (!OrientedRect(parcel.p, out var centre, out var width, out var depth, out var yaw))
+            {
+                continue;
+            }
+
+            width = Mathf.Clamp(width - 6f, 4f, 120f);
+
+            depth = Mathf.Clamp(depth - 8f, 4f, 120f);
+
+            var height = Mathf.Clamp(Floors(parcel) * FloorHeight, 3.4f, 80f);
+
+            var go = Make(new Spec("Block", new Vector3(centre.x, height / 2f, centre.y), new Vector3(width, height, depth), material, PrimitiveType.Cube, true));
+
+            go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>The smallest rectangle that holds a polygon (flat x, z pairs): its centre, its size along its first axis (width) and across it (depth), and the yaw in degrees that turns a cube's X axis onto that first axis.</summary>
+    private static bool OrientedRect(float[] flat, out Vector2 centre, out float width, out float depth, out float yawDegrees)
+    {
+        centre = Vector2.zero;
+
+        width = 0f;
+
+        depth = 0f;
+
+        yawDegrees = 0f;
+
+        var points = new List<Vector2>();
+
+        for (var i = 0; i + 1 < flat.Length; i += 2)
+        {
+            points.Add(new Vector2(flat[i], flat[i + 1]));
+        }
+
+        if (points.Count < 3)
+        {
+            return false;
+        }
+
+        points.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y));
+
+        var lower = new List<Vector2>();
+
+        foreach (var p in points)
+        {
+            while (lower.Count >= 2 && HullCross(lower[lower.Count - 2], lower[lower.Count - 1], p) <= 0f)
+            {
+                lower.RemoveAt(lower.Count - 1);
+            }
+
+            lower.Add(p);
+        }
+
+        var upper = new List<Vector2>();
+
+        for (var i = points.Count - 1; i >= 0; i--)
+        {
+            var p = points[i];
+
+            while (upper.Count >= 2 && HullCross(upper[upper.Count - 2], upper[upper.Count - 1], p) <= 0f)
+            {
+                upper.RemoveAt(upper.Count - 1);
+            }
+
+            upper.Add(p);
+        }
+
+        lower.RemoveAt(lower.Count - 1);
+
+        upper.RemoveAt(upper.Count - 1);
+
+        var hull = new List<Vector2>(lower);
+
+        hull.AddRange(upper);
+
+        if (hull.Count < 3)
+        {
+            return false;
+        }
+
+        var bestArea = float.MaxValue;
+
+        for (var i = 0; i < hull.Count; i++)
+        {
+            var a = hull[i];
+
+            var b = hull[(i + 1) % hull.Count];
+
+            var angle = Mathf.Atan2(b.y - a.y, b.x - a.x);
+
+            var c = Mathf.Cos(angle);
+
+            var s = Mathf.Sin(angle);
+
+            var minU = float.MaxValue;
+
+            var maxU = float.MinValue;
+
+            var minV = float.MaxValue;
+
+            var maxV = float.MinValue;
+
+            foreach (var q in hull)
+            {
+                var u = q.x * c + q.y * s;
+
+                var v = -q.x * s + q.y * c;
+
+                minU = Mathf.Min(minU, u);
+
+                maxU = Mathf.Max(maxU, u);
+
+                minV = Mathf.Min(minV, v);
+
+                maxV = Mathf.Max(maxV, v);
+            }
+
+            var w = maxU - minU;
+
+            var d = maxV - minV;
+
+            if (w * d < bestArea)
+            {
+                bestArea = w * d;
+
+                width = w;
+
+                depth = d;
+
+                var cu = (minU + maxU) / 2f;
+
+                var cv = (minV + maxV) / 2f;
+
+                centre = new Vector2(cu * c - cv * s, cu * s + cv * c);
+
+                yawDegrees = -angle * Mathf.Rad2Deg;
+            }
+        }
+
+        return true;
+    }
+
+    private static float HullCross(Vector2 o, Vector2 a, Vector2 b)
+    {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    }
 }
