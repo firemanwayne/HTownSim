@@ -3,11 +3,18 @@ using UnityEngine;
 
 namespace HTownSim.Runtime
 {
-    /// <summary>Remembers which apparatus the player picked on the start screen and describes each choice.</summary>
+    /// <summary>Remembers which apparatus the player picked on the start screen and describes the stations and apparatus.</summary>
     internal static class StartingTruckChoice
     {
         /// <summary>The PlayerPrefs key holding the last picked apparatus.</summary>
         private const string PrefKey = "HTownSim.StartingTruck";
+
+        private static readonly StartingTruck[] Station7Trucks = { StartingTruck.Engine, StartingTruck.Ladder, StartingTruck.Ambulance };
+
+        private static readonly StartingTruck[] Station8Trucks = { StartingTruck.Engine08, StartingTruck.Engine01, StartingTruck.Medic08 };
+
+        /// <summary>The stations, in the order the start screen lists them.</summary>
+        internal static readonly StartingStation[] Stations = { StartingStation.Station7, StartingStation.Station8 };
 
         /// <summary>True once the player has dealt with the start screen this session, so it is not shown again after the reload.</summary>
         internal static bool Decided { get; set; }
@@ -36,6 +43,34 @@ namespace HTownSim.Runtime
             PlayerPrefs.Save();
         }
 
+        /// <summary>The station an apparatus lives at.</summary>
+        internal static StartingStation StationOf(StartingTruck truck)
+        {
+            return truck is StartingTruck.Engine08 or StartingTruck.Engine01 or StartingTruck.Medic08
+                ? StartingStation.Station8
+                : StartingStation.Station7;
+        }
+
+        /// <summary>The apparatus at a station, in the order the start screen lists them.</summary>
+        internal static StartingTruck[] TrucksAt(StartingStation station)
+        {
+            return station == StartingStation.Station8 ? Station8Trucks : Station7Trucks;
+        }
+
+        /// <summary>The station's name, as shown on the start screen.</summary>
+        internal static string StationName(StartingStation station)
+        {
+            return station == StartingStation.Station8 ? "Station 8" : "Station 7";
+        }
+
+        /// <summary>The station's address and what it houses.</summary>
+        internal static string StationDescription(StartingStation station)
+        {
+            return station == StartingStation.Station8
+                ? "1919 Louisiana St, north-east of Midtown. Engine 08, Engine 01 and Medic 08."
+                : "1402 Elgin St, in Midtown. Engine 07, Ladder 07 and Ambulance 07.";
+        }
+
         /// <summary>The unit's radio name, as shown on the start screen and the HUD.</summary>
         internal static string DisplayName(StartingTruck truck)
         {
@@ -43,6 +78,9 @@ namespace HTownSim.Runtime
             {
                 StartingTruck.Ladder => "Ladder 07",
                 StartingTruck.Ambulance => "Ambulance 07",
+                StartingTruck.Engine08 => "Engine 08",
+                StartingTruck.Engine01 => "Engine 01",
+                StartingTruck.Medic08 => "Medic 08",
                 _ => "Engine 07",
             };
         }
@@ -54,6 +92,9 @@ namespace HTownSim.Runtime
             {
                 StartingTruck.Ladder => "Aerial ladder. Wide turning circle; set the outriggers to raise the ladder and flow water from the tip.",
                 StartingTruck.Ambulance => "Medic unit. Tight turns and EMS dispatch tones, but it carries no water.",
+                StartingTruck.Engine08 => "Station 8's pumper: the same rig as Engine 07, with a hose line and the full water supply.",
+                StartingTruck.Engine01 => "A second pumper at Station 8: the same rig as Engine 07, with a hose line and the full water supply.",
+                StartingTruck.Medic08 => "Station 8's medic unit: the same rig as Ambulance 07, with EMS tones and no water.",
                 _ => "Pumper. The quickest to get to a fire, with a hose line and the full water supply.",
             };
         }

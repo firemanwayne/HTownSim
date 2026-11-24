@@ -64,6 +64,14 @@ namespace HTownSim.Runtime
             "Engine 07", 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
             new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true);
 
+        /// <summary>Engine 07's fit-out under another unit name (Engine 08, Engine 01): the same rig with its own number.</summary>
+        internal static ApparatusProfileValues EngineAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
+                new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true);
+        }
+
         /// <summary>Values supplied at run time by <see cref="ApparatusLoadout"/>, which win over the serialized fields.</summary>
         private ApparatusProfileValues? _runtimeValues;
 

@@ -26,3 +26,10 @@ With the scene saved and Play Mode off, run **HTownSim > Station 8 > Add Apparat
 gives the new textures the import settings of the ones they replace, makes copies of the paint and decal materials that use them
 (under `Vehicles/Station8/Materials`), parks the three under `Station8Apparatus`, relabels the middle bay sign, and saves the
 scene. It can be run again; **Remove Apparatus** (`Revert`) takes them away and restores the sign.
+
+## Driving them
+
+The start screen asks for a station first, then an apparatus. Choosing a Station 8 apparatus moves the driven rig into that
+bay and gives it the parked unit's livery and number (the parked unit is hidden for the run). It keeps Engine 07's
+handling, siren and lights (Engine 08, Engine 01) or Ambulance 07's (Medic 08), under the new unit name in the HUD, and
+Engine 07 is parked back at Station 7. Station 8 is greyed out on the start screen until **Add Apparatus** has been run on the scene.

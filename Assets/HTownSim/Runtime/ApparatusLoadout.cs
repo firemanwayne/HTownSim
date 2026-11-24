@@ -3,14 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace HTownSim.Runtime
 {
     /// <summary>
-    /// Turns the driven object (named Engine07 whatever it is) into Engine 07, Ladder 07 or Ambulance 07 while the scene
-    /// loads. This is the run-time twin of the editor scripts DriveLadder07 and DriveAmbulance07: the driven object moves to
-    /// the chosen apparatus's bay, wears its model, takes its ApparatusProfile and beacon positions, and the apparatus it
-    /// replaces is parked in its own bay. Nothing here is saved to the scene; the scene's own truck is only the starting point.
+    /// Turns the driven object (named Engine07 whatever it is) into any of the six apparatus while the scene loads. This is the
+    /// run-time twin of the editor scripts DriveLadder07 and DriveAmbulance07 (Station 7) and of AddStation8Apparatus (Station 8): the
+    /// driven object moves to the chosen apparatus's bay, wears its model, takes its ApparatusProfile and beacon positions, and the
+    /// apparatus it replaces is parked in its own bay. Nothing here is saved to the scene; the scene's own truck is only the starting
+    /// point. A Station 8 apparatus borrows the look of the parked unit that AddStation8Apparatus placed in its bay (livery and number).
     /// </summary>
     internal static class ApparatusLoadout
     {
@@ -33,6 +35,15 @@ namespace HTownSim.Runtime
 
         private const string EngineLighting = "EmergencyLighting";
 
+        /// <summary>The group AddStation8Apparatus fills, and the unit names inside it.</summary>
+        private const string Station8Group = "Station8Apparatus";
+
+        private const string Engine08Unit = "Engine08";
+
+        private const string Engine01Unit = "Engine01";
+
+        private const string Medic08Unit = "Medic08";
+
         /// <summary>The visuals' drop below the driven object, so every apparatus's tyres sit on the floor the same way.</summary>
         private const float VisualDrop = -0.15f;
 
@@ -52,22 +63,47 @@ namespace HTownSim.Runtime
             new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
             new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
 
-        /// <summary>Ambulance 07's fit-out (0.41 m tyres, axles 2.56 m ahead and 1.62 m behind the origin, no water).</summary>
-        private static readonly ApparatusProfileValues AmbulanceValues = new ApparatusProfileValues(
-            "Ambulance 07", 0.41f, 4.18f, new[] { "WheelFront" }, new[] { "WheelRear" }, 5.5f, 0.95f,
-            new Vector3(0f, 3f, 3f), new Vector3(0.9f, 2.1f, 3f), false,
-            new[] { "Amb07_LensRedWarn", "Amb07_LensAmberWarn" }, new[] { "Amb07_LensRedWarn2" },
-            new[] { "Amb07_LensAmber", "Amb07_LensRed", "Amb07_LensClear" }, false, false, "Amb07Lenses", true);
-
-        /// <summary>Which apparatus the driven object currently is, read from the fitted model.</summary>
+        /// <summary>Which apparatus the driven object currently is: a run-time profile names a Station 8 unit, else the fitted model decides.</summary>
         internal static StartingTruck Detect(Transform driven)
         {
+            var profile = driven.GetComponent<ApparatusProfile>();
+
+            if (profile != null)
+            {
+                switch (profile.Values.UnitName)
+                {
+                    case "Engine 08":
+                        return StartingTruck.Engine08;
+                    case "Engine 01":
+                        return StartingTruck.Engine01;
+                    case "Medic 08":
+                        return StartingTruck.Medic08;
+                }
+            }
+
             if (driven.Find(AmbulanceVisual) != null)
             {
                 return StartingTruck.Ambulance;
             }
 
             return driven.Find(LadderVisual) != null ? StartingTruck.Ladder : StartingTruck.Engine;
+        }
+
+        /// <summary>True for the apparatus that live at Station 8.</summary>
+        internal static bool IsStation8(StartingTruck truck)
+        {
+            return StartingTruckChoice.StationOf(truck) == StartingStation.Station8;
+        }
+
+        /// <summary>True when the scene holds the parked Station 8 units (made by the editor command HTownSim > Station 8 > Add Apparatus).</summary>
+        internal static bool Station8Ready(Scene scene)
+        {
+            var group = scene.GetRootGameObjects().FirstOrDefault(root => root.name == Station8Group);
+
+            return group != null
+                && group.transform.Find(Engine08Unit) != null
+                && group.transform.Find(Engine01Unit) != null
+                && group.transform.Find(Medic08Unit) != null;
         }
 
         /// <summary>Makes the driven object the requested apparatus; a no-op when it already is. Logs and leaves the scene as it is if the scene lacks a piece.</summary>
@@ -97,7 +133,16 @@ namespace HTownSim.Runtime
                     current = StartingTruck.Ladder;
                 }
 
-                if (request.Target == StartingTruck.Engine)
+                if (IsStation8(request.Target))
+                {
+                    if (current == StartingTruck.Ladder)
+                    {
+                        RevertLadder(request);
+                    }
+
+                    ApplyStation8(request);
+                }
+                else if (request.Target == StartingTruck.Engine)
                 {
                     if (current == StartingTruck.Ladder)
                     {
@@ -129,6 +174,89 @@ namespace HTownSim.Runtime
             }
         }
 
+        /// <summary>Engine to a Station 8 apparatus: Engine 07 is parked at Station 7 and the driven object takes the Station 8 unit's bay and look.</summary>
+        private static void ApplyStation8(LoadoutRequest request)
+        {
+            var driven = request.Apparatus.transform;
+
+            var unitName = request.Target switch
+            {
+                StartingTruck.Engine01 => Engine01Unit,
+                StartingTruck.Medic08 => Medic08Unit,
+                _ => Engine08Unit,
+            };
+
+            var group = FindRoot(driven, Station8Group);
+
+            var unit = group.Find(unitName) ?? throw new InvalidOperationException(Station8Group + " has no " + unitName + ".");
+
+            var model = unit.childCount > 0 ? unit.GetChild(0) : throw new InvalidOperationException(unitName + " has no model.");
+
+            var engineVisual = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
+
+            // Station 7 keeps its engine: a static copy goes in the bay the driven object is leaving.
+            ParkEngine(driven);
+
+            driven.SetPositionAndRotation(unit.position, unit.rotation);
+
+            if (request.Target == StartingTruck.Medic08)
+            {
+                engineVisual.gameObject.SetActive(false);
+
+                var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
+
+                MoveBeacons(new BeaconMove(request.Apparatus, AmbulanceBeacon));
+
+                oldVisual.gameObject.SetActive(false);
+
+                model.SetParent(driven, true);
+
+                SetProfile(driven, AmbulanceAs("Medic 08"));
+            }
+            else
+            {
+                CopyMaterials(engineVisual, model);
+
+                SetProfile(driven, ApparatusProfile.EngineAs(StartingTruckChoice.DisplayName(request.Target)));
+            }
+
+            unit.gameObject.SetActive(false);
+        }
+
+        /// <summary>Gives the renderers of one model the materials of the same-named renderers of another (the other unit's livery and number).</summary>
+        private static void CopyMaterials(Transform target, Transform source)
+        {
+            var sources = source.GetComponentsInChildren<Renderer>(true)
+                .GroupBy(renderer => renderer.name)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            foreach (var renderer in target.GetComponentsInChildren<Renderer>(true))
+            {
+                if (sources.TryGetValue(renderer.name, out var original))
+                {
+                    renderer.sharedMaterials = original.sharedMaterials;
+                }
+            }
+        }
+
+        /// <summary>Parks a static copy of the engine model (with a box to drive around) in the bay the driven object is in now.</summary>
+        private static void ParkEngine(Transform driven)
+        {
+            var source = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
+
+            var parked = new GameObject(ParkedName).transform;
+
+            parked.SetPositionAndRotation(driven.position, driven.rotation);
+
+            UnityEngine.Object.Instantiate(source.gameObject, parked, false);
+
+            var box = parked.gameObject.AddComponent<BoxCollider>();
+
+            box.center = new Vector3(0f, 1.45f, 0f);
+
+            box.size = new Vector3(2.6f, 3.1f, 10.1f);
+        }
+
         /// <summary>Engine to ladder: the engine is parked in its bay and the driven object takes the ladder bay and model.</summary>
         private static void ApplyLadder(LoadoutRequest request)
         {
@@ -138,24 +266,9 @@ namespace HTownSim.Runtime
 
             var ladder = prop.Find(LadderVisual) ?? throw new InvalidOperationException("Ladder07 has no " + LadderVisual + ".");
 
-            var engineBay = driven.position;
-
-            var engineRotation = driven.rotation;
-
             var source = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
 
-            // Park a static copy of the engine model in the engine bay, with a box to drive around.
-            var parked = new GameObject(ParkedName).transform;
-
-            parked.SetPositionAndRotation(engineBay, engineRotation);
-
-            UnityEngine.Object.Instantiate(source.gameObject, parked, false);
-
-            var box = parked.gameObject.AddComponent<BoxCollider>();
-
-            box.center = new Vector3(0f, 1.45f, 0f);
-
-            box.size = new Vector3(2.6f, 3.1f, 10.1f);
+            ParkEngine(driven);
 
             // The driven object moves to the ladder bay and becomes the ladder.
             driven.SetPositionAndRotation(prop.position, prop.rotation);
@@ -164,18 +277,7 @@ namespace HTownSim.Runtime
 
             var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
 
-            var beaconRoot = new GameObject(BeaconsName).transform;
-
-            beaconRoot.SetParent(driven, false);
-
-            foreach (var beacon in BeaconLights(request.Apparatus))
-            {
-                var side = Mathf.Sign(driven.InverseTransformPoint(beacon.transform.position).x);
-
-                beacon.transform.SetParent(beaconRoot, false);
-
-                beacon.transform.localPosition = new Vector3(side * LadderBeacon.x, LadderBeacon.y, LadderBeacon.z);
-            }
+            MoveBeacons(new BeaconMove(request.Apparatus, LadderBeacon));
 
             oldVisual.gameObject.SetActive(false);
 
@@ -188,6 +290,25 @@ namespace HTownSim.Runtime
             prop.gameObject.SetActive(false);
 
             SetProfile(driven, LadderValues);
+        }
+
+        /// <summary>Puts the beacon lights under a new LadderBeacons object on the driven object, at the apparatus's roof positions.</summary>
+        private static void MoveBeacons(BeaconMove move)
+        {
+            var driven = move.Apparatus.transform;
+
+            var beaconRoot = new GameObject(BeaconsName).transform;
+
+            beaconRoot.SetParent(driven, false);
+
+            foreach (var beacon in BeaconLights(move.Apparatus))
+            {
+                var side = Mathf.Sign(driven.InverseTransformPoint(beacon.transform.position).x);
+
+                beacon.transform.SetParent(beaconRoot, false);
+
+                beacon.transform.localPosition = new Vector3(side * move.Position.x, move.Position.y, move.Position.z);
+            }
         }
 
         /// <summary>Ladder to engine: the ladder goes back on its prop, the parked engine's bay becomes the driven object's again.</summary>
@@ -300,7 +421,7 @@ namespace HTownSim.Runtime
                 beacon.localPosition = new Vector3(side * AmbulanceBeacon.x, AmbulanceBeacon.y, AmbulanceBeacon.z);
             }
 
-            SetProfile(driven, AmbulanceValues);
+            SetProfile(driven, AmbulanceAs("Ambulance 07"));
         }
 
         /// <summary>Ambulance to ladder: the model goes back to its prop and the ladder takes the driver's seat (the caller rewrites the profile).</summary>
@@ -339,6 +460,16 @@ namespace HTownSim.Runtime
                     beacon.localPosition = new Vector3(side * LadderBeacon.x, LadderBeacon.y, LadderBeacon.z);
                 }
             }
+        }
+
+        /// <summary>Ambulance 07's fit-out under a unit name (Ambulance 07, Medic 08): 0.41 m tyres, axles 2.56 m ahead and 1.62 m behind the origin, no water.</summary>
+        private static ApparatusProfileValues AmbulanceAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.41f, 4.18f, new[] { "WheelFront" }, new[] { "WheelRear" }, 5.5f, 0.95f,
+                new Vector3(0f, 3f, 3f), new Vector3(0.9f, 2.1f, 3f), false,
+                new[] { "Amb07_LensRedWarn", "Amb07_LensAmberWarn" }, new[] { "Amb07_LensRedWarn2" },
+                new[] { "Amb07_LensAmber", "Amb07_LensRed", "Amb07_LensClear" }, false, false, "Amb07Lenses", true);
         }
 
         /// <summary>Gives the driven object a profile (adding the component when the scene has none) carrying the apparatus's values.</summary>

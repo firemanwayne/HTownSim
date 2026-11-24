@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -6,12 +7,19 @@ using UnityEngine.SceneManagement;
 namespace HTownSim.Runtime
 {
     /// <summary>
-    /// The start screen: pauses the game and lets the player pick Engine 07, Ladder 07 or Ambulance 07. Picking the apparatus
-    /// the scene already fits just resumes; picking another stores the choice and reloads the scene, where
+    /// The start screen: pauses the game, asks which station to start from, then which of its apparatus to drive. Picking the
+    /// apparatus the scene already fits just resumes; picking another stores the choice and reloads the scene, where
     /// <see cref="ApparatusLoadout"/> fits it before anything else starts.
     /// </summary>
     internal sealed class StartingTruckMenu : MonoBehaviour
     {
+        /// <summary>The two steps of the screen.</summary>
+        private enum Step
+        {
+            Station,
+            Apparatus,
+        }
+
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
 
@@ -21,14 +29,13 @@ namespace HTownSim.Runtime
 
         private const float CardGap = 36f;
 
-        /// <summary>The apparatus in the order the cards and the 1, 2, 3 keys list them.</summary>
-        private static readonly StartingTruck[] Trucks = { StartingTruck.Engine, StartingTruck.Ladder, StartingTruck.Ambulance };
-
         private static readonly Color Dim = new Color(0.02f, 0.04f, 0.08f, 0.88f);
 
         private static readonly Color Card = new Color(0.07f, 0.11f, 0.19f, 0.96f);
 
         private static readonly Color CardLit = new Color(0.1f, 0.16f, 0.27f, 0.98f);
+
+        private static readonly Color CardOff = new Color(0.07f, 0.08f, 0.1f, 0.9f);
 
         private static readonly Color Amber = new Color(1f, 0.69f, 0.16f, 1f);
 
@@ -36,11 +43,23 @@ namespace HTownSim.Runtime
 
         private static readonly Color Muted = new Color(0.62f, 0.69f, 0.8f, 1f);
 
+        private static readonly Color Faint = new Color(0.4f, 0.44f, 0.5f, 1f);
+
+        private readonly List<MenuCard> _cards = new List<MenuCard>();
+
+        private Step _step = Step.Station;
+
         /// <summary>The apparatus the scene is fitted with right now.</summary>
         private StartingTruck _current;
 
+        /// <summary>The station whose apparatus are listed in the second step.</summary>
+        private StartingStation _station;
+
+        /// <summary>False when the scene has no parked Station 8 units, so Station 8 cannot be chosen yet.</summary>
+        private bool _station8Ready;
+
         /// <summary>The card the player is on (mouse hover, arrow keys or number keys).</summary>
-        private StartingTruck _highlight;
+        private int _highlight;
 
         /// <summary>The game's time scale before the menu froze it.</summary>
         private float _previousTimeScale = 1f;
@@ -84,7 +103,11 @@ namespace HTownSim.Runtime
 
             menu._current = ApparatusLoadout.Detect(response.transform);
 
-            menu._highlight = menu._current;
+            menu._station = StartingTruckChoice.StationOf(menu._current);
+
+            menu._station8Ready = ApparatusLoadout.Station8Ready(response.gameObject.scene);
+
+            menu.ShowStep(Step.Station);
         }
 
         /// <summary>Freezes the game under the menu and frees the mouse.</summary>
@@ -108,7 +131,7 @@ namespace HTownSim.Runtime
             }
         }
 
-        /// <summary>Keyboard choice: 1, 2 and 3 pick directly; the arrows move; Enter or Space confirms.</summary>
+        /// <summary>Keyboard: 1, 2, 3 pick directly; the arrows move; Enter or Space confirms; Backspace goes back to the stations.</summary>
         private void Update()
         {
             _mouseMoved = Mouse.current is not null && Mouse.current.delta.ReadValue().sqrMagnitude > 0f;
@@ -120,43 +143,109 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            if (keyboard.digit1Key.wasPressedThisFrame)
+            for (var i = 0; i < _cards.Count; i++)
             {
-                Choose(Trucks[0]);
+                if (DigitKey(keyboard, i).wasPressedThisFrame)
+                {
+                    Select(i);
 
-                return;
+                    return;
+                }
             }
-
-            if (keyboard.digit2Key.wasPressedThisFrame)
-            {
-                Choose(Trucks[1]);
-
-                return;
-            }
-
-            if (keyboard.digit3Key.wasPressedThisFrame)
-            {
-                Choose(Trucks[2]);
-
-                return;
-            }
-
-            var index = System.Array.IndexOf(Trucks, _highlight);
 
             if (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame)
             {
-                _highlight = Trucks[(index + 1) % Trucks.Length];
+                _highlight = (_highlight + 1) % _cards.Count;
             }
 
             if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame)
             {
-                _highlight = Trucks[(index + Trucks.Length - 1) % Trucks.Length];
+                _highlight = (_highlight + _cards.Count - 1) % _cards.Count;
+            }
+
+            if (_step == Step.Apparatus && keyboard.backspaceKey.wasPressedThisFrame)
+            {
+                ShowStep(Step.Station);
+
+                return;
             }
 
             if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame)
             {
-                Choose(_highlight);
+                Select(_highlight);
             }
+        }
+
+        /// <summary>The 1, 2 or 3 key for a card index.</summary>
+        private static UnityEngine.InputSystem.Controls.KeyControl DigitKey(Keyboard keyboard, int index)
+        {
+            return index switch
+            {
+                0 => keyboard.digit1Key,
+                1 => keyboard.digit2Key,
+                _ => keyboard.digit3Key,
+            };
+        }
+
+        /// <summary>Moves to a step and lists its cards, starting on the one that matches what is fitted now.</summary>
+        private void ShowStep(Step step)
+        {
+            _step = step;
+
+            _cards.Clear();
+
+            if (step == Step.Station)
+            {
+                foreach (var station in StartingTruckChoice.Stations)
+                {
+                    var available = station == StartingStation.Station7 || _station8Ready;
+
+                    _cards.Add(new MenuCard(
+                        StartingTruckChoice.StationName(station).ToUpperInvariant(),
+                        StartingTruckChoice.StationDescription(station),
+                        available ? (StartingTruckChoice.StationOf(_current) == station ? "YOUR LAST STATION" : "") : "NOT SET UP IN THIS SCENE",
+                        available));
+                }
+
+                _highlight = System.Array.IndexOf(StartingTruckChoice.Stations, StartingTruckChoice.StationOf(_current));
+
+                return;
+            }
+
+            var trucks = StartingTruckChoice.TrucksAt(_station);
+
+            foreach (var truck in trucks)
+            {
+                _cards.Add(new MenuCard(
+                    StartingTruckChoice.DisplayName(truck).ToUpperInvariant(),
+                    StartingTruckChoice.Description(truck),
+                    truck == _current ? "IN THE BAY NOW" : "",
+                    true));
+            }
+
+            var index = System.Array.IndexOf(trucks, _current);
+
+            _highlight = index >= 0 ? index : 0;
+        }
+
+        /// <summary>Acts on a card: a station opens its apparatus; an apparatus is chosen.</summary>
+        private void Select(int index)
+        {
+            if (index < 0 || index >= _cards.Count || !_cards[index].Enabled)
+            {
+                return;
+            }
+
+            if (_step == Step.Station)
+            {
+                _station = StartingTruckChoice.Stations[index];
+
+                ShowStep(Step.Apparatus);
+
+                return;
+            }
+
+            Choose(StartingTruckChoice.TrucksAt(_station)[index]);
         }
 
         /// <summary>Resumes with the fitted apparatus, or stores the pick and reloads the scene to fit another.</summary>
@@ -195,7 +284,7 @@ namespace HTownSim.Runtime
             SceneManager.LoadScene(scene.buildIndex);
         }
 
-        /// <summary>Draws the dimmed backdrop and one card per apparatus.</summary>
+        /// <summary>Draws the dimmed backdrop, the heading for the step and one card per choice.</summary>
         private void OnGUI()
         {
             BuildStyles();
@@ -210,37 +299,43 @@ namespace HTownSim.Runtime
 
             Fill(new Rect(0f, 0f, width, height), Dim);
 
-            GUI.Label(new Rect(0f, 150f, width, 64f), "CHOOSE YOUR APPARATUS", _title);
+            var stationStep = _step == Step.Station;
 
-            GUI.Label(new Rect(0f, 214f, width, 36f), "Station 7", _subtitle);
+            GUI.Label(new Rect(0f, 150f, width, 64f), stationStep ? "CHOOSE YOUR STATION" : "CHOOSE YOUR APPARATUS", _title);
 
-            var total = (Trucks.Length * CardWidth) + ((Trucks.Length - 1) * CardGap);
+            GUI.Label(new Rect(0f, 214f, width, 36f), stationStep ? "Houston Fire Department" : StartingTruckChoice.StationName(_station), _subtitle);
+
+            var total = (_cards.Count * CardWidth) + ((_cards.Count - 1) * CardGap);
 
             var left = (width - total) / 2f;
 
             var top = (height - CardHeight) / 2f;
 
-            for (var i = 0; i < Trucks.Length; i++)
+            for (var i = 0; i < _cards.Count; i++)
             {
                 DrawCard(new Rect(left + (i * (CardWidth + CardGap)), top, CardWidth, CardHeight), i);
             }
 
-            GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), "Press 1, 2 or 3, or use the arrow keys and Enter", _hint);
+            var hint = stationStep
+                ? "Press 1 or 2, or use the arrow keys and Enter"
+                : "Press 1, 2 or 3, or use the arrow keys and Enter.   Backspace: change station";
+
+            GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), hint, _hint);
         }
 
-        /// <summary>One apparatus card: number, name, description, and a marker on the one already fitted.</summary>
+        /// <summary>One card: number, title, description and footer marker.</summary>
         private void DrawCard(Rect rect, int index)
         {
-            var truck = Trucks[index];
+            var card = _cards[index];
 
-            if (_mouseMoved && Event.current.type == EventType.Repaint && rect.Contains(Event.current.mousePosition))
+            if (card.Enabled && _mouseMoved && Event.current.type == EventType.Repaint && rect.Contains(Event.current.mousePosition))
             {
-                _highlight = truck;
+                _highlight = index;
             }
 
-            var lit = _highlight == truck;
+            var lit = card.Enabled && _highlight == index;
 
-            Fill(rect, lit ? CardLit : Card);
+            Fill(rect, !card.Enabled ? CardOff : lit ? CardLit : Card);
 
             if (lit)
             {
@@ -249,20 +344,22 @@ namespace HTownSim.Runtime
 
             GUI.Label(new Rect(rect.x + 28f, rect.y + 26f, rect.width - 56f, 30f), (index + 1).ToString(), _tag);
 
-            _name!.normal.textColor = lit ? Amber : Text;
+            _name!.normal.textColor = !card.Enabled ? Faint : lit ? Amber : Text;
 
-            GUI.Label(new Rect(rect.x + 28f, rect.y + 58f, rect.width - 56f, 54f), StartingTruckChoice.DisplayName(truck).ToUpperInvariant(), _name);
+            GUI.Label(new Rect(rect.x + 28f, rect.y + 58f, rect.width - 56f, 54f), card.Title, _name);
 
-            GUI.Label(new Rect(rect.x + 28f, rect.y + 126f, rect.width - 56f, 130f), StartingTruckChoice.Description(truck), _body);
+            _body!.normal.textColor = card.Enabled ? Muted : Faint;
 
-            if (_current == truck)
+            GUI.Label(new Rect(rect.x + 28f, rect.y + 126f, rect.width - 56f, 130f), card.Description, _body);
+
+            if (card.Footer.Length > 0)
             {
-                GUI.Label(new Rect(rect.x + 28f, rect.y + CardHeight - 40f, rect.width - 56f, 26f), "IN THE BAY NOW", _tag);
+                GUI.Label(new Rect(rect.x + 28f, rect.y + CardHeight - 40f, rect.width - 56f, 26f), card.Footer, _tag);
             }
 
-            if (GUI.Button(rect, GUIContent.none, _invisible))
+            if (card.Enabled && GUI.Button(rect, GUIContent.none, _invisible))
             {
-                Choose(truck);
+                Select(index);
             }
         }
 
