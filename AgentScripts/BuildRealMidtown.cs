@@ -5017,4 +5017,84 @@ public static class BuildRealMidtown
 
         return "South roads: " + segments + " street segments.";
     }
+
+    // ------------------------------------------------------------------ corridor footprints
+
+    private const string CorridorFootprintsPath = "Assets/HTownSim/Data/Corridor_Footprints.txt";
+
+    /// <summary>
+    /// Plain boxes on the 2018 LiDAR footprints of the Hermann Park corridor (Museum District, the zoo, the golf course clubhouse), which lie between the city
+    /// and the Medical Center and have no lots of their own. Floors come from the footprint area. Data: <c>node AgentScripts/ExtractCorridorFootprints.js</c>. Can be run again.
+    /// </summary>
+    public static string AddCorridorFootprints()
+    {
+        try
+        {
+            return AddCorridorFootprintsCore();
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string AddCorridorFootprintsCore()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        var cityRoot = GameObject.Find(RootName);
+
+        if (cityRoot == null || !File.Exists(CorridorFootprintsPath))
+        {
+            return "Build the city and run node AgentScripts/ExtractCorridorFootprints.js first.";
+        }
+
+        ResetState();
+
+        var old = cityRoot.transform.Find("Footprints_Corridor");
+
+        if (old != null)
+        {
+            Object.DestroyImmediate(old.gameObject);
+        }
+
+        _root = new GameObject("Footprints_Corridor").transform;
+
+        _root.SetParent(cityRoot.transform, false);
+
+        LoadMaterials();
+
+        Section("Buildings", _root);
+
+        var count = 0;
+
+        foreach (var line in File.ReadAllLines(CorridorFootprintsPath))
+        {
+            var fields = line.Split('	');
+
+            if (fields.Length < 7 || fields[0] != "B")
+            {
+                continue;
+            }
+
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+            var height = int.Parse(fields[6], culture) * 3.8f;
+
+            var box = Make(new Spec("Footprint", new Vector3(float.Parse(fields[1], culture), height / 2f, float.Parse(fields[2], culture)), new Vector3(float.Parse(fields[3], culture), height, float.Parse(fields[4], culture)), _limestone, PrimitiveType.Cube, true));
+
+            box.transform.rotation = Quaternion.Euler(0f, -float.Parse(fields[5], culture), 0f);
+
+            count++;
+        }
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        return "Corridor footprints: " + count + " buildings.";
+    }
 }
