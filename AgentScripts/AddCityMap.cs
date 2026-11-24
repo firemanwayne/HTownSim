@@ -22,13 +22,13 @@ public static class AddCityMap
 
     private const string ExpandedData = "Assets/HTownSim/Data/MidtownExpanded.txt";
 
-    private const float WorldMinX = -845f;
+    private const float WorldMinX = -2250f;
 
-    private const float WorldMinZ = -450f;
+    private const float WorldMinZ = -2350f;
 
-    private const float WorldWidth = 1405f;
+    private const float WorldWidth = 2810f;
 
-    private const float WorldDepth = 2025f;
+    private const float WorldDepth = 3925f;
 
     private const float MapWidthPixels = 350f;
 
@@ -328,7 +328,7 @@ public static class AddCityMap
         }
     }
 
-    /// <summary>Marks Fire Station 8 on the map with a small square and a label.</summary>
+    /// <summary>Marks Fire Stations 8 and 16 on the map with a small square and a label.</summary>
     private static void AddStation8(RectTransform mapRect, float mapHeight)
     {
         foreach (var line in File.ReadAllLines(ExpandedData))
@@ -342,12 +342,22 @@ public static class AddCityMap
 
             var position = ToMap(new Vector3(float.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture), 0f, float.Parse(f[3], System.Globalization.CultureInfo.InvariantCulture)), mapHeight);
 
-            var marker = CreateMarker(mapRect, ("Station8Marker", new Vector2(12f, 12f), "E6D7B7"));
+            var marker = CreateMarker(mapRect, ("Station" + f[1] + "Marker", new Vector2(12f, 12f), "E6D7B7"));
 
             marker.rectTransform.anchoredPosition = position;
 
-            AddMapLabel(mapRect, ("STN 8", position + new Vector2(24f, 0f), 0f, 12));
+            AddMapLabel(mapRect, ("STN " + f[1], position + new Vector2(24f, 0f), 0f, 12));
         }
+
+        // Station 16 is built as its own neighborhood (BuildRealMidtown.ExpandStation16), so it is not in the Midtown data: it sits at
+        // the City's geocode for 1700 Richmond Ave, in scene metres.
+        var station16 = ToMap(new Vector3(-1941.3f, 0f, -2059.4f), mapHeight);
+
+        var marker16 = CreateMarker(mapRect, ("Station16Marker", new Vector2(12f, 12f), "E6D7B7"));
+
+        marker16.rectTransform.anchoredPosition = station16;
+
+        AddMapLabel(mapRect, ("STN 16", station16 + new Vector2(24f, 0f), 0f, 12));
     }
 
     /// <summary>Adds one centred map label with a translucent backing so it reads over streets and buildings.</summary>

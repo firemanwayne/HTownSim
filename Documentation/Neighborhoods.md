@@ -1,0 +1,65 @@
+# Neighborhoods
+
+Houston's street grid is not one grid. Midtown's streets run about 35 degrees off true north; Montrose and Hyde Park (around Fire
+Station 16) run almost north-south. The city builders and the traffic code assume one axis-aligned grid, so a district with a
+different angle came out with axis-aligned buildings on rotated lots and no traffic.
+
+A **neighborhood** is a district built in its own grid frame and then rotated into the city:
+
+```
+MidtownReal                       (world frame, never rotated)
+  ...Midtown and the Station 8 blocks, built as before
+  Neighborhood_Station16          root rotated to the neighborhood's grid angle
+    Ground, ParcelSlabs, Buildings, Roofs, Markings, Crosswalks, Signals, trees, props, parked cars,
+    FireStation16, IncidentSites
+  Traffic_Station16               a TrafficSystem for that frame
+  NeighborhoodFill                plain ground over the gap between Midtown and the neighborhood
+```
+
+Inside the root everything is axis-aligned in the neighborhood's own frame, so the existing builders and traffic code run unchanged.
+The root's yaw is `-(35.06 - <neighborhood grid angle>)` degrees (35.06 is Midtown's), about the world origin, which is the
+same origin the GIS projection uses, so no translation is needed.
+
+## Building one
+
+1. **Data.** `NEIGHBORHOOD=station16 node AgentScripts/PrepareMidtownData.js` downloads the City parcels, footprints and streets in
+   the neighborhood's own frame (angle and window come from the `NEIGHBORHOODS` table at the top of the script) into
+   `Assets/HTownSim/Data/Neighborhood_Station16.txt`. Use a fresh `MIDTOWN_CACHE` folder per run. The file's `R` line holds the
+   grid angle and `H 16` the station, in the neighborhood's frame.
+2. **Unity.** With the scene saved and Play Mode off, run `BuildRealMidtown.ExpandStation16`
+   (`unity command script run --file AgentScripts/BuildRealMidtown.cs --entry BuildRealMidtown.ExpandStation16`). It replaces its
+   own earlier output, builds the neighborhood, copies the Midtown `TrafficSystem` and writes this neighborhood's street axes, frame yaw
+   and signals into the copy, rotates the root, widens the playable area to cover Midtown plus the neighborhood, and saves.
+3. **After it:** `AddCityDetail.Run` (shop signs and lot furniture), then `AddCityMap.Build` and `UseBlenderCityMap.Apply` for the
+   HUD map, and `AddStation8Apparatus.Apply` if the Station 8 building was rebuilt.
+
+`MidtownExpanded.txt` (Midtown plus the Station 8 blocks) is unchanged: `EXPANDED=1 node AgentScripts/PrepareMidtownData.js`.
+
+## The HUD map
+
+The map covers the whole playable area (scene x -2250..560, z -2350..1575). The Blender map scripts use the same window
+(`fetch_houston.js`, `build_map.py`, `render_all.py`; `MIDTOWN_CACHE_DIRS` points the fetch at the data download's cache folders).
+Copy `Blender/HTown/renders/htown_map_hud.png` to `Assets/HTownSim/Textures/Map/CityMapBlender.png` and apply it. Station 16 is
+marked at the City's geocode for 1700 Richmond Ave (scene x -1941, z -2059).
+
+## What is and isn't there
+
+- Station 16's neighborhood is about 1.3 x 1.3 km (about 1,900 lots) around the station. Between it and Midtown there is plain ground:
+  drivable, but no buildings. Further neighborhoods would fill that gap, each with its own definition.
+- Cars and pedestrians follow the neighborhood's own streets (a second `TrafficSystem`), with signals and crosswalks on Richmond Ave.
+  They do not cross between a neighborhood and Midtown.
+- The building, ground and tree upgrades from the Blender passes still cover Midtown only.
+- There is no apparatus at Station 16 yet and it is not on the start screen.
+
+## Adding another neighborhood
+
+Add an entry to `NEIGHBORHOODS` in `PrepareMidtownData.js` (centre, grid angle, half size, file), add a matching `NeighborhoodDef` in
+`BuildRealMidtown.cs` (window in the neighborhood's frame, signal street) with an `ExpandXxx` entry, and repeat the steps above. The grid
+angle is the bearing that makes the neighborhood's streets axis-aligned; the data script prints an estimate
+("Estimated rotation over the expanded window"), but a value near 90 means the grid is about 0 (the estimate is modulo 90).
+
+## Editor tip
+
+Objects built by a script and then moved (here, by rotating the neighborhood root) can show stale, un-rotated copies in the Scene and Game
+views until the scene is reloaded. If buildings look axis-aligned over rotated lots after a build, reopen the scene before
+judging it; the saved transforms are correct.

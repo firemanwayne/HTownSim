@@ -35,7 +35,7 @@ public static class BuildRealMidtown
 
     private const float OldMaxZ = 620f;
 
-    /// <summary>The expanded window: one block west of Louisiana St and four blocks north of Fire Station 8 (past Bell St).</summary>
+    /// <summary>The expanded window: one block west of Louisiana St, four blocks north of Fire Station 8 (past Bell St). Fire Station 16 lies outside it and is built as its own neighborhood (ExpandNeighborhood).</summary>
     private const float NewMinX = -845f;
 
     private const float NewMaxX = 560f;
@@ -145,6 +145,22 @@ public static class BuildRealMidtown
     /// <summary>The parcel that holds Fire Station 8, if the data has one.</summary>
     private static Parcel? _station8Parcel;
 
+    /// <summary>The parcel that holds Fire Station 16, if the data has one.</summary>
+    private static Parcel? _station16Parcel;
+
+    /// <summary>True while a neighborhood (a district with its own street-grid angle) is built: the Midtown window checks do not apply.</summary>
+    private static bool _neighborhood;
+
+    /// <summary>The street whose intersections get crosswalks and signals (Elgin St in Midtown, Richmond Ave in the Station 16 neighborhood).</summary>
+    private static string _signalStreet = "ELGIN ST";
+
+    /// <summary>While a neighborhood's own TrafficSystem is written: that component, the yaw its root adds to the street frame and the world rectangle its cars stay in.</summary>
+    private static Component? _trafficOverride;
+
+    private static float _trafficExtraYaw;
+
+    private static Rect _trafficWorldRect;
+
     private static Transform? _treeRoot;
 
     private static Transform? _propRoot;
@@ -240,6 +256,8 @@ public static class BuildRealMidtown
         public StationData station = new StationData();
 
         public StationData? station8;
+
+        public StationData? station16;
 
         public float frameYaw;
 
@@ -568,6 +586,16 @@ public static class BuildRealMidtown
 
         _station8Parcel = null;
 
+        _station16Parcel = null;
+
+        _neighborhood = false;
+
+        _signalStreet = "ELGIN ST";
+
+        _trafficOverride = null;
+
+        _trafficExtraYaw = 0f;
+
         _treeRoot = null;
 
         _propRoot = null;
@@ -577,7 +605,7 @@ public static class BuildRealMidtown
 
     private static bool IsStationYard(Parcel parcel)
     {
-        if (_station8Parcel != null && parcel == _station8Parcel)
+        if ((_station8Parcel != null && parcel == _station8Parcel) || (_station16Parcel != null && parcel == _station16Parcel))
         {
             return true;
         }
@@ -587,6 +615,11 @@ public static class BuildRealMidtown
 
     private static bool InOldWindow(float x, float z)
     {
+        if (_neighborhood)
+        {
+            return false;
+        }
+
         return x >= OldMinX && x <= OldMaxX && z >= OldMinZ && z <= OldMaxZ;
     }
 
@@ -829,6 +862,8 @@ public static class BuildRealMidtown
 
         _station8Parcel = FindStation8Parcel(added);
 
+        _station16Parcel = FindStationParcel(added, _data.station16);
+
         BuildExpansionGround();
 
         BuildParcelSlabs(added);
@@ -876,6 +911,8 @@ public static class BuildRealMidtown
 
         PlaceStation8();
 
+        PlaceStation16();
+
         UpdateBounds();
 
         var sites = BuildExpansionSites(added);
@@ -918,11 +955,14 @@ public static class BuildRealMidtown
             }
         }
 
-        var station = GameObject.Find("FireStation8");
-
-        if (station != null)
+        foreach (var stationName in new[] { "FireStation8", "FireStation16" })
         {
-            doomed.Add(station);
+            var station = GameObject.Find(stationName);
+
+            if (station != null)
+            {
+                doomed.Add(station);
+            }
         }
 
         foreach (var go in doomed)
@@ -934,7 +974,12 @@ public static class BuildRealMidtown
     /// <summary>Finds the lot that holds Fire Station 8: by street address first, then the nearest lot to the geocode.</summary>
     private static Parcel? FindStation8Parcel(List<Parcel> parcels)
     {
-        var station = _data.station8;
+        return FindStationParcel(parcels, _data.station8);
+    }
+
+    /// <summary>Finds the lot that holds a fire station copy (Station 16): by street address first, then the nearest lot to the geocode.</summary>
+    private static Parcel? FindStationParcel(List<Parcel> parcels, StationData? station)
+    {
 
         if (station == null)
         {
@@ -979,7 +1024,7 @@ public static class BuildRealMidtown
         return best;
     }
 
-    /// <summary>Grass base and asphalt for the new area: the asphalt covers only the west and north strips so it never overlaps the existing roads.</summary>
+    /// <summary>Grass base and asphalt for the new area: the asphalt covers only the west, north and south strips so it never overlaps the existing roads.</summary>
     private static void BuildExpansionGround()
     {
         Section("Ground", _root);
@@ -997,10 +1042,16 @@ public static class BuildRealMidtown
         {
             new Rect(MinX, MinZ, OldMinX - MinX, MaxZ - MinZ),
             new Rect(OldMinX, OldMaxZ, MaxX - OldMinX, MaxZ - OldMaxZ),
+            new Rect(OldMinX, MinZ, MaxX - OldMinX, OldMinZ - MinZ),
         };
 
         foreach (var strip in strips)
         {
+            if (strip.width < 0.1f || strip.height < 0.1f)
+            {
+                continue;
+            }
+
             Make(new Spec("Streets", new Vector3(strip.center.x, 0f, strip.center.y), new Vector3(strip.width, RoadTop * 2f, strip.height), _asphalt, PrimitiveType.Cube, true));
         }
     }
@@ -1008,8 +1059,18 @@ public static class BuildRealMidtown
     /// <summary>Copies the Station 7 model onto Station 8's lot, turned to face the nearest street, and relabels it.</summary>
     private static void PlaceStation8()
     {
-        var parcel = _station8Parcel;
+        PlaceStationCopy(_station8Parcel, "FireStation8", "8");
+    }
 
+    /// <summary>Copies the Station 7 model onto Station 16's lot, turned to face the nearest street, and relabels it.</summary>
+    private static void PlaceStation16()
+    {
+        PlaceStationCopy(_station16Parcel, "FireStation16", "16");
+    }
+
+    /// <summary>Copies the Station 7 model onto a station lot, turned to face the nearest street, with its lights removed and its 7s relabelled to the station number.</summary>
+    private static void PlaceStationCopy(Parcel? parcel, string name, string number)
+    {
         var source = GameObject.Find("Station07");
 
         if (parcel == null || source == null)
@@ -1019,7 +1080,12 @@ public static class BuildRealMidtown
 
         var clone = Object.Instantiate(source);
 
-        clone.name = "FireStation8";
+        clone.name = name;
+
+        if (_neighborhood)
+        {
+            clone.transform.SetParent(_root, true);
+        }
 
         var centre = new Vector2(parcel.c[0], parcel.c[1]);
 
@@ -1036,7 +1102,7 @@ public static class BuildRealMidtown
 
         foreach (var text in clone.GetComponentsInChildren<TMP_Text>(true))
         {
-            text.text = text.text.Replace('7', '8');
+            text.text = text.text.Replace("7", number);
         }
     }
 
@@ -1229,9 +1295,9 @@ public static class BuildRealMidtown
     /// <summary>Rewires the traffic system to the expanded street grid (centres and extents in the street frame) and the rebuilt signals.</summary>
     private static string UpdateTraffic()
     {
-        var traffic = _root.Find("Traffic");
+        var traffic = _trafficOverride == null ? _root.Find("Traffic") : null;
 
-        Component? system = null;
+        Component? system = _trafficOverride;
 
         if (traffic != null)
         {
@@ -1327,13 +1393,13 @@ public static class BuildRealMidtown
 
         SetFloats(serialized, "_ewMax", ewMax);
 
-        serialized.FindProperty("_frameYawDegrees").floatValue = _data.frameYaw;
+        serialized.FindProperty("_frameYawDegrees").floatValue = _data.frameYaw + _trafficExtraYaw;
 
-        serialized.FindProperty("_boundsMin").vector2Value = new Vector2(MinX, MinZ);
+        serialized.FindProperty("_boundsMin").vector2Value = _trafficOverride == null ? new Vector2(MinX, MinZ) : _trafficWorldRect.min;
 
-        serialized.FindProperty("_boundsMax").vector2Value = new Vector2(MaxX, MaxZ);
+        serialized.FindProperty("_boundsMax").vector2Value = _trafficOverride == null ? new Vector2(MaxX, MaxZ) : _trafficWorldRect.max;
 
-        var elgin = FindAxis(_data.grid.ew, "ELGIN ST");
+        var elgin = FindAxis(_data.grid.ew, _signalStreet);
 
         serialized.FindProperty("_signalZ").floatValue = elgin == null ? 0f : AxisC(elgin);
 
@@ -1391,7 +1457,14 @@ public static class BuildRealMidtown
                     break;
 
                 case "H":
-                    data.station8 = new StationData { x = F(f[2]), z = F(f[3]), address = f[4] };
+                    if (f[1] == "16")
+                    {
+                        data.station16 = new StationData { x = F(f[2]), z = F(f[3]), address = f[4] };
+                    }
+                    else
+                    {
+                        data.station8 = new StationData { x = F(f[2]), z = F(f[3]), address = f[4] };
+                    }
 
                     break;
 
@@ -2790,7 +2863,7 @@ public static class BuildRealMidtown
     {
         Section("Crosswalks", _root);
 
-        var elgin = FindAxis(_data.grid.ew, "ELGIN ST");
+        var elgin = FindAxis(_data.grid.ew, _signalStreet);
 
         if (elgin is null)
         {
@@ -2849,7 +2922,7 @@ public static class BuildRealMidtown
     {
         Section("Signals", _root);
 
-        var elgin = FindAxis(_data.grid.ew, "ELGIN ST");
+        var elgin = FindAxis(_data.grid.ew, _signalStreet);
 
         if (elgin is null)
         {
@@ -3775,5 +3848,282 @@ public static class BuildRealMidtown
         }
 
         return false;
+    }
+
+    // ------------------------------------------------------------------ neighborhoods
+
+    /// <summary>The street grid of Midtown, in degrees: every other neighborhood root is rotated by the difference to its own grid angle.</summary>
+    private const float MidtownGridDegrees = 35.06f;
+
+    /// <summary>A district with its own street-grid angle. It is built in its own frame (so the axis-aligned builders and traffic code work unchanged) and its root is then rotated into the city.</summary>
+    private sealed class NeighborhoodDef
+    {
+        public string Name = string.Empty;
+
+        public string DataPath = string.Empty;
+
+        public float MinX;
+
+        public float MaxX;
+
+        public float MinZ;
+
+        public float MaxZ;
+
+        public string SignalStreet = "ELGIN ST";
+    }
+
+    /// <summary>Fire Station 16 (1700 Richmond Ave) and its blocks: Montrose and Hyde Park, whose streets run about 35 degrees off Midtown's.</summary>
+    private static readonly NeighborhoodDef Station16Neighborhood = new NeighborhoodDef
+    {
+        Name = "Station16",
+        DataPath = "Assets/HTownSim/Data/Neighborhood_Station16.txt",
+        MinX = -3421f,
+        MaxX = -2121f,
+        MinZ = -1225f,
+        MaxZ = 75f,
+        SignalStreet = "RICHMOND AVE",
+    };
+
+    /// <summary>Builds the Station 16 neighborhood (see <see cref="NeighborhoodDef"/>); can be run again, it replaces its own earlier output.</summary>
+    public static string ExpandStation16()
+    {
+        try
+        {
+            return ExpandNeighborhood(Station16Neighborhood);
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string ExpandNeighborhood(NeighborhoodDef def)
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        if (!File.Exists(def.DataPath))
+        {
+            return "Missing " + def.DataPath + ". Run: NEIGHBORHOOD=station16 node AgentScripts/PrepareMidtownData.js";
+        }
+
+        var cityRoot = GameObject.Find(RootName);
+
+        if (cityRoot == null)
+        {
+            return "Build the city first (BuildRealMidtown.Build).";
+        }
+
+        _data = Parse(File.ReadAllLines(def.DataPath));
+
+        ResetState();
+
+        _neighborhood = true;
+
+        _signalStreet = def.SignalStreet;
+
+        MinX = def.MinX;
+
+        MaxX = def.MaxX;
+
+        MinZ = def.MinZ;
+
+        MaxZ = def.MaxZ;
+
+        _expanding = true;
+
+        _suffix = "_" + def.Name;
+
+        _frameYaw = _data.frameYaw * Mathf.Deg2Rad;
+
+        _yawRot = Quaternion.Euler(0f, _data.frameYaw, 0f);
+
+        _indexBase = 200000;
+
+        foreach (var oldName in new[] { "Neighborhood_" + def.Name, "Traffic_" + def.Name, "NeighborhoodFill" })
+        {
+            var old = cityRoot.transform.Find(oldName);
+
+            if (old != null)
+            {
+                Object.DestroyImmediate(old.gameObject);
+            }
+        }
+
+        var container = new GameObject("Neighborhood_" + def.Name).transform;
+
+        container.SetParent(cityRoot.transform, false);
+
+        _root = container;
+
+        RoofSlabs.Clear();
+
+        EwRed.Clear();
+
+        EwAmber.Clear();
+
+        EwGreen.Clear();
+
+        NsRed.Clear();
+
+        NsAmber.Clear();
+
+        NsGreen.Clear();
+
+        LoadMaterials();
+
+        var parcels = new List<Parcel>(_data.parcels);
+
+        _station16Parcel = FindStationParcel(parcels, _data.station16);
+
+        BuildNeighborhoodGround();
+
+        BuildParcelSlabs(parcels);
+
+        _treeRoot = new GameObject("StreetTrees" + _suffix).transform;
+
+        _treeRoot.SetParent(container, false);
+
+        _propRoot = new GameObject("StreetProps" + _suffix).transform;
+
+        _propRoot.SetParent(container, false);
+
+        _parkedRoot = new GameObject("ParkedCars" + _suffix).transform;
+
+        _parkedRoot.SetParent(container, false);
+
+        LoadPlacementAssets();
+
+        BuildBuildings(parcels, false);
+
+        FlushRoofs();
+
+        BuildMarkings();
+
+        BuildCrossings();
+
+        BuildSignals();
+
+        PlaceStation16();
+
+        var sites = BuildExpansionSites(parcels);
+
+        // Traffic: a copy of the Midtown TrafficSystem that knows this neighborhood's streets, in its own frame plus the root's yaw.
+        var psi = -(MidtownGridDegrees - _data.rotationDegrees);
+
+        var worldRect = NeighborhoodWorldRect(def, psi);
+
+        var midtownTraffic = cityRoot.transform.Find("Traffic");
+
+        var trafficNote = "no Midtown TrafficSystem to copy";
+
+        if (midtownTraffic != null)
+        {
+            var copy = Object.Instantiate(midtownTraffic.gameObject, cityRoot.transform);
+
+            copy.name = "Traffic_" + def.Name;
+
+            foreach (var component in copy.GetComponents<MonoBehaviour>())
+            {
+                if (component != null && component.GetType().Name == "TrafficSystem")
+                {
+                    _trafficOverride = component;
+                }
+            }
+
+            _trafficExtraYaw = psi;
+
+            _trafficWorldRect = worldRect;
+
+            trafficNote = UpdateTraffic();
+
+            _trafficOverride = null;
+        }
+
+        // Rotate the finished neighborhood into the city.
+        container.rotation = Quaternion.Euler(0f, psi, 0f);
+
+        // The playable area is now the Midtown window plus this neighborhood, with plain ground in the gap between them.
+        var union = Rect.MinMaxRect(
+            Mathf.Min(NewMinX, worldRect.xMin - 40f),
+            Mathf.Min(NewMinZ, worldRect.yMin - 40f),
+            Mathf.Max(NewMaxX, worldRect.xMax + 40f),
+            Mathf.Max(NewMaxZ, worldRect.yMax + 40f));
+
+        _root = cityRoot.transform;
+
+        _suffix = string.Empty;
+
+        Section("NeighborhoodFill", _root);
+
+        Make(new Spec("NeighborhoodFill", new Vector3(union.center.x, -0.35f, union.center.y), new Vector3(union.width + GroundMargin * 2f, 0.5f, union.height + GroundMargin * 2f), _leaf, PrimitiveType.Cube, true));
+
+        MinX = union.xMin;
+
+        MaxX = union.xMax;
+
+        MinZ = union.yMin;
+
+        MaxZ = union.yMax;
+
+        UpdateBounds();
+
+        var siteList = BuildSiteList(sites);
+
+        UpdateDispatch(siteList);
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        AssetDatabase.SaveAssets();
+
+        return "Neighborhood " + def.Name + ": " + parcels.Count + " parcels, root rotated " + psi.ToString("0.00") + " degrees; world x " + union.xMin.ToString("0") + ".." + union.xMax.ToString("0") + ", z " + union.yMin.ToString("0") + ".." + union.yMax.ToString("0") + "; traffic: " + trafficNote;
+    }
+
+    /// <summary>Sites for FireResponse from the neighborhood's incident site transforms (already rotated into the city).</summary>
+    private static List<(Transform Site, string Street)> BuildSiteList(List<(Transform Site, string Street)> sites)
+    {
+        return sites;
+    }
+
+    /// <summary>Grass base and asphalt for the whole neighborhood window; the lot slabs and buildings go on top, so the gaps between lots read as streets.</summary>
+    private static void BuildNeighborhoodGround()
+    {
+        Section("Ground", _root);
+
+        var width = MaxX - MinX;
+
+        var depth = MaxZ - MinZ;
+
+        var centre = new Vector3((MinX + MaxX) / 2f, 0f, (MinZ + MaxZ) / 2f);
+
+        Make(new Spec("Ground", centre + new Vector3(0f, -0.32f, 0f), new Vector3(width + GroundMargin * 2f, 0.5f, depth + GroundMargin * 2f), _leaf, PrimitiveType.Cube, true));
+
+        Make(new Spec("Streets", centre, new Vector3(width, RoadTop * 2f, depth), _asphalt, PrimitiveType.Cube, true));
+    }
+
+    /// <summary>The world rectangle (x, z) that covers the neighborhood window after its root is rotated by <paramref name="psi"/> degrees.</summary>
+    private static Rect NeighborhoodWorldRect(NeighborhoodDef def, float psi)
+    {
+        var rotation = Quaternion.Euler(0f, psi, 0f);
+
+        var min = new Vector2(float.MaxValue, float.MaxValue);
+
+        var max = new Vector2(float.MinValue, float.MinValue);
+
+        foreach (var corner in new[] { new Vector2(def.MinX, def.MinZ), new Vector2(def.MaxX, def.MinZ), new Vector2(def.MaxX, def.MaxZ), new Vector2(def.MinX, def.MaxZ) })
+        {
+            var world = rotation * new Vector3(corner.x, 0f, corner.y);
+
+            min = Vector2.Min(min, new Vector2(world.x, world.z));
+
+            max = Vector2.Max(max, new Vector2(world.x, world.z));
+        }
+
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
     }
 }

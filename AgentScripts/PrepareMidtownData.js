@@ -11,8 +11,16 @@ const path = require("path");
 const BASE = "https://mycity2.houstontx.gov/gisweb02/rest/services/HoustonMap";
 // EXPANDED=1 downloads the larger window used by BuildRealMidtown.Expand (Midtown plus the blocks up to Fire Station 8
 // and beyond) into MidtownExpanded.txt, keeping the street rotation fixed so it lines up with the existing city.
-const EXPANDED = process.env.EXPANDED === "1";
-const OUT = process.argv[2] || path.join(__dirname, "..", "Assets", "HTownSim", "Data", EXPANDED ? "MidtownExpanded.txt" : "MidtownReal.txt");
+// NEIGHBORHOOD=station16 downloads one neighborhood in its own street-grid frame (rotated against Midtown) into Neighborhood_Station16.txt.
+// The neighborhood builder (BuildRealMidtown.ExpandNeighborhood) rotates that neighborhood's root to its grid angle, so the same axis-aligned
+// builders and traffic code work inside it.
+const NEIGHBORHOODS = {
+  station16: { label: 16, lat: 29.73431865, lon: -95.40213039, rotationDegrees: 0.1, half: 650, file: "Neighborhood_Station16.txt" },
+};
+const NEIGHBORHOOD = process.env.NEIGHBORHOOD ? NEIGHBORHOODS[process.env.NEIGHBORHOOD] : null;
+if (process.env.NEIGHBORHOOD && !NEIGHBORHOOD) throw new Error("Unknown NEIGHBORHOOD " + process.env.NEIGHBORHOOD);
+const EXPANDED = process.env.EXPANDED === "1" || !!NEIGHBORHOOD;
+const OUT = process.argv[2] || path.join(__dirname, "..", "Assets", "HTownSim", "Data", NEIGHBORHOOD ? NEIGHBORHOOD.file : EXPANDED ? "MidtownExpanded.txt" : "MidtownReal.txt");
 const CACHE = process.env.MIDTOWN_CACHE || path.join(require("os").tmpdir(), EXPANDED ? "midtown_cache_expanded" : "midtown_cache");
 fs.mkdirSync(CACHE, { recursive: true });
 
@@ -23,8 +31,19 @@ const HALF_LON = 0.0088;
 const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320 * Math.cos((LAT0 * Math.PI) / 180);
 // Scene-frame window (metres) for the expanded download, and the fixed street rotation of the existing city.
-const WIN = EXPANDED ? { x0: -900, x1: 600, z0: -520, z1: 1700 } : { x0: -650, x1: 650, z0: -650, z1: 650 };
-const FIXED_ROT = 35.06;
+const FIXED_ROT = NEIGHBORHOOD ? NEIGHBORHOOD.rotationDegrees : 35.06;
+const toLocalFrame = (lon, lat) => {
+  const e = (lon - LON0) * M_PER_DEG_LON;
+  const n = (lat - LAT0) * M_PER_DEG_LAT;
+  const t = (FIXED_ROT * Math.PI) / 180;
+  return [e * Math.cos(t) - n * Math.sin(t), e * Math.sin(t) + n * Math.cos(t)];
+};
+const NEIGHBORHOOD_CENTRE = NEIGHBORHOOD ? toLocalFrame(NEIGHBORHOOD.lon, NEIGHBORHOOD.lat) : null;
+const WIN = NEIGHBORHOOD
+  ? { x0: NEIGHBORHOOD_CENTRE[0] - NEIGHBORHOOD.half, x1: NEIGHBORHOOD_CENTRE[0] + NEIGHBORHOOD.half, z0: NEIGHBORHOOD_CENTRE[1] - NEIGHBORHOOD.half, z1: NEIGHBORHOOD_CENTRE[1] + NEIGHBORHOOD.half }
+  : EXPANDED
+    ? { x0: -900, x1: 600, z0: -520, z1: 1700 }
+    : { x0: -650, x1: 650, z0: -650, z1: 650 };
 // Query geometry: the rotated window as a polygon in lon/lat (a plain envelope would roughly double the download).
 const ENV_RING = (() => {
   const t = (FIXED_ROT * Math.PI) / 180;
@@ -98,6 +117,7 @@ function toText(o) {
   const poly = (flat) => flat.reduce((a, v, i) => (i % 2 ? (a[a.length - 1] += "," + v) : a.push(String(v)), a), []).join(";");
   const lines = [["R", o.rotationDegrees].join(TAB), ["S", o.station.x, o.station.z, o.station.address].join(TAB)];
   if (o.station8) lines.push(["H", 8, o.station8.x, o.station8.z, o.station8.address].join(TAB));
+  if (o.station16) lines.push(["H", 16, o.station16.x, o.station16.z, o.station16.address].join(TAB));
   if (o.frameYawDegrees !== undefined) lines.push(["Y", o.frameYawDegrees].join(TAB));
   const extra = (g) => (g.cl === undefined ? [] : [g.cl, g.e0, g.e1]);
   for (const g of o.grid.ns) lines.push(["G", "ns", g.c, g.w, g.name, ...extra(g)].join(TAB));
@@ -158,7 +178,13 @@ function detectGrid(parcels) {
   };
   const nsProbes = [-500, -400, -300, -200, -150, -30, -20, 25, 35, 100, 110, 200, 215, 300, 350, 420, 500, 580];
   const ewProbes = [-550, -480, -400, -300, -150, -60, 5, 50, 140, 250, 320, 420, 500, 580];
-  if (EXPANDED) {
+  if (NEIGHBORHOOD) {
+    // A neighborhood is searched in its own frame: probe lines every ~55 m (N-S streets) and ~45 m (E-W streets) across the whole window.
+    nsProbes.length = 0;
+    ewProbes.length = 0;
+    for (let z = WIN.z0 + 30; z <= WIN.z1 - 30; z += 55) nsProbes.push(z + ((Math.round(z / 55) % 3) + 3) % 3 * 9);
+    for (let x = WIN.x0 + 10; x <= WIN.x1 - 10; x += 45) ewProbes.push(x + ((Math.round(x / 45) % 3) + 3) % 3 * 7);
+  } else if (EXPANDED) {
     // Extra probe lines every ~55 m so the grid is also found across the new north and west parts.
     for (let z = 640; z <= WIN.z1 - 30; z += 55) nsProbes.push(z + ((z / 55) % 3) * 9);
     for (let x = -880; x < -650; x += 45) ewProbes.push(x + ((x / 45) % 3) * 7);
@@ -197,7 +223,7 @@ function refineGrid(grid, streets) {
     return sxx === 0 ? 0 : pairs.reduce((s, q) => s + (q[0] - mx) * (q[1] - my), 0) / sxx;
   };
   const span = (pairs) => Math.max(...pairs.map((q) => q[0])) - Math.min(...pairs.map((q) => q[0]));
-  const good = (a) => a.hits >= 10 && span(a.pairs) >= 900;
+  const good = (a) => a.hits >= 10 && span(a.pairs) >= (NEIGHBORHOOD ? 500 : 900);
   const tans = [...grid.ns.filter(good).map((a) => slope(a.pairs)), ...grid.ew.filter(good).map((a) => -slope(a.pairs))];
   const yaw = Math.atan(med(tans));
   const ps = Math.sin(yaw);
@@ -297,6 +323,7 @@ function refineGrid(grid, streets) {
   const railRaw = await queryAll("Transportation", 13, "Status");
   const stationRaw = await getJson(`${BASE}/Public_Safety/MapServer/10/query?where=LABEL%3D7&outFields=LABEL,ADDRESS,LADDERS&outSR=4326&f=json`);
   const station8Raw = await getJson(`${BASE}/Public_Safety/MapServer/10/query?where=LABEL%3D8&outFields=LABEL,ADDRESS,LADDERS&outSR=4326&f=json`);
+  const station16Raw = await getJson(`${BASE}/Public_Safety/MapServer/10/query?where=LABEL%3D16&outFields=LABEL,ADDRESS,LADDERS&outSR=4326&f=json`);
 
   // Estimate the street rotation from long parcel edges (circular mean of bearing * 4).
   let sx = 0;
@@ -503,6 +530,12 @@ function refineGrid(grid, streets) {
       if (!f) return null;
       const [x8, z8] = project(f.geometry.x, f.geometry.y);
       return { x: r1(x8), z: r1(z8), address: f.attributes.ADDRESS };
+    })(),
+    station16: (() => {
+      const f = station16Raw.features?.[0];
+      if (!f) return null;
+      const [x16, z16] = project(f.geometry.x, f.geometry.y);
+      return { x: r1(x16), z: r1(z16), address: f.attributes.ADDRESS };
     })(),
     grid,
     parcels,
