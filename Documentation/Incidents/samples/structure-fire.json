@@ -1,0 +1,10 @@
+{
+  "incidentId": "SAMPLE-FIRE-001",
+  "agency": "HFD",
+  "callType": "STRUCTURE_FIRE",
+  "coordinates": { "lat": 29.740445, "lon": -95.371423 },
+  "severity": 3,
+  "requiredUnits": ["ENGINE", "LADDER"],
+  "address": "Sample St",
+  "source": "sample"
+}

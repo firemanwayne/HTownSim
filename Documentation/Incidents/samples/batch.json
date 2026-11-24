@@ -1,0 +1,22 @@
+{
+  "incidents": [
+    {
+      "incidentId": "SAMPLE-BATCH-001",
+      "agency": "HFD",
+      "callType": "VEHICLE_FIRE",
+      "coordinates": { "lat": 29.7385, "lon": -95.3705 },
+      "severity": 2,
+      "requiredUnits": ["ENGINE"],
+      "source": "sample"
+    },
+    {
+      "incidentId": "SAMPLE-BATCH-002",
+      "agency": "EMS",
+      "callType": "TRAFFIC_ACCIDENT",
+      "coordinates": { "lat": 29.7418, "lon": -95.3722 },
+      "severity": 4,
+      "requiredUnits": ["AMBULANCE", "ENGINE"],
+      "source": "sample"
+    }
+  ]
+}

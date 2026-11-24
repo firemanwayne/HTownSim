@@ -395,3 +395,11 @@ The old check predicted lenses from `Time.time * 3` and passed only by chance. A
 `AgentScripts/AddCityDetail.cs` (`AddCityDetail.Run`) adds detail without changing the street grid or building footprints, and can be re-run after `BuildRealMidtown` (it clears its previous output first):
 - **Business signs:** every shop gets a sign board with a made-up business name over its storefront, an awning in one of six colours, and an "OPEN" sign in about half of them (`BusinessSigns`).
 - **Parking lots:** light poles at the corners, a pylon sign carrying the nearest shop's name, a blue "P" sign and a dumpster, placed only where nothing is in the way (`LotDetail`).
+
+## Starting apparatus screen
+
+When the game starts it pauses on a **Choose your apparatus** screen: Engine 07, Ladder 07 or Ambulance 07. Click a card, press 1, 2 or 3, or use the arrow keys and Enter. Picking the apparatus already in the bay resumes; picking another saves the choice (PlayerPrefs `HTownSim.StartingTruck`) and reloads the scene, where `ApparatusLoadout` fits it before `FireResponse` reads its profile. It is the run-time twin of `DriveLadder07` / `DriveAmbulance07`, and works from whichever truck the saved scene has. (Scripts: `Assets/HTownSim/Runtime/StartingTruck*.cs`, `ApparatusLoadout.cs`.) A standalone build needs `HoustonResponse` in Build Settings for the reload.
+
+## Incident manager
+
+Every call, whatever its source, goes through `IncidentManager` as standard JSON: `incidentId`, `agency` (HFD, EMS, HPD), `callType`, `coordinates` (lat/lon, mapped into the scene by `GeoProjection`), `severity` (1 to 5) and `requiredUnits`. Outside programs drop `.json` / `.jsonl` files into the game's `Incidents` folder under `persistentDataPath`; the old random spawn is now `FallbackIncidentSource`, which makes a call as the same JSON and submits it the same way. Non-fire calls (medical, traffic, ...) are cleared by staging at the scene. See `Documentation/Incidents.md` for the schema, the inbox folder, samples and rules (`Documentation/Incidents/samples/`).

@@ -1,0 +1,9 @@
+{
+  "incidentId": "SAMPLE-MED-001",
+  "agency": "EMS",
+  "callType": "MEDICAL",
+  "coordinates": { "lat": 29.743, "lon": -95.375 },
+  "severity": 2,
+  "requiredUnits": ["AMBULANCE"],
+  "source": "sample"
+}

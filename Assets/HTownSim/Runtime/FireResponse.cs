@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
+using HTownSim.Runtime.Incidents.Managers;
+using HTownSim.Runtime.Incidents.Models;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -58,6 +60,21 @@ namespace HTownSim.Runtime
         private float _roamClock;
         private float _alertUntil;
         private int _siteIndex;
+        /// <summary>A call from an outside source waits this long after the last one clears before it is dispatched.</summary>
+        private const float ExternalCallSettleSeconds = 3f;
+        /// <summary>A call this close to a storefront site burns at that site (with its sign); further away it burns at the exact spot.</summary>
+        private const float SiteSnapMeters = 30f;
+        /// <summary>Seconds a unit must stay stopped at a non-fire call to clear it.</summary>
+        private const float SceneSeconds = 8f;
+        /// <summary>The one door every call comes through: standard incident JSON in, queued calls out.</summary>
+        private IncidentManager _incidents = null!;
+        /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
+        private Incident? _activeIncident;
+        private Incident? _firstIncident;
+        /// <summary>True once the active call's outcome has been reported to the manager.</summary>
+        private bool _outcomeReported;
+        /// <summary>True when the active call is a fire, or when there is no call record yet.</summary>
+        private bool IncidentIsFire => _activeIncident is null || _activeIncident.IsFire;
         /// <summary>Name of the dispatch panel background that hides with the incident text, and its visibility (key I).</summary>
         private const string DispatchPanelName = "DispatchPanel";
         private const string HeaderName = "HudLabel";
@@ -336,12 +353,20 @@ namespace HTownSim.Runtime
         {
             _firstSiteIndex = PickFirstSite();
 
-            if (_incidentSites.Length > 0)
-            {
-                MoveIncidentTo(_firstSiteIndex);
-            }
+            _incidents = gameObject.AddComponent<IncidentManager>();
 
-            RestartFire();
+            _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), System.IO.Path.Combine(Application.persistentDataPath, "Incidents")));
+
+            _firstIncident = TakeFallbackIncident(_firstSiteIndex);
+
+            if (_firstIncident is not null)
+            {
+                ShowIncident(_firstIncident);
+            }
+            else
+            {
+                RestartFire();
+            }
 
             ArrangeHud();
 
@@ -684,8 +709,8 @@ namespace HTownSim.Runtime
         /// <summary>Plays the fire dispatch alert: the station ring recording first, then one single tone, six beeps. Falls back to the beeps alone when no ring is assigned.</summary>
         internal void PlayDispatch()
         {
-            // An EMS unit gets its own tone (no station ring): the two-tone high/low.
-            if (_profile.EmsAlert)
+            // An EMS call gets its own tone (no station ring): the two-tone high/low. With no call on record the unit decides.
+            if (_activeIncident is not null ? _activeIncident.Agency == IncidentAgency.Ems : _profile.EmsAlert)
             {
                 PlayEmsDispatch();
 
@@ -897,7 +922,14 @@ namespace HTownSim.Runtime
                 if (_heat > 0f)
                 {
                     _remaining = Mathf.Max(0f, _remaining - Time.deltaTime);
+
+                    if (_remaining <= 0f)
+                    {
+                        ReportOutcome(IncidentOutcome.Failed);
+                    }
                 }
+
+                WorkNonFireScene(Time.deltaTime);
 
                 if (_profile.CanSprayWater && keyboard.eKey.isPressed && Mathf.Abs(_speed) < 0.8f)
                 {
@@ -905,7 +937,10 @@ namespace HTownSim.Runtime
                 }
             }
 
-            _spread.Tick(_paused ? 0f : Time.deltaTime, _heat, _water.enabled);
+            if (IncidentIsFire)
+            {
+                _spread.Tick(_paused ? 0f : Time.deltaTime, _heat, _water.enabled);
+            }
 
             if (_apparatus == null)
             {
@@ -945,23 +980,29 @@ namespace HTownSim.Runtime
 
             var unitUpper = unit.ToUpperInvariant();
 
+            var label = _activeIncident?.CallLabel ?? "STRUCTURE FIRE";
+
+            var fire = IncidentIsFire;
+
             _status.text = _paused
                 ? "RESPONSE PAUSED\nESC to resume"
                 : _heat > 0f && Time.time < _alertUntil
-                    ? $"NEW CALL!  FIRE / {_incidentLocation}\n{unitUpper} DISPATCHED.  Check the map and respond."
+                    ? $"NEW CALL!  {label} / {_incidentLocation}\n{DispatchLine(unit)}"
                     : _heat <= 0f
-                        ? $"FIRE CONTAINED\nGood work, {unit}.  Free roam: drive anywhere.  R to respond again."
+                        ? $"{(fire ? "FIRE CONTAINED" : "CALL CLEARED")}\nGood work, {unit}.  Free roam: drive anywhere.  R to respond again."
                         : _remaining <= 0f
                             ? $"RESPONSE TIME EXCEEDED\n{unit}: R to retry the call."
                             : distance > MonitorRange
-                                ? $"STRUCTURE FIRE  /  {unitUpper} RESPONDING\n{_incidentLocation}.  Approach the marked storefront."
-                                : _profile.CanSprayWater
-                                    ? $"{unitUpper} ON SCENE\nStop, then hold E to operate the water monitor."
-                                    : $"{unitUpper} ON SCENE\nStage here for patient care; {unit} carries no water.";
+                                ? $"{label}  /  {unitUpper} RESPONDING{SeveritySuffix()}\n{_incidentLocation}.  {(fire ? "Approach the marked storefront." : "Head for the marked scene.")}"
+                                : !fire
+                                    ? $"{unitUpper} ON SCENE\nStop and stage here; hold still to work the call."
+                                    : _profile.CanSprayWater
+                                        ? $"{unitUpper} ON SCENE\nStop, then hold E to operate the water monitor."
+                                        : $"{unitUpper} ON SCENE\nStage here for patient care; {unit} carries no water.";
 
             _telemetry.text = _heat <= 0f
-                ? $"{Mathf.Abs(_speed) * 2.237f:00} MPH     FREE ROAM\nFIRE OUT     NEXT CALL IN {Mathf.Max(0, Mathf.CeilToInt(RoamCallDelay - _roamClock)):00}s"
-                : $"{Mathf.Abs(_speed) * 2.237f:00} MPH     {distance:0} m TO INCIDENT\nFIRE {Mathf.CeilToInt(_heat * 100f):00}%     {Mathf.CeilToInt(_remaining):000}s REMAINING";
+                ? $"{Mathf.Abs(_speed) * 2.237f:00} MPH     FREE ROAM\n{(fire ? "FIRE OUT" : "CALL CLEARED")}     NEXT CALL IN {Mathf.Max(0, Mathf.CeilToInt(RoamCallDelay - _roamClock)):00}s"
+                : $"{Mathf.Abs(_speed) * 2.237f:00} MPH     {distance:0} m TO INCIDENT\n{(fire ? "FIRE" : "SCENE")} {Mathf.CeilToInt(_heat * 100f):00}%     {Mathf.CeilToInt(_remaining):000}s REMAINING";
 
             if (AerialDeployed)
             {
@@ -976,6 +1017,25 @@ namespace HTownSim.Runtime
             {
                 _status.text = "LEAVING DISPATCH AREA\nTurn back toward the city.";
             }
+        }
+
+        /// <summary>The second line of the new-call banner: whether this unit is assigned, and who else the call asks for.</summary>
+        private string DispatchLine(string unit)
+        {
+            var upper = unit.ToUpperInvariant();
+
+            if (_activeIncident is null || _activeIncident.Requires(PlayerIncidentUnit()))
+            {
+                return $"{upper} DISPATCHED{SeveritySuffix()}.  Check the map and respond.";
+            }
+
+            return $"{upper} NOT ASSIGNED (needs {_activeIncident.RequiredUnitsText()}){SeveritySuffix()}.  Respond if you can.";
+        }
+
+        /// <summary>The call's severity for the banner, e.g. "  [SEV 3]"; empty when there is no call record.</summary>
+        private string SeveritySuffix()
+        {
+            return _activeIncident is null ? "" : $"  [SEV {_activeIncident.Severity}]";
         }
 
         /// <summary>True when the engine is within the warning distance of the edge of the playable area.</summary>
@@ -994,50 +1054,201 @@ namespace HTownSim.Runtime
         /// <summary>Counts down to the next call while the fire is out; starts a new call when the delay has passed.</summary>
         internal void AdvanceRoam(float seconds)
         {
-            if (_heat > 0f || _incidentSites.Length < 2)
+            if (_heat > 0f)
+            {
+                return;
+            }
+
+            // A call from an outside source is dispatched soon after the last one clears; a made-up one waits out the roam delay.
+            var external = _incidents.HasPending;
+
+            if (!external && _incidentSites.Length < 2)
             {
                 return;
             }
 
             _roamClock += Mathf.Max(0f, seconds);
 
-            if (_roamClock >= RoamCallDelay)
+            if (_roamClock >= (external ? ExternalCallSettleSeconds : RoamCallDelay))
             {
                 StartNewCall();
             }
         }
 
-        /// <summary>Moves the fire to a random site far enough away and starts a fresh timed response.</summary>
+        /// <summary>Takes the next call (from any source, else a made-up one) and starts a fresh timed response to it.</summary>
         private void StartNewCall()
         {
-            var candidates = new List<int>();
-
-            for (var i = 0; i < _incidentSites.Length; i++)
-            {
-                if (i != _siteIndex && Vector3.Distance(transform.position, _incidentSites[i].position) >= MinimumCallDistance)
-                {
-                    candidates.Add(i);
-                }
-            }
-
             _roamClock = 0f;
 
-            if (candidates.Count == 0)
+            var incident = TakeFallbackIncident(-1);
+
+            if (incident is null)
             {
                 return;
             }
 
-            MoveIncidentTo(candidates[Random.Range(0, candidates.Count)]);
+            ShowIncident(incident);
 
             _heat = 1f;
 
-            _remaining = Mathf.Clamp(Vector3.Distance(transform.position, _incident.position) / 5f + 60f, 90f, 300f);
+            var severityPressure = 1.3f - (0.1f * incident.Severity);
+
+            _remaining = Mathf.Clamp((Vector3.Distance(transform.position, _incident.position) / 5f + 60f) * severityPressure, 60f, 300f);
 
             _alertUntil = Time.time + 6f;
 
-            RestartFire();
-
             PlayDispatch();
+        }
+
+        /// <summary>The next waiting call from any source; when none waits, a made-up call (as standard JSON through the same manager). Null when there is nothing to dispatch.</summary>
+        private Incident? TakeFallbackIncident(int preferredSite)
+        {
+            var next = _incidents.TakeNext();
+
+            if (next is not null)
+            {
+                return next;
+            }
+
+            var sites = new List<Vector3>(_incidentSites.Length);
+
+            foreach (var site in _incidentSites)
+            {
+                sites.Add(site.position);
+            }
+
+            var request = new FallbackRequest(
+                new FallbackWorld(sites, _incidentStreets),
+                PlayerIncidentUnit(),
+                transform.position,
+                new FallbackChoice(preferredSite, _siteIndex, MinimumCallDistance));
+
+            _incidents.SubmitFallback(request);
+
+            return _incidents.TakeNext();
+        }
+
+        /// <summary>The kind of unit being driven, in the terms calls use.</summary>
+        private IncidentUnit PlayerIncidentUnit()
+        {
+            return ApparatusLoadout.Detect(transform) switch
+            {
+                StartingTruck.Ladder => IncidentUnit.Ladder,
+                StartingTruck.Ambulance => IncidentUnit.Ambulance,
+                _ => IncidentUnit.Engine,
+            };
+        }
+
+        /// <summary>The playable area as a rectangle in scene x, z, or null when none is set.</summary>
+        private Rect? PlayableArea()
+        {
+            if (_boundsMax.x <= _boundsMin.x || _boundsMax.y <= _boundsMin.y)
+            {
+                return null;
+            }
+
+            return new Rect(_boundsMin, _boundsMax - _boundsMin);
+        }
+
+        /// <summary>Makes the call the active one: puts the marker (and the fire, for a fire call) where its coordinates map to.</summary>
+        private void ShowIncident(Incident incident)
+        {
+            _activeIncident = incident;
+
+            _outcomeReported = false;
+
+            var nearest = NearestSite(incident.WorldPosition, out var distance);
+
+            var atSite = nearest >= 0 && distance <= SiteSnapMeters;
+
+            if (atSite)
+            {
+                MoveIncidentTo(nearest);
+            }
+            else
+            {
+                PlaceIncidentAt(incident.WorldPosition, nearest);
+            }
+
+            if (incident.Address.Length > 0)
+            {
+                _incidentLocation = incident.Address.ToUpperInvariant();
+            }
+            else if (!atSite)
+            {
+                _incidentLocation = incident.Geo.Latitude.ToString("0.0000") + ", " + incident.Geo.Longitude.ToString("0.0000");
+            }
+
+            if (incident.IsFire)
+            {
+                RestartFire();
+            }
+            else
+            {
+                _spread.Extinguish();
+            }
+        }
+
+        /// <summary>The index of the incident site nearest the scene position (-1 with no sites) and its distance on the ground plane.</summary>
+        private int NearestSite(Vector3 position, out float distance)
+        {
+            var best = -1;
+
+            distance = float.MaxValue;
+
+            for (var i = 0; i < _incidentSites.Length; i++)
+            {
+                var offset = _incidentSites[i].position - position;
+
+                offset.y = 0f;
+
+                if (offset.magnitude < distance)
+                {
+                    distance = offset.magnitude;
+
+                    best = i;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>Puts the marker, fire and smoke at an exact scene position that is not at a storefront site, and hides the shop sign.</summary>
+        private void PlaceIncidentAt(Vector3 world, int nearestSite)
+        {
+            _siteIndex = -1;
+
+            var height = nearestSite >= 0 ? _incidentSites[nearestSite].position.y : _incident.position.y;
+
+            var position = new Vector3(world.x, height, world.z);
+
+            _incident.SetPositionAndRotation(position, Quaternion.identity);
+
+            _fire.transform.position = position;
+
+            _smoke.transform.position = position + new Vector3(0.6f, 6f, 0f);
+
+            if (_sign != null)
+            {
+                _sign.gameObject.SetActive(false);
+            }
+
+            _fire.Clear();
+
+            _smoke.Clear();
+        }
+
+        /// <summary>Tells the manager how the active call ended, once.</summary>
+        private void ReportOutcome(IncidentOutcome outcome)
+        {
+            if (_outcomeReported || _activeIncident is null)
+            {
+                return;
+            }
+
+            _outcomeReported = true;
+
+            _incidents.Complete(_activeIncident, outcome);
         }
 
         /// <summary>Places the fire, smoke and shop sign on the given incident site.</summary>
@@ -1055,6 +1266,8 @@ namespace HTownSim.Runtime
 
             if (_sign != null)
             {
+                _sign.gameObject.SetActive(true);
+
                 _sign.SetPositionAndRotation(site.position + Vector3.up * 2.2f + site.forward * 0.13f, site.rotation);
             }
 
@@ -1309,7 +1522,7 @@ namespace HTownSim.Runtime
 
             var offset = _incident.position - origin;
 
-            if (!_profile.CanSprayWater || _paused || _remaining <= 0f || _heat <= 0f || offset.magnitude > reach || Mathf.Abs(_speed) >= 0.8f)
+            if (!_profile.CanSprayWater || !IncidentIsFire || _paused || _remaining <= 0f || _heat <= 0f || offset.magnitude > reach || Mathf.Abs(_speed) >= 0.8f)
             {
                 return;
             }
@@ -1337,6 +1550,31 @@ namespace HTownSim.Runtime
                 _spread.Extinguish();
 
                 PlayClear();
+
+                ReportOutcome(IncidentOutcome.Cleared);
+            }
+        }
+
+        /// <summary>A call that is not a fire clears once the unit has been stopped within monitor range for a few seconds.</summary>
+        private void WorkNonFireScene(float seconds)
+        {
+            if (IncidentIsFire || _heat <= 0f || _remaining <= 0f)
+            {
+                return;
+            }
+
+            if (Vector3.Distance(transform.position, _incident.position) > MonitorRange || Mathf.Abs(_speed) >= 0.8f)
+            {
+                return;
+            }
+
+            _heat = Mathf.Max(0f, _heat - (Mathf.Max(0f, seconds) / SceneSeconds));
+
+            if (_heat <= 0f)
+            {
+                PlayClear();
+
+                ReportOutcome(IncidentOutcome.Cleared);
             }
         }
 
@@ -1391,12 +1629,14 @@ namespace HTownSim.Runtime
 
             _alertUntil = 0f;
 
-            if (_incidentSites.Length > 0 && _siteIndex != _firstSiteIndex)
+            if (_firstIncident is not null)
             {
-                MoveIncidentTo(_firstSiteIndex);
+                ShowIncident(_firstIncident);
             }
-
-            RestartFire();
+            else
+            {
+                RestartFire();
+            }
 
             PlayDispatch();
         }
