@@ -3,7 +3,7 @@
 Run inside Blender:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\build_map.py").read())
 
 Frame: HTownSim scene metres. Unity X -> Blender X, Unity Z -> Blender Y, up is Z. The Unity HUD map camera
-covers x -845..560, z -450..1575, so the "MapTop" camera renders exactly that window.
+covers x -2250..560, z -2350..1575, so the "MapTop" camera renders exactly that window.
 """
 import json
 import math
@@ -18,7 +18,7 @@ except NameError:  # exec()'d from Blender's console, where __file__ is not defi
     ROOT = r"J:\Unity\projects\HTownSim\Blender\HTown"
 DATA = os.path.join(ROOT, "data", "htown_map.json")
 
-WIN = dict(x0=-845.0, x1=560.0, z0=-450.0, z1=1575.0)
+WIN = dict(x0=-2250.0, x1=560.0, z0=-2350.0, z1=1575.0)
 FLOOR_H = 3.6
 LOT_H = 0.15
 

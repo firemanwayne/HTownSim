@@ -23,7 +23,7 @@ const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320 * Math.cos((LAT0 * Math.PI) / 180);
 const ROT = (35.06 * Math.PI) / 180;
 // Unity playable window plus a margin so the map has context past the walls.
-const WIN = { x0: -845, x1: 560, z0: -450, z1: 1575 };
+const WIN = { x0: -2250, x1: 560, z0: -2350, z1: 1575 };
 const MARGIN = 180;
 
 const toScene = (lon, lat) => {
@@ -83,8 +83,10 @@ async function queryAll(name, { url, fields }) {
 // HTownSim caches: the original Midtown window and the expanded window overlap, so merge and dedupe.
 function readUnityCache(file) {
   const out = [];
-  for (const dir of ["midtown_cache", "midtown_cache_expanded"]) {
-    const f = path.join(os.tmpdir(), dir, file);
+  // MIDTOWN_CACHE_DIRS (path-delimited) points at the folders PrepareMidtownData.js wrote with MIDTOWN_CACHE; the default is its temp folders.
+  const dirs = process.env.MIDTOWN_CACHE_DIRS ? process.env.MIDTOWN_CACHE_DIRS.split(path.delimiter) : ["midtown_cache", "midtown_cache_expanded"].map((d) => path.join(os.tmpdir(), d));
+  for (const dir of dirs) {
+    const f = path.join(dir, file);
     if (fs.existsSync(f)) out.push(...JSON.parse(fs.readFileSync(f, "utf8")));
   }
   if (!out.length) throw new Error(`missing HTownSim cache ${file}; run PrepareMidtownData.js first`);
@@ -207,6 +209,7 @@ function points(features, attrs) {
     stationsGame: [
       { label: 7, x: -0.9, z: 0.1, address: "1402 ELGIN ST" },
       { label: 8, x: -733.5, z: 1091, address: "1919 LOUISIANA ST" },
+      { label: 16, x: -1941.3, z: -2059.4, address: "1700 RICHMOND AVE" },
     ],
     parcels,
     buildings,

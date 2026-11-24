@@ -3,11 +3,11 @@
 Run inside Blender after build_map.py:  exec(open(r"J:\\Unity\\projects\\HTownSim\\Blender\\HTown\\scripts\\render_all.py").read())
 
 Outputs (renders/):
-  htown_map_hud.png       1421x2048, no street trees: for the 350 px HUD map, where trees read as speckle.
-  htown_map_detail.png    2842x4096, with street trees: a full-screen / zoomed map.
-  htown_hydrants.png      2842x4096, transparent: hydrant dots only, to layer over either map.
+  htown_map_hud.png       1466x2048, no street trees: for the 350 px HUD map, where trees read as speckle.
+  htown_map_detail.png    2932x4096, with street trees: a full-screen / zoomed map.
+  htown_hydrants.png      2932x4096, transparent: hydrant dots only, to layer over either map.
   htown_hero.png          1920x1080 three-quarter view at a warm, low dusk sun.
-All top-down images cover exactly x -845..560, z -450..1575 (the Unity CityMap window), +Z up.
+All top-down images cover exactly x -2250..560, z -2350..1575 (the Unity CityMap window), +Z up.
 """
 import math
 import os
@@ -58,17 +58,17 @@ for c in ("Ground", "Roads", "Lots", "Buildings", "Detail"):
     show(c)
 show("Overlay_Hydrants", False)
 tree_objects(False)
-render("htown_map_hud.png", "MapTop", (1421, 2048))
+render("htown_map_hud.png", "MapTop", (1466, 2048))
 
 # Detail map: street trees on, double resolution.
 tree_objects(True)
-render("htown_map_detail.png", "MapTop", (2842, 4096))
+render("htown_map_detail.png", "MapTop", (2932, 4096))
 
 # Hydrant overlay: only the hydrant collection, transparent background.
 for c in ("Ground", "Roads", "Lots", "Buildings", "Detail"):
     show(c, False)
 show("Overlay_Hydrants")
-render("htown_hydrants.png", "MapTop", (2842, 4096), transparent=True, samples=16)
+render("htown_hydrants.png", "MapTop", (2932, 4096), transparent=True, samples=16)
 
 # Hero: warm low sun from the south-west, as in the HTownSim dusk mood.
 for c in ("Ground", "Roads", "Lots", "Buildings", "Detail"):
