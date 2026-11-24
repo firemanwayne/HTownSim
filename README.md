@@ -213,7 +213,7 @@ A Silverado 3500HD cab with a Frazer-type box, 7.3 m long (wheelbase 4.18 m, box
 - It adds `Ambulance07Visual` on the bay floor and resizes the collider.
 - It maps materials by name on import, since Unity numbers submeshes by first use rather than Blender's slot order.
 
-**Driveable.** `AgentScripts/DriveAmbulance07.cs` (Apply / Revert) makes it the driven truck the same way `DriveLadder07` did for the ladder: the driven object moves to the ambulance bay (x 20.3), takes the `Ambulance07Visual` model, and Ladder 07 goes back on its prop in the ladder bay (Revert + `DriveLadder07.Refresh` swaps back). Its `ApparatusProfile`: 0.41 m tyres, 4.18 m wheelbase, 5.5 deg/m turn (about a 10 m radius), the original `Horn.mp3` electric horn (no air horn), **no water** (`_canSprayWater` off: E does nothing, the WATER hint leaves the controls list, and on scene it says to stage for patient care), and only the warning lenses flash. The warning lenses are their own materials (`Amb07_LensRedWarn` / `ClearWarn` / `AmberWarn`; red and amber alternate with clear), so headlights, tail lights and markers don't strobe. Because there's no water, you can't put the fire out in the ambulance, so a call ends by timeout or R. The bay sign reads AMBULANCE 7.
+**Driveable.** `Assets/HTownSim/Editor/DriveAmbulance07.cs` (Apply / Revert) makes it the driven truck the same way `DriveLadder07` did for the ladder: the driven object moves to the ambulance bay (x 20.3), takes the `Ambulance07Visual` model, and Ladder 07 goes back on its prop in the ladder bay (Revert + `DriveLadder07.Refresh` swaps back). Its `ApparatusProfile`: 0.41 m tyres, 4.18 m wheelbase, 5.5 deg/m turn (about a 10 m radius), the original `Horn.mp3` electric horn (no air horn), **no water** (`_canSprayWater` off: E does nothing, the WATER hint leaves the controls list, and on scene it says to stage for patient care), and only the warning lenses flash. The warning lenses are their own materials (`Amb07_LensRedWarn` / `ClearWarn` / `AmberWarn`; red and amber alternate with clear), so headlights, tail lights and markers don't strobe. Because there's no water, you can't put the fire out in the ambulance, so a call ends by timeout or R. The bay sign reads AMBULANCE 7.
 
 ## Station 7 bays
 
@@ -256,7 +256,7 @@ From the street, left to right, the bays hold **Ambulance 07, Ladder 07, Engine 
   - parks the old procedural parts, inactive, in `PreviousLadderVisuals`;
   - seats the model in the Ladder 7 bay as `Ladder07Visual` and resizes the collider.
 
-**Driving it.** `AgentScripts/DriveLadder07.cs` (`Apply` / `Refresh` / `Revert`) makes Ladder 07 the truck you drive until a character picks one.
+**Driving it.** `Assets/HTownSim/Editor/DriveLadder07.cs` (`Apply` / `Refresh` / `Revert`) makes Ladder 07 the truck you drive until a character picks one.
 - The driven gameplay object keeps its name, `Engine07`, and all its gameplay. It moves to the Ladder 7 bay, which is now where runs start and restarts return to.
 - It wears `Ladder07Visual`; the engine visuals and lens geometry are switched off, and the two beacon lights move to the ladder's front roof.
 - A static `Engine07Parked` (the clean Engine 07 model) sits in the Engine 7 bay with a collider.
@@ -398,8 +398,22 @@ The old check predicted lenses from `Time.time * 3` and passed only by chance. A
 
 ## Starting apparatus screen
 
-When the game starts it pauses on a **Choose your apparatus** screen: Engine 07, Ladder 07 or Ambulance 07. Click a card, press 1, 2 or 3, or use the arrow keys and Enter. Picking the apparatus already in the bay resumes; picking another saves the choice (PlayerPrefs `HTownSim.StartingTruck`) and reloads the scene, where `ApparatusLoadout` fits it before `FireResponse` reads its profile. It is the run-time twin of `DriveLadder07` / `DriveAmbulance07`, and works from whichever truck the saved scene has. (Scripts: `Assets/HTownSim/Runtime/StartingTruck*.cs`, `ApparatusLoadout.cs`.) A standalone build needs `HoustonResponse` in Build Settings for the reload.
+When the game starts it pauses on a two-step start screen. First **Choose your station**: Station 7 (Engine 07, Ladder 07, Ambulance 07) or Station 8 (Engine 08, Engine 01, Medic 08). Then **Choose your apparatus** for that station (Backspace goes back to the stations). Click a card, press 1, 2 or 3, or use the arrow keys and Enter. Picking the apparatus already in the bay resumes; picking another saves the choice (PlayerPrefs `HTownSim.StartingTruck`) and reloads the scene, where `ApparatusLoadout` fits it before `FireResponse` reads its profile and the run starts from that bay. It is the run-time twin of `DriveLadder07` / `DriveAmbulance07`, and works from whichever truck the saved scene has. A Station 8 apparatus reuses the parked unit that **HTownSim > Station 8 > Add Apparatus** placed in its bay (its livery and number), moves the driven rig into that bay and parks a copy of Engine 07 back at Station 7; Station 8 stays greyed out until that command has been run on the scene. (Scripts: `Assets/HTownSim/Runtime/StartingTruck*.cs`, `StartingStation.cs`, `MenuCard.cs`, `ApparatusLoadout.cs`.) A standalone build needs `HoustonResponse` in Build Settings for the reload.
 
 ## Incident manager
 
 Every call, whatever its source, goes through `IncidentManager` as standard JSON: `incidentId`, `agency` (HFD, EMS, HPD), `callType`, `coordinates` (lat/lon, mapped into the scene by `GeoProjection`), `severity` (1 to 5) and `requiredUnits`. Outside programs drop `.json` / `.jsonl` files into the game's `Incidents` folder under `persistentDataPath`; the old random spawn is now `FallbackIncidentSource`, which makes a call as the same JSON and submits it the same way. Non-fire calls (medical, traffic, ...) are cleared by staging at the scene. See `Documentation/Incidents.md` for the schema, the inbox folder, samples and rules (`Documentation/Incidents/samples/`).
+
+## Choose the starting truck
+
+Outside Play mode, open **HTownSim > Starting Truck** and choose **Engine 07**, **Ladder 07** or **Ambulance 07**, then press Play. The checkmark shows which truck the scene is fitted with now. The menu is disabled in Play Mode and while the editor compiles.
+
+A switch saves the scene (it asks first if there are unsaved changes), runs the same steps as `DriveLadder07` and `DriveAmbulance07`, and saves again. Before it starts it keeps a recovery copy of the scene under `Temp/restore/StartingTruck`, and if any step fails it puts that copy back and says so. The editor scripts live in `Assets/HTownSim/Editor` (`StartingTruckSelector.cs`, `DriveLadder07.cs`, `DriveAmbulance07.cs`). Players choose their truck in the game with the start screen described above.
+
+## Station 8 apparatus
+
+Fire Station 8's bays hold parked copies of the Engine 07 and Ambulance 07 models numbered **Medic 08**, **Engine 01** and **Engine 08**. **HTownSim > Station 8 > Add Apparatus** places them and the art scripts under `Blender/HFD Apparatus` draw their numbers (`HFD_UNIT_NUMBER`). They can be driven: choose Station 8 on the start screen. See `Documentation/Station8.md`.
+
+## Neighborhoods
+
+Districts with a different street-grid angle are built as neighborhoods: built in their own frame, then the neighborhood's root is rotated into the city, with their own TrafficSystem. Fire Station 16 (1700 Richmond Ave, Montrose) is the first: `NEIGHBORHOOD=station16 node AgentScripts/PrepareMidtownData.js`, then `BuildRealMidtown.ExpandStation16`. The HUD map and the playable area now cover Midtown, the Station 8 blocks and the Station 16 neighborhood. See `Documentation/Neighborhoods.md`.
