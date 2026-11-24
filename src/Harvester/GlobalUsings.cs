@@ -5,7 +5,7 @@ global using System.Linq;
 global using System.Net.Http;
 global using System.Threading;
 global using System.Threading.Tasks;
-// global using HoustonIncidents.Harvester.Formatters;
+global using HoustonIncidents.Harvester.Formatters;
 global using HoustonIncidents.Harvester.Interfaces;
 global using HoustonIncidents.Harvester.Models;
 // global using HoustonIncidents.Harvester.Options;
