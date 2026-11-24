@@ -4466,4 +4466,167 @@ public static class BuildRealMidtown
     {
         return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
     }
+
+    // ------------------------------------------------------------------ US 59
+
+    private const string Us59DataPath = "Assets/HTownSim/Data/US59.txt";
+
+    /// <summary>
+    /// Adds the south-western run of US 59 (the Southwest Freeway) as raised carriageways along the City's road centre lines, in the
+    /// style of the Midtown-edge freeway: a concrete deck with barriers, asphalt, lane paint and columns. Each carriageway line is
+    /// one deck, so the two directions stand side by side as they do on the ground. It is scenery (there are no ramps) and the streets
+    /// pass underneath. Data: <c>node AgentScripts/ExtractFreeway.js</c>. Can be run again.
+    /// </summary>
+    public static string AddUs59Freeway()
+    {
+        try
+        {
+            return AddUs59FreewayCore();
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string AddUs59FreewayCore()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            return "Exit Play Mode first.";
+        }
+
+        if (!File.Exists(Us59DataPath))
+        {
+            return "Missing " + Us59DataPath + ". Run: node AgentScripts/ExtractFreeway.js";
+        }
+
+        var cityRoot = GameObject.Find(RootName);
+
+        if (cityRoot == null)
+        {
+            return "Build the city first (BuildRealMidtown.Build).";
+        }
+
+        ResetState();
+
+        var old = cityRoot.transform.Find("Freeway_US59");
+
+        if (old != null)
+        {
+            Object.DestroyImmediate(old.gameObject);
+        }
+
+        var container = new GameObject("Freeway_US59").transform;
+
+        container.SetParent(cityRoot.transform, false);
+
+        _root = container;
+
+        LoadMaterials();
+
+        Section("Carriageways", _root);
+
+        var segments = 0;
+
+        var lengthTotal = 0f;
+
+        foreach (var line in File.ReadAllLines(Us59DataPath))
+        {
+            var fields = line.Split('\t');
+
+            if (fields.Length < 3 || fields[0] != "F")
+            {
+                continue;
+            }
+
+            var points = ParsePolygon(fields[2], System.Globalization.CultureInfo.InvariantCulture);
+
+            for (var i = 0; i + 3 < points.Length; i += 2)
+            {
+                var a = new Vector2(points[i], points[i + 1]);
+
+                var b = new Vector2(points[i + 2], points[i + 3]);
+
+                if (Vector2.Distance(a, b) < 1f)
+                {
+                    continue;
+                }
+
+                BuildFreewaySegment(a, b);
+
+                segments++;
+
+                lengthTotal += Vector2.Distance(a, b);
+            }
+        }
+
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+
+        AssetDatabase.SaveAssets();
+
+        return "US 59: " + segments + " deck segments, " + (lengthTotal / 1000f).ToString("0.0") + " km of carriageway.";
+    }
+
+    /// <summary>One straight stretch of carriageway between two points (scene x, z): deck, barriers, asphalt, lane paint and columns.</summary>
+    private static void BuildFreewaySegment(Vector2 a, Vector2 b)
+    {
+        const float DeckY = 9f;
+
+        const float DeckWidth = 16f;
+
+        const float Overlap = 1.5f;
+
+        var delta = b - a;
+
+        var length = delta.magnitude;
+
+        var direction = delta / length;
+
+        var yaw = Mathf.Atan2(direction.x, direction.y) * Mathf.Rad2Deg;
+
+        var rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        // Local +X, in scene x, z.
+        var lateral = new Vector2(direction.y, -direction.x);
+
+        GameObject Piece(string name, Vector3 size, float side, float along, float y, Material material, PrimitiveType shape = PrimitiveType.Cube, bool collide = false)
+        {
+            var position = a + direction * along + lateral * side;
+
+            var go = Make(new Spec(name, new Vector3(position.x, y, position.y), size, material, shape, collide));
+
+            go.transform.rotation = rotation;
+
+            return go;
+        }
+
+        var middle = length / 2f;
+
+        Piece("FreewayDeck", new Vector3(DeckWidth, 1.2f, length + Overlap), 0f, middle, DeckY, _concrete, PrimitiveType.Cube, true);
+
+        foreach (var side in new[] { -1f, 1f })
+        {
+            Piece("FreewayBarrier", new Vector3(0.8f, 1.1f, length + Overlap), side * (DeckWidth / 2f - 0.4f), middle, DeckY + 1.15f, _concrete, PrimitiveType.Cube, true);
+        }
+
+        Piece("FreewayAsphalt", new Vector3(DeckWidth - 2f, 0.04f, length + Overlap), 0f, middle, DeckY + 0.62f, _asphalt);
+
+        foreach (var side in new[] { -2.7f, 2.7f })
+        {
+            for (var along = 4f; along < length; along += 9f)
+            {
+                Piece("FreewayPaint", new Vector3(0.18f, 0.02f, 4f), side, along, DeckY + 0.66f, _white);
+            }
+        }
+
+        for (var along = 8f; along < length; along += 24f)
+        {
+            Piece("FreewayColumn", new Vector3(2.2f, DeckY - 0.6f, 2.2f), 0f, along, DeckY / 2f - 0.3f, _concrete, PrimitiveType.Cylinder, true);
+
+            Piece("FreewayCapBeam", new Vector3(11f, 1.4f, 2.6f), 0f, along, DeckY - 0.9f, _concrete);
+        }
+    }
 }

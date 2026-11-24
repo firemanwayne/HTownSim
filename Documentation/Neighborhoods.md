@@ -97,3 +97,12 @@ Measuring the street angle of every lot edge in 300 m cells (relative to Midtown
 `AllNeighborhoods` in `BuildRealMidtown.cs` lists every neighborhood built so far. The gap pass leaves their lots out, and the playable area
 and `NeighborhoodFill` cover all of them. After building a neighborhood, run `ExpandGap` again (it rebuilds the placeholders around it) and
 `AddCityDetail.Run`.
+
+## US 59
+
+The Southwest Freeway runs diagonally through the gap and the neighborhoods. `BuildRealMidtown.AddUs59Freeway` builds it as raised
+carriageways (a 9 m deck with barriers, asphalt, lane paint and columns, the same look as the freeway along Midtown's east edge) along the City's
+road centre lines: one 16 m deck per carriageway line, 105 segments and about 7.5 km. Data: `node AgentScripts/ExtractFreeway.js` writes
+`Assets/HTownSim/Data/US59.txt` from `Blender/HTown/data/htown_map.json` (only the south-western run; the Midtown-edge part is the existing
+deck). It is scenery: there are no ramps or frontage-road logic, the streets pass underneath, and it is not part of any neighborhood, so it
+survives neighborhood rebuilds. Re-run the pass to replace it.
