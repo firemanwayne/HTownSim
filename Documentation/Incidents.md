@@ -73,6 +73,9 @@ ladders get a structure fire (ladders and severity 3+ also ask for `LADDER`).
   ("NOT ASSIGNED (needs ENGINE, LADDER)" still lets you respond).
 - Fire calls play as before: hold E to spray water. Other calls (medical, traffic, alarm, ...) have no fire; stop within
   range of the marker and hold still for 8 seconds to clear them. Higher severity shortens the response time.
+- An EMS call (agency `EMS`, or call type `MEDICAL`) shows a **downed citizen**: one of the city's pedestrian models
+  (the ones TrafficSystem uses), placed 2.5 m in front of the storefront (or at the exact spot) and left to collapse as
+  a ragdoll, then frozen once settled. The patient stays until the call clears, then is removed after 6 seconds.
 - `IncidentManager` raises `Accepted`, `Rejected` and `Completed` (cleared, or failed when time ran out) for anything
   that wants to follow along, such as the live radio feature.
 

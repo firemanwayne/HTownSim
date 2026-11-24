@@ -71,6 +71,11 @@ namespace HTownSim.Runtime
         /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
         private Incident? _activeIncident;
         private Incident? _firstIncident;
+        /// <summary>The patient lying at an EMS call, created when the first one is needed.</summary>
+        private DownedCitizen? _patient;
+        /// <summary>How far in front of the storefront the patient lies, and how long they stay after the call clears.</summary>
+        private const float PatientFrontOffset = 2.5f;
+        private const float PatientClearSeconds = 6f;
         /// <summary>True once the active call's outcome has been reported to the manager.</summary>
         private bool _outcomeReported;
         /// <summary>True when the active call is a fire, or when there is no call record yet.</summary>
@@ -1187,6 +1192,43 @@ namespace HTownSim.Runtime
             {
                 _spread.Extinguish();
             }
+
+            ShowPatient(incident, atSite);
+        }
+
+        /// <summary>EMS and medical calls get a real downed citizen at the scene (in front of the storefront when the call is at one); any other call removes the last one.</summary>
+        private void ShowPatient(Incident incident, bool atSite)
+        {
+            if (_patient != null)
+            {
+                _patient.Hide(0f);
+            }
+
+            if (incident.Agency != IncidentAgency.Ems && incident.CallType != IncidentCallType.Medical)
+            {
+                return;
+            }
+
+            if (_patient == null)
+            {
+                _patient = DownedCitizen.Create();
+            }
+
+            var facing = atSite ? _incident.forward : transform.forward;
+
+            var spot = _incident.position + (atSite ? _incident.forward * PatientFrontOffset : Vector3.zero);
+
+            var variant = 0;
+
+            foreach (var character in incident.Id)
+            {
+                variant = (variant * 31) + character;
+            }
+
+            if (!_patient.Show(new PatientRequest(spot, facing, variant, _controller)))
+            {
+                Debug.LogWarning("No pedestrian model is available for the patient at incident " + incident.Id + ".");
+            }
         }
 
         /// <summary>The index of the incident site nearest the scene position (-1 with no sites) and its distance on the ground plane.</summary>
@@ -1247,6 +1289,11 @@ namespace HTownSim.Runtime
             }
 
             _outcomeReported = true;
+
+            if (outcome == IncidentOutcome.Cleared && _patient != null)
+            {
+                _patient.Hide(PatientClearSeconds);
+            }
 
             _incidents.Complete(_activeIncident, outcome);
         }

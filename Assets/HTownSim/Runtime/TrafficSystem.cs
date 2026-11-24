@@ -113,6 +113,9 @@ namespace HTownSim.Runtime
         /// <summary>Optional humanoid pedestrian models; when set, each pedestrian wears one and plays a walk clip.</summary>
         [SerializeField] private GameObject[] _pedestrianModels = new GameObject[0];
 
+        /// <summary>The pedestrian models, which <see cref="DownedCitizen"/> also uses for EMS patients.</summary>
+        internal GameObject[] PedestrianModels => _pedestrianModels;
+
         [SerializeField] private AnimationClip[] _pedestrianWalkClips = new AnimationClip[0];
 
         [SerializeField] private Material[] _shirtPaints = new Material[0];
