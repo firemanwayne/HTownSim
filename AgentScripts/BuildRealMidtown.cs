@@ -1973,16 +1973,19 @@ public static class BuildRealMidtown
     {
         var hasFootprint = box != null && box[2] - box[0] >= 3f && box[3] - box[1] >= 3f;
 
-        float width;
+        float width = 0f;
 
-        float depth;
+        float depth = 0f;
 
-        Vector2 centre;
+        Vector2 centre = new Vector2(parcel.c[0], parcel.c[1]);
+
+        var placed = false;
 
         if (hasFootprint)
         {
             // The footprint box can reach well past the lot (the 2018 footprints and the tax lots do not line up, and merged condo lots
-            // hold only one unit's outline). Keep the building on its own lot, so it never spills into the street or its neighbours.
+            // hold only one unit's outline). Keep it inside the lot: clamp it to the lot's bounds, then pull in any corner that is
+            // still outside the lot's outline, so a building never spills into the street or its neighbours.
             var x0 = Mathf.Max(box![0], parcel.b[0] - FootprintSlack);
 
             var z0 = Mathf.Max(box[1], parcel.b[1] - FootprintSlack);
@@ -2002,19 +2005,45 @@ public static class BuildRealMidtown
                 z1 = box[3];
             }
 
-            width = x1 - x0;
+            if (ShrinkIntoLot(ref x0, ref z0, ref x1, ref z1, parcel))
+            {
+                width = x1 - x0;
 
-            depth = z1 - z0;
+                depth = z1 - z0;
 
-            centre = new Vector2((x0 + x1) / 2f, (z0 + z1) / 2f);
+                centre = new Vector2((x0 + x1) / 2f, (z0 + z1) / 2f);
+
+                placed = true;
+            }
         }
-        else
+
+        if (!placed)
         {
-            width = Mathf.Max(0f, parcel.b[2] - parcel.b[0] - 3.6f);
+            // No usable footprint: a building sized from the lot (1.8 m in from each edge), pulled inside the outline the same way.
+            hasFootprint = false;
 
-            depth = Mathf.Max(0f, parcel.b[3] - parcel.b[1] - 3.6f);
+            var lx0 = parcel.b[0] + 1.8f;
 
-            centre = new Vector2(parcel.c[0], parcel.c[1]);
+            var lz0 = parcel.b[1] + 1.8f;
+
+            var lx1 = parcel.b[2] - 1.8f;
+
+            var lz1 = parcel.b[3] - 1.8f;
+
+            if (lx1 - lx0 >= 3f && lz1 - lz0 >= 3f && ShrinkIntoLot(ref lx0, ref lz0, ref lx1, ref lz1, parcel))
+            {
+                width = lx1 - lx0;
+
+                depth = lz1 - lz0;
+
+                centre = new Vector2((lx0 + lx1) / 2f, (lz0 + lz1) / 2f);
+            }
+            else
+            {
+                width = 0f;
+
+                depth = 0f;
+            }
         }
 
         var residential = parcel.k.StartsWith("A", StringComparison.Ordinal);
@@ -4740,5 +4769,78 @@ public static class BuildRealMidtown
                 second[secondSlot + low] = mid;
             }
         }
+    }
+
+    /// <summary>
+    /// Pulls a building box in, 0.5 m at a time, until all four of its corners (nudged 0.15 m inward) lie inside the lot's outline.
+    /// Returns false when it would have to get smaller than 3 m, in which case the building is not placed from this box.
+    /// </summary>
+    private static bool ShrinkIntoLot(ref float x0, ref float z0, ref float x1, ref float z1, Parcel parcel)
+    {
+        var outline = ToPolygon(parcel.p);
+
+        if (outline.Count < 3)
+        {
+            return true;
+        }
+
+        for (var step = 0; step < 80; step++)
+        {
+            var middleX = (x0 + x1) / 2f;
+
+            var middleZ = (z0 + z1) / 2f;
+
+            var moved = false;
+
+            for (var corner = 0; corner < 4; corner++)
+            {
+                var west = corner == 0 || corner == 3;
+
+                var south = corner == 0 || corner == 1;
+
+                var cx = west ? x0 : x1;
+
+                var cz = south ? z0 : z1;
+
+                var probe = new Vector2(cx + (cx < middleX ? 0.15f : -0.15f), cz + (cz < middleZ ? 0.15f : -0.15f));
+
+                if (PointInPolygon(outline, probe))
+                {
+                    continue;
+                }
+
+                moved = true;
+
+                if (west)
+                {
+                    x0 += 0.5f;
+                }
+                else
+                {
+                    x1 -= 0.5f;
+                }
+
+                if (south)
+                {
+                    z0 += 0.5f;
+                }
+                else
+                {
+                    z1 -= 0.5f;
+                }
+            }
+
+            if (!moved)
+            {
+                return true;
+            }
+
+            if (x1 - x0 < 3f || z1 - z0 < 3f)
+            {
+                return false;
+            }
+        }
+
+        return false;
     }
 }

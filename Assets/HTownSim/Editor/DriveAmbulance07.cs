@@ -227,7 +227,7 @@ public static class DriveAmbulance07
     {
         var scene = EditorSceneManager.GetActiveScene();
 
-        if (EditorApplication.isPlaying || scene.isDirty)
+        if (EditorApplication.isPlaying || (scene.isDirty && !HTownSim.Editor.StartingTruckMenu.IsSwitching))
         {
             throw new InvalidOperationException("Exit Play Mode and save or discard scene changes first.");
         }
@@ -239,11 +239,17 @@ public static class DriveAmbulance07
     {
         EditorSceneManager.MarkSceneDirty(scene);
 
-        EditorSceneManager.SaveScene(scene);
+        if (HTownSim.Editor.StartingTruckMenu.IsSwitching)
+        {
+            return message;
+        }
+
+        if (!EditorSceneManager.SaveScene(scene))
+        {
+            throw new InvalidOperationException("Could not save the truck selection.");
+        }
 
         AssetDatabase.SaveAssets();
-
-        EditorSceneManager.OpenScene(scene.path, OpenSceneMode.Single);
 
         return message + " Scene saved.";
     }

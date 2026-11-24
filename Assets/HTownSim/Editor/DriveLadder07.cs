@@ -167,6 +167,15 @@ public static class DriveLadder07
 
         foreach (var beacon in beacons)
         {
+            // A previous return to the engine may have attached this light to its model prefab.
+            // Unpack the scene instance before moving the light out of that hierarchy again.
+            var prefabRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(beacon.gameObject);
+
+            if (prefabRoot != null)
+            {
+                PrefabUtility.UnpackPrefabInstance(prefabRoot, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            }
+
             var side = Mathf.Sign(driven.InverseTransformPoint(beacon.transform.position).x);
 
             beacon.transform.SetParent(beaconRoot, false);
@@ -302,7 +311,7 @@ public static class DriveLadder07
     {
         var scene = EditorSceneManager.GetActiveScene();
 
-        if (EditorApplication.isPlaying || scene.isDirty)
+        if (EditorApplication.isPlaying || (scene.isDirty && !HTownSim.Editor.StartingTruckMenu.IsSwitching))
         {
             throw new InvalidOperationException("Exit Play Mode and save or discard scene changes first.");
         }
@@ -314,11 +323,17 @@ public static class DriveLadder07
     {
         EditorSceneManager.MarkSceneDirty(scene);
 
-        EditorSceneManager.SaveScene(scene);
+        if (HTownSim.Editor.StartingTruckMenu.IsSwitching)
+        {
+            return message;
+        }
+
+        if (!EditorSceneManager.SaveScene(scene))
+        {
+            throw new InvalidOperationException("Could not save the truck selection.");
+        }
 
         AssetDatabase.SaveAssets();
-
-        EditorSceneManager.OpenScene(scene.path, OpenSceneMode.Single);
 
         return message + " Scene saved.";
     }
