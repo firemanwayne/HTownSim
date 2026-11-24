@@ -21,7 +21,12 @@ sys.path.insert(0, HERE)
 import amb_layout as A  # noqa: E402
 
 UNITY = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Ambulance07"
-OUT = os.path.join(UNITY, "Ambulance07_Livery.png")
+NUMBER = os.environ.get("HFD_UNIT_NUMBER", "07")  # the unit number drawn on the truck; other numbers go to the Station8 folder
+OUT_DIR = os.environ.get("HFD_OUT_DIR", r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Station8")
+ORIGINAL_DIR = UNITY
+if NUMBER != "07":
+    UNITY = OUT_DIR
+OUT = os.path.join(UNITY, ("Ambulance07" if NUMBER == "07" else "Medic" + NUMBER) + "_Livery.png")
 LOGO_SRC = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D\HFD_Logo.png"
 S = A.PPM
 
@@ -160,7 +165,8 @@ def houston_block(region, yc):
     heartbeat(region, yc + 0.52, yc + 1.12, 1.72)
 
 
-def number_block(region, yc, big="07"):
+def number_block(region, yc, big=None):
+    big = big or NUMBER
     text_at(region, "AMBULANCE", FONT_BOLD, yc, 2.25, 0.66, 0.085, BLUE, WHITE, 2)
     text_at(region, big, FONT_BLACK, yc, 1.90, 0.46, 0.34, BLUE, WHITE, 4)
 
@@ -247,7 +253,7 @@ def draw_boxfront():
     # "A" and "07" in white above the light row, as in photo A 68: seen from the front, the A is on the image's left (the
     # truck's right, x < 0) and the number on the image's right (the truck's left, x > 0).
     text_at("boxfront", "A", FONT_BOLD, -0.45, 2.72, 0.32, 0.22, WHITE)
-    text_at("boxfront", "07", FONT_BOLD, 0.45, 2.72, 0.50, 0.22, WHITE)
+    text_at("boxfront", NUMBER, FONT_BOLD, 0.45, 2.72, 0.50, 0.22, WHITE)
 
 
 def draw_rear():
@@ -275,7 +281,7 @@ def draw_rear():
         rect(r, xc - ww / 2 - 0.035, xc + ww / 2 + 0.035, A.WIN_REAR_Z[0] - 0.035, A.WIN_REAR_Z[1] + 0.035, BLACK)
     # HFD EMS across the doors; A and 07 at the lower corners; EMERGENCY 911; plate.
     text_at(r, "HFD EMS", FONT_BLACK, 0.0, 1.60, 1.30, 0.20, WHITE, BLACK, 3)
-    for text, xc, z, ww, hh in (("A", 0.94, 2.05, 0.26, 0.40), ("07", -0.94, 2.05, 0.38, 0.40)):
+    for text, xc, z, ww, hh in (("A", 0.94, 2.05, 0.26, 0.40), (NUMBER, -0.94, 2.05, 0.38, 0.40)):
         a, b = A.pix(r, xc - ww / 2, 0, z + hh / 2), A.pix(r, xc + ww / 2, 0, z - hh / 2)
         text_box(text, FONT_BOLD, (min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]), WHITE, BLACK, 3)
     for xc in (0.90,):
@@ -286,7 +292,7 @@ def draw_rear():
     # Licence plate.
     a, b = A.pix(r, 0.18, 0, 1.02), A.pix(r, -0.18, 0, 0.82)
     d.rectangle([a[0], a[1], b[0], b[1]], fill=(236, 236, 232), outline=(60, 60, 60), width=2)
-    text_box("HFD 07", FONT_BOLD, (a[0] + 6, a[1] + 6, b[0] - 6, b[1] - 6), (30, 30, 30))
+    text_box("HFD " + NUMBER, FONT_BOLD, (a[0] + 6, a[1] + 6, b[0] - 6, b[1] - 6), (30, 30, 30))
 
 
 def draw_under():
@@ -305,5 +311,5 @@ img = img.filter(ImageFilter.SMOOTH)
 os.makedirs(UNITY, exist_ok=True)
 img.save(OUT)
 print("wrote", OUT, img.size)
-shutil.copy(LOGO_SRC, os.path.join(UNITY, "HFD_Logo.png"))
+shutil.copy(LOGO_SRC, os.path.join(ORIGINAL_DIR, "HFD_Logo.png"))
 print("copied HFD_Logo.png")

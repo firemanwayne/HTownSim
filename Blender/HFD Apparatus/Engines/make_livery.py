@@ -23,7 +23,10 @@ import os
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D\Engine07_Livery.png"
+NUMBER = os.environ.get("HFD_UNIT_NUMBER", "07")  # the unit number drawn on the truck; other numbers go to the Station8 folder
+OUT_DIR = os.environ.get("HFD_OUT_DIR", r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Station8")
+ORIGINAL_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D"
+OUT = os.path.join(ORIGINAL_DIR if NUMBER == "07" else OUT_DIR, "Engine" + NUMBER + "_Livery.png")
 L = json.load(open(os.path.join(HERE, "livery_layout.json")))
 W, H = L["atlas"]
 S = L["ppm"]
@@ -192,7 +195,7 @@ def patch_station(side, y, z, r):
     side_circle(side, y, z, r * 0.56, WHITE)
     c = side_px(side, y, z)
     pr = r * S
-    text_box("07", FONT_BLOCK, (c[0] - pr * 0.42, c[1] - pr * 0.34, c[0] + pr * 0.42, c[1] + pr * 0.34), RED)
+    text_box(NUMBER, FONT_BLOCK, (c[0] - pr * 0.42, c[1] - pr * 0.34, c[0] + pr * 0.42, c[1] + pr * 0.34), RED)
     text_box("STATION", FONT_BOLD, (c[0] - pr * 0.6, c[1] - pr * 0.84, c[0] + pr * 0.6, c[1] - pr * 0.62), GOLD)
     text_box("HFD", FONT_BOLD, (c[0] - pr * 0.4, c[1] + pr * 0.62, c[0] + pr * 0.4, c[1] + pr * 0.84), GOLD)
 
@@ -213,7 +216,7 @@ def patch_maltese(side, y, z, r):
         d.polygon(shrunk, fill=(200, 28, 32))
     d.ellipse([c[0] - pr * 0.34, c[1] - pr * 0.34, c[0] + pr * 0.34, c[1] + pr * 0.34], fill=GOLD)
     d.ellipse([c[0] - pr * 0.27, c[1] - pr * 0.27, c[0] + pr * 0.27, c[1] + pr * 0.27], fill=WHITE)
-    text_box("07", FONT_BLOCK, (c[0] - pr * 0.2, c[1] - pr * 0.16, c[0] + pr * 0.2, c[1] + pr * 0.16), RED)
+    text_box(NUMBER, FONT_BLOCK, (c[0] - pr * 0.2, c[1] - pr * 0.16, c[0] + pr * 0.2, c[1] + pr * 0.16), RED)
 
 
 def pump_panel(side):
@@ -295,13 +298,13 @@ def draw_side(side):
     side_rect(side, BODY_DIVIDERS[0], BODY_DIVIDERS[1], 1.42, 1.47, STEEL)      # drip rail over the rear wheel bay
     speed_line_z(side)
     side_text(side, "Courage, Commitment and Compassion", FONT_SCRIPT, 1.95, 3.20, 2.33, 2.47, GOLD, RED_DARK, 1)
-    side_text(side, "07", FONT_BOLD, 3.62, 4.22, 1.02, 1.72, WHITE)
+    side_text(side, NUMBER, FONT_BOLD, 3.62, 4.22, 1.02, 1.72, WHITE)
     side_rect(side, body["y0"], body["y1"], 2.72, 2.78, CHROME)                 # diamond-plate top rail edge
     side_rect(side, body["y0"], body["y1"], 0.48, 0.58, CHROME)                 # rub rail
     side_rect(side, body["y0"], body["y1"], 0.515, 0.545, (200, 20, 28))         # red reflective strip
     pump_panel(side)
     # "07" on the bumper's angled end (photos).
-    side_text(side, "07", FONT_BOLD, -4.975, -4.86, 0.60, 0.81, WHITE)
+    side_text(side, NUMBER, FONT_BOLD, -4.975, -4.86, 0.60, 0.81, WHITE)
 
 
 # ------------------------------------------------------------------------------------------------ top, front, rear
@@ -322,7 +325,7 @@ def draw_top():
         col = ((214, 40, 40), (232, 200, 40))[k % 2]
         d.rectangle([p0[0] + 10, yy, p1[0] - 10, yy + (p1[1] - p0[1]) / 8 - 8], fill=col)
     c0, c1 = region_px("top", -3.0 + 5.05, 1.45 - 0.62), region_px("top", -1.6 + 5.05, 1.45 + 0.62)
-    text_box("07", FONT_BLOCK, (c0[0], c0[1], c1[0], c1[1]), WHITE, RED_DARK, 4, rotate=90)
+    text_box(NUMBER, FONT_BLOCK, (c0[0], c0[1], c1[0], c1[1]), WHITE, RED_DARK, 4, rotate=90)
 
 
 def draw_front():
@@ -364,7 +367,7 @@ def draw_rear():
     diamond_plate(t0[0], t0[1], t1[0], t1[1])
     rear_rect(-1.02, -0.66, 1.56, 2.38, RED, RED_DARK, 3)
     p0, p1 = region_px("rear", 1.45 + 0.70, 3.2 - 2.30), region_px("rear", 1.45 + 0.98, 3.2 - 1.94)
-    text_box("07", FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), WHITE)
+    text_box(NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), WHITE)
     c = region_px("rear", 1.45 + 0.84, 3.2 - 1.75)
     d.ellipse([c[0] - 12, c[1] - 12, c[0] + 12, c[1] + 12], fill=CHROME, outline=(90, 90, 95), width=2)
     # Lower centre compartment: stainless frame around the door.
@@ -376,7 +379,7 @@ def draw_rear():
     # Licence plate, lower left.
     rear_rect(0.69, 1.04, 0.84, 1.01, (236, 236, 232), (60, 60, 60), 2)
     p0, p1 = region_px("rear", 1.45 - 1.02, 3.2 - 0.98), region_px("rear", 1.45 - 0.71, 3.2 - 0.88)
-    text_box("HFD 07", FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), (30, 30, 30))
+    text_box("HFD " + NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), (30, 30, 30))
     # Tailboard face: tread plate.
     t0, t1 = region_px("rear", 1.45 - 1.30, 3.2 - 0.76), region_px("rear", 1.45 + 1.30, 3.2 - 0.48)
     diamond_plate(t0[0], t0[1], t1[0], t1[1])
@@ -395,7 +398,7 @@ print("wrote", OUT, img.size)
 
 # Door logo decal texture: the department's logo (Sample-Asset-Images), trimmed to the shield, 1024 px tall.
 LOGO_SRC = r"J:\Unity\projects\HTownSim\Sample-Asset-Images\HFD_Logo_May_2025.png"
-LOGO_OUT = os.path.join(os.path.dirname(OUT), "HFD_Logo.png")
+LOGO_OUT = os.path.join(ORIGINAL_DIR, "HFD_Logo.png")
 logo = Image.open(LOGO_SRC).convert("RGBA")
 logo = logo.crop(logo.getchannel("A").getbbox())
 logo = logo.resize((round(logo.width * 1024 / logo.height), 1024), Image.LANCZOS)
@@ -405,7 +408,7 @@ print("wrote", LOGO_OUT, logo.size)
 # Texas state-flag decal: the source is a JPEG on white, and the flag's own white stripe is inside the state's navy
 # outline, so only the white connected to the image border is made transparent.
 TEXAS_SRC = r"J:\Unity\projects\HTownSim\Sample-Asset-Images\texas-flag-state-free-vector.jpg"
-TEXAS_OUT = os.path.join(os.path.dirname(OUT), "Texas_Flag.png")
+TEXAS_OUT = os.path.join(ORIGINAL_DIR, "Texas_Flag.png")
 tx = Image.open(TEXAS_SRC).convert("RGB")
 tx = tx.resize((tx.width * 2, tx.height * 2), Image.LANCZOS)
 light = tx.convert("L").point(lambda v: 255 if v > 200 else 0)

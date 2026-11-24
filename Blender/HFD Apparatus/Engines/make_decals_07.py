@@ -13,7 +13,13 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SPEC = os.path.join(HERE, "decals_07.json")
-OUT = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D\Engine07_Decals.png"
+NUMBER = os.environ.get("HFD_UNIT_NUMBER", "07")  # the unit number drawn on the truck; other numbers go to the Station8 folder
+OUT_DIR = os.environ.get("HFD_OUT_DIR", r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Station8")
+OUT = (
+    r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D\Engine07_Decals.png"
+    if NUMBER == "07"
+    else os.path.join(OUT_DIR, "Engine" + NUMBER + "_Decals.png")
+)
 SIZE = 1024
 CELL_W = 330  # three cells per row, so all seven fit in 1024 x 1024
 FEATHER = 0.12  # fraction of the cell's shorter side that fades out at the edges
@@ -38,12 +44,12 @@ def cell(decal):
     size = int(h * 0.95)
     while True:
         font = ImageFont.truetype(FONT, size)
-        x0, y0, x1, y1 = d.textbbox((0, 0), "07", font=font, stroke_width=max(2, size // 22))
+        x0, y0, x1, y1 = d.textbbox((0, 0), NUMBER, font=font, stroke_width=max(2, size // 22))
         if (x1 - x0) <= w * 0.8 and (y1 - y0) <= h * 0.82:
             break
         size -= 4
     sw = max(2, size // 22)
-    d.text(((w - (x1 - x0)) / 2 - x0, (h - (y1 - y0)) / 2 - y0), "07", font=font, fill=fill + (255,), stroke_width=sw, stroke_fill=stroke + (255,))
+    d.text(((w - (x1 - x0)) / 2 - x0, (h - (y1 - y0)) / 2 - y0), NUMBER, font=font, fill=fill + (255,), stroke_width=sw, stroke_fill=stroke + (255,))
     # Feathered alpha so the patch melts into the surrounding paint.
     edge = max(2, int(min(w, h) * FEATHER))
     mask = Image.new("L", (w, h), 0)
@@ -68,7 +74,8 @@ def main():
         row_h = max(row_h, img.height)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     atlas.save(OUT)
-    json.dump(decals, open(SPEC, "w"), indent=1)
+    if NUMBER == "07":
+        json.dump(decals, open(SPEC, "w"), indent=1)
     print("font", os.path.basename(FONT), "-> wrote", OUT, "with", len(decals), "decals")
 
 
