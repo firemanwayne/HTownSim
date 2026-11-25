@@ -98,6 +98,14 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   whether to drop older incidents or just release the recent ones first, and how to treat the persisted ledger on start. Noted only;
   no change made yet.
 
+- **Night time.** The game needs a night (the owner asked about this earlier and it was never built; the city is always daytime).
+  It ties into the items above: the emergency lights and glow halos only read properly in the dark (the HPD lightbar bloom was never
+  checked at night), and it should follow the current time (see "incidents close to the current time"). Things it touches: a
+  time-of-day setting driving the sun and sky (`Runtime/World/SkyDecor.cs`, `EnvironmentWeather.cs`), street lamps and building lights
+  (the gap kit's `GapStreetLamps`, `SceneLights`), vehicle headlights and tail lamps (`SignalLamps`, `RearLamps`, `LensFlasher`),
+  traffic and signal lenses, window lights on buildings, and the map's brightness. Open choices: real clock or an accelerated day,
+  a manual toggle, and how dark it should get. Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
