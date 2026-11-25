@@ -50,6 +50,10 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   **Colors decided by the owner: red for fire, blue for PD.** Still open: the color for EMS (proposed white) and the chief (proposed
   orange), labels on parked units, whether to show only units that are out.
 
+- **Ladder aerial HUD placement.** On the ladder trucks the aerial HUD (`Runtime/Player/AerialHud.cs`) should stack on top of the
+  emergency (siren) controls (`Runtime/Player/EmergencyHud.cs`, laid out by `HudLayout.cs`) instead of sharing or overlapping their
+  place. Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
