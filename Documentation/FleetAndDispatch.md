@@ -59,6 +59,17 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   BoxColliders (`AiUnit`, `AiFleet`; computer-driven units move as plain bodies and ignore physics), and the traffic cars' colliders
   (`Runtime/World/TrafficSystem.cs`). Noted only; no change made yet.
 
+- **Changing units must not rebuild the map.** Design direction from the owner: the map (the city) is something the player *joins*,
+  not something that is built for them. Choosing or changing a unit should put the player into that unit in the already-running
+  city, not reload the scene. Today the pick is saved and the whole city scene is reloaded (`StartingTruckMenu.Choose` /
+  `Reload`, about 30 s), because the unit is fitted once in `FireResponse.Awake` (`ApparatusLoadout.Fit`: model, wheels, lights,
+  audio, camera) and everything reads the profile from there. Direction: keep the city loaded and make "take control of unit X" a
+  runtime operation, with the other units staying where they are as computer-driven units (the fleet in `AiFleet` already drives
+  every parked unit but the player's). Things this touches: re-running the loadout fit and its dependents (`WheelSpin`,
+  `LensFlasher`, `ApparatusLights`, `SceneLights`, `EngineSound`, camera follow), handing the old unit back to `AiFleet` and taking the
+  new one out of it, the live incident feed's player-unit identity (`LiveIncidentFeed`, dispatch candidates), and the start flow
+  (the start scene would join an existing city rather than load one). Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
