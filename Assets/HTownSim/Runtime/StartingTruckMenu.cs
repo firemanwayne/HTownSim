@@ -62,8 +62,22 @@ namespace HTownSim.Runtime
         /// <summary>True when the screen runs in the start scene, before the city is loaded.</summary>
         private bool _startMode;
 
-        /// <summary>The city's load, once a vehicle has been picked in the start scene.</summary>
-        private AsyncOperation? _loading;
+        /// <summary>
+        /// True from the pick until the scene is gone. The load is not started for a few frames, so the loading message is on screen first:
+        /// the editor does much of a scene load on the main thread inside the call that starts it, and a frozen screen would never show it.
+        /// </summary>
+        private bool _loadRequested;
+
+        private int _loadStartFrame;
+
+        private System.Func<AsyncOperation?>? _startLoad;
+
+        /// <summary>How many frames the loading message is drawn before the load starts, and the dots after it that show the game is alive.</summary>
+        private const int LoadDelayFrames = 4;
+
+        private const float DotsPerSecond = 2f;
+
+        private const int MaximumDots = 3;
 
         private Step _step = Step.Agency;
 
@@ -222,8 +236,15 @@ namespace HTownSim.Runtime
         /// <summary>Keyboard: 1, 2, 3 pick directly; the arrows move; Enter or Space confirms; Backspace goes back to the stations.</summary>
         private void Update()
         {
-            if (_loading != null)
+            if (_loadRequested)
             {
+                if (_startLoad != null && Time.frameCount >= _loadStartFrame)
+                {
+                    _startLoad();
+
+                    _startLoad = null;
+                }
+
                 return;
             }
 
@@ -388,26 +409,21 @@ namespace HTownSim.Runtime
         {
             StartingTruckChoice.Decided = true;
 
-            Time.timeScale = _previousTimeScale;
-
             StartingTruckChoice.Save(truck);
 
-            if (_startMode)
-            {
-                // The city loads once, fitted with this pick, while the screen shows that it is loading.
-                _loading = SceneManager.LoadSceneAsync(CityScene);
-
-                return;
-            }
-
-            if (truck == _current)
+            if (!_startMode && truck == _current)
             {
                 Destroy(gameObject);
 
                 return;
             }
 
-            _loading = Reload();
+            // The game stays frozen under the loading message; the menu putting the time scale back as it is unloaded lets the new scene run.
+            _loadRequested = true;
+
+            _loadStartFrame = Time.frameCount + LoadDelayFrames;
+
+            _startLoad = _startMode ? () => SceneManager.LoadSceneAsync(CityScene) : Reload;
         }
 
         /// <summary>
@@ -445,11 +461,13 @@ namespace HTownSim.Runtime
 
             Fill(new Rect(0f, 0f, width, height), Dim);
 
-            if (_loading != null)
+            if (_loadRequested)
             {
                 GUI.Label(new Rect(0f, (height / 2f) - 40f, width, 64f), "LOADING THE CITY", _title);
 
-                GUI.Label(new Rect(0f, (height / 2f) + 30f, width, 36f), Mathf.RoundToInt(Mathf.Clamp01(_loading.progress / 0.9f) * 100f) + "%", _subtitle);
+                var dots = new string('.', 1 + (Mathf.FloorToInt(Time.unscaledTime * DotsPerSecond) % MaximumDots));
+
+                GUI.Label(new Rect(0f, (height / 2f) + 30f, width, 36f), "Please wait" + dots, _subtitle);
 
                 return;
             }
