@@ -35,6 +35,18 @@ namespace HTownSim.Runtime
 
         private const float RoadY = 0.06f;
 
+        /// <summary>The ground collider the paved streets are made of; a car on anything else (a lot, a sidewalk, a roof) has left the road.</summary>
+        private const string StreetSurface = "Streets";
+
+        /// <summary>How often a driving car checks that it is still over street, seconds (staggered per car), and how far above and below the car the probe reaches, metres.</summary>
+        private const float StreetCheckSeconds = 0.5f;
+
+        private const float StreetProbeUp = 6f;
+
+        private const float StreetProbeReach = 12f;
+
+        private readonly RaycastHit[] _probeHits = new RaycastHit[12];
+
         private const float SidewalkY = 0.2f;
 
         /// <summary>Siren yielding: cars within YieldRange slow and pull over, stop inside StopRange, hold for YieldHoldSeconds after the engine passes, and wait before intersections the engine is closing on.</summary>
@@ -289,6 +301,9 @@ namespace HTownSim.Runtime
             public float IgnoreTimer;
 
             public float YieldHold;
+
+            /// <summary>Seconds until the car next checks that it is over street.</summary>
+            public float StreetCheck;
         }
 
         private sealed class Pedestrian
@@ -622,17 +637,17 @@ namespace HTownSim.Runtime
             return axis.AlongZ ? direction : -direction;
         }
 
-        /// <summary>Rotation from the street grid's frame to the world, and back (identity when the grid is aligned with the world axes).</summary>
-        private static Quaternion _frame = Quaternion.identity;
+        /// <summary>Rotation from this system's street grid frame to the world, and back (identity when the grid is aligned with the world axes). Per system: each neighborhood has its own grid angle.</summary>
+        private Quaternion _frame = Quaternion.identity;
 
-        private static Quaternion _frameInverse = Quaternion.identity;
+        private Quaternion _frameInverse = Quaternion.identity;
 
-        private static Vector3 Heading(Axis axis, int direction)
+        private Vector3 Heading(Axis axis, int direction)
         {
             return _frame * (axis.AlongZ ? new Vector3(0f, 0f, direction) : new Vector3(direction, 0f, 0f));
         }
 
-        private static Vector3 PointOn(Axis axis, float across, float along, float y)
+        private Vector3 PointOn(Axis axis, float across, float along, float y)
         {
             var point = _frame * (axis.AlongZ ? new Vector3(across, 0f, along) : new Vector3(along, 0f, across));
 
@@ -641,14 +656,14 @@ namespace HTownSim.Runtime
             return point;
         }
 
-        private static float AlongOf(Axis axis, Vector3 point)
+        private float AlongOf(Axis axis, Vector3 point)
         {
             var local = _frameInverse * new Vector3(point.x, 0f, point.z);
 
             return axis.AlongZ ? local.z : local.x;
         }
 
-        private static float AcrossOf(Axis axis, Vector3 point)
+        private float AcrossOf(Axis axis, Vector3 point)
         {
             var local = _frameInverse * new Vector3(point.x, 0f, point.z);
 
@@ -691,7 +706,7 @@ namespace HTownSim.Runtime
 
                 var distance = Vector3.Distance(point, _player.position);
 
-                if (distance < SpawnMinimum || distance > SpawnMaximum || CarNear(point, 12f))
+                if (distance < SpawnMinimum || distance > SpawnMaximum || CarNear(point, 12f) || !OverStreet(point))
                 {
                     continue;
                 }
@@ -986,6 +1001,22 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            car.StreetCheck -= dt;
+
+            if (car.StreetCheck <= 0f)
+            {
+                car.StreetCheck = StreetCheckSeconds + ((car.Id % 5) * 0.07f);
+
+                // The street grid is an approximation of the real streets: a car that finds itself over a lot, a sidewalk or a
+                // building (a street whose axis is off, a turn onto a street that is not there) leaves and respawns on a good one.
+                if (!OverStreet(car.Transform.position))
+                {
+                    Despawn(car);
+
+                    return;
+                }
+            }
+
             var axis = car.Axis;
 
             var heading = Heading(axis, car.Direction);
@@ -1087,6 +1118,32 @@ namespace HTownSim.Runtime
             {
                 light.enabled = braking;
             }
+        }
+
+        /// <summary>True when the first solid surface below a point (other than a traffic car) is a street.</summary>
+        private bool OverStreet(Vector3 point)
+        {
+            var count = Physics.RaycastNonAlloc(point + (Vector3.up * StreetProbeUp), Vector3.down, _probeHits, StreetProbeUp + StreetProbeReach, ~0, QueryTriggerInteraction.Ignore);
+
+            var best = float.MaxValue;
+
+            var street = true;
+
+            for (var i = 0; i < count; i++)
+            {
+                var hit = _probeHits[i];
+
+                if (hit.distance >= best || hit.collider.transform.IsChildOf(transform) || hit.collider.transform.IsChildOf(_player))
+                {
+                    continue;
+                }
+
+                best = hit.distance;
+
+                street = hit.collider.name == StreetSurface;
+            }
+
+            return street;
         }
 
         private void Despawn(Car car)
