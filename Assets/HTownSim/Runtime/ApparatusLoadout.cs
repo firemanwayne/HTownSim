@@ -116,7 +116,7 @@ namespace HTownSim.Runtime
                 unitName, 0.525f, 4.2f, new[] { "DC08_WheelFront" }, new[] { "DC08_WheelRear" }, 6.5f, 0.9f,
                 new Vector3(0f, 2.2f, -2f), new Vector3(0.95f, 2.1f, -1f), false,
                 new[] { "DC08_Flash_RedA" }, new[] { "DC08_Flash_RedB" }, new[] { "DC08_Steady_Headlight", "DC08_Steady_Fog", "DC08_Steady_Command" },
-                false, false, "", false);
+                false, false, "DC08Lenses", false);
         }
 
         /// <summary>Which apparatus the driven object currently is: a run-time profile names a Station 8 unit, else the fitted model decides.</summary>

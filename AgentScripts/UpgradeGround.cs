@@ -100,6 +100,9 @@ public static class UpgradeGround
 
         root.SetParent(midtown, false);
 
+        // The upgraded tiles sit 1.2 cm above the lot slabs they cover (same slab height), so they always win instead of flickering.
+        root.localPosition = new Vector3(0f, 0.012f, 0f);
+
         var parking = new List<Renderer>();
 
         var objects = 0;

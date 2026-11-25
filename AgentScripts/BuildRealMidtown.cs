@@ -4405,6 +4405,9 @@ public static class BuildRealMidtown
         }
     }
 
+    /// <summary>How far the gap placeholder layers are lowered under the built neighborhoods (metres), against z-fighting.</summary>
+    private const float GapLayerDrop = 0.012f;
+
     private const string GapSouthDataPath = "Assets/HTownSim/Data/Gap_South.txt";
 
     /// <summary>The ground of the south gap (Midtown's frame): everything between the Station 16 and Medical Center neighborhoods and the corridor.</summary>
@@ -4470,6 +4473,10 @@ public static class BuildRealMidtown
         var container = new GameObject(containerName).transform;
 
         container.SetParent(cityRoot.transform, false);
+
+        // Placeholders sit 1.2 cm below everything else, so where they meet a neighborhood or the upgraded ground the better surface
+        // always wins instead of the two flickering (they share the same slab height).
+        container.localPosition = new Vector3(0f, -GapLayerDrop, 0f);
 
         _root = container;
 

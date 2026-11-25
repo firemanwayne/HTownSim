@@ -110,6 +110,25 @@ namespace HTownSim.Runtime
             };
         }
 
+        /// <summary>The unit's HFD designation, shown on the start screen: E007, L016, DC08, AS016 ...</summary>
+        internal static string Designation(StartingTruck truck)
+        {
+            return truck switch
+            {
+                StartingTruck.Ladder => "L007",
+                StartingTruck.Ambulance => "A007",
+                StartingTruck.Engine08 => "E008",
+                StartingTruck.Engine01 => "E001",
+                StartingTruck.Medic08 => "M008",
+                StartingTruck.Engine16 => "E016",
+                StartingTruck.Ladder16 => "L016",
+                StartingTruck.Ambulance16 => "A016",
+                StartingTruck.Supervisor16 => "AS016",
+                StartingTruck.DistrictChief08 => "DC08",
+                _ => "E007",
+            };
+        }
+
         /// <summary>A one-line description of what the apparatus does in the game.</summary>
         internal static string Description(StartingTruck truck)
         {

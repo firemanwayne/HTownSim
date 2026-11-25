@@ -223,8 +223,8 @@ namespace HTownSim.Runtime
             foreach (var truck in trucks)
             {
                 _cards.Add(new MenuCard(
-                    StartingTruckChoice.DisplayName(truck).ToUpperInvariant(),
-                    StartingTruckChoice.Description(truck),
+                    StartingTruckChoice.Designation(truck),
+                    StartingTruckChoice.DisplayName(truck) + ". " + StartingTruckChoice.Description(truck),
                     truck == _current ? "IN THE BAY NOW" : "",
                     true));
             }

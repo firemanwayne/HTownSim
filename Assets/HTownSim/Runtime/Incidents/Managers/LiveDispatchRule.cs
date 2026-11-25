@@ -64,7 +64,7 @@ namespace HTownSim.Runtime.Incidents.Managers
 
         /// <summary>
         /// The HFD unit codes for a unit name: "Engine 07" is E007, "Ladder 16" L016, "Ambulance 16" A016, "Medic 08" M008,
-        /// "Supervisor 16" MS016 (EMS supervisor), "District Chief 08" D008 (also DC08, DC008, B008).
+        /// "Supervisor 16" AS016 (ambulance supervisor; also MS016), "District Chief 08" DC08 (also DC008, D008, B008).
         /// </summary>
         internal static IReadOnlyList<string> UnitCodes(string unitName)
         {
@@ -87,8 +87,8 @@ namespace HTownSim.Runtime.Incidents.Managers
                 "LADDER" => new[] { "L" + digits },
                 "AMBULANCE" => new[] { "A" + digits },
                 "MEDIC" => new[] { "M" + digits },
-                "SUPERVISOR" => new[] { "MS" + digits },
-                "DISTRICT CHIEF" => new[] { "D" + digits, "DC" + number.ToString("00"), "DC" + digits, "B" + digits },
+                "SUPERVISOR" => new[] { "AS" + digits, "MS" + digits },
+                "DISTRICT CHIEF" => new[] { "DC" + number.ToString("00"), "DC" + digits, "D" + digits, "B" + digits },
                 _ => Array.Empty<string>(),
             };
         }

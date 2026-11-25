@@ -203,7 +203,7 @@ namespace HTownSim.Runtime
         private float _orbitPitch;
         private bool _ownsCursor;
         /// <summary>Mouse sensitivity and safe camera elevation limits.</summary>
-        private const float OrbitSensitivity = 0.15f;
+        private const float OrbitSensitivity = 0.07f;
         private const float MinimumPitch = 12f;
         private const float MaximumPitch = 65f;
         /// <summary>Mouse-wheel zoom as a multiple of the authored framing (15 m behind and above the truck): out to 4x
@@ -387,16 +387,8 @@ namespace HTownSim.Runtime
 
             _liveFeed.Initialize(new LiveFeedSetup(_incidents, transform, PlayableArea(), inbox));
 
-            _firstIncident = TakeFallbackIncident(_firstSiteIndex);
-
-            if (_firstIncident is not null)
-            {
-                ShowIncident(_firstIncident);
-            }
-            else
-            {
-                RestartFire();
-            }
+            // No start-up call: the unit starts in service and waits for a dispatch (the live feed, or a fallback call after the roam delay).
+            GoInService();
 
             ArrangeHud();
 
@@ -435,7 +427,20 @@ namespace HTownSim.Runtime
                 gameObject.AddComponent<LensFlasher>().Initialize(this, _profile);
             }
 
-            Invoke(nameof(PlayDispatch), 0.8f);
+        }
+
+        /// <summary>No call: fire and smoke out, the clock stopped, waiting for the next dispatch.</summary>
+        private void GoInService()
+        {
+            _heat = 0f;
+
+            _remaining = 0f;
+
+            _spread.Extinguish();
+
+            _fire.Clear();
+
+            _smoke.Clear();
         }
 
         /// <summary>Adds the siren and light controller panel to the HUD canvas.</summary>
@@ -1028,8 +1033,10 @@ namespace HTownSim.Runtime
                 ? "RESPONSE PAUSED\nESC to resume"
                 : _heat > 0f && Time.time < _alertUntil
                     ? $"NEW CALL!  {label} / {_incidentLocation}\n{DispatchLine(unit)}"
+                    : _heat <= 0f && _activeIncident is null
+                        ? $"{unitUpper} IN SERVICE\nWaiting for dispatch.  Free roam: drive anywhere."
                     : _heat <= 0f
-                        ? $"{(fire ? "FIRE CONTAINED" : "CALL CLEARED")}\nGood work, {unit}.  Free roam: drive anywhere.  R to respond again."
+                        ? $"{(fire ? "FIRE CONTAINED" : "CALL CLEARED")}\nGood work, {unit}.  Free roam: drive anywhere."
                         : _remaining <= 0f
                             ? $"RESPONSE TIME EXCEEDED\n{unit}: R to retry the call."
                             : _transporting
@@ -1045,7 +1052,7 @@ namespace HTownSim.Runtime
                                         : $"{unitUpper} ON SCENE\nStage here for patient care; {unit} carries no water.";
 
             _telemetry.text = _heat <= 0f
-                ? $"{Mathf.Abs(_speed) * 2.237f:00} MPH     FREE ROAM\n{(fire ? "FIRE OUT" : "CALL CLEARED")}     NEXT CALL IN {Mathf.Max(0, Mathf.CeilToInt(RoamCallDelay - _roamClock)):00}s"
+                ? $"{Mathf.Abs(_speed) * 2.237f:00} MPH     FREE ROAM\n{(_activeIncident is null ? "IN SERVICE" : fire ? "FIRE OUT" : "CALL CLEARED")}     {(_liveFeed != null && _liveFeed.IsLive ? "LIVE FEED: WAITING FOR DISPATCH" : $"NEXT CALL IN {Mathf.Max(0, Mathf.CeilToInt(RoamCallDelay - _roamClock)):00}s")}"
                 : $"{Mathf.Abs(_speed) * 2.237f:00} MPH     {distance:0} m TO INCIDENT\n{(fire ? "FIRE" : "SCENE")} {Mathf.CeilToInt(_heat * 100f):00}%     {Mathf.CeilToInt(_remaining):000}s REMAINING";
 
             if (AerialDeployed)
@@ -1797,14 +1804,16 @@ namespace HTownSim.Runtime
 
             _alertUntil = 0f;
 
-            if (_firstIncident is not null)
+            var retry = _activeIncident ?? _firstIncident;
+
+            if (retry is null)
             {
-                ShowIncident(_firstIncident);
+                GoInService();
+
+                return;
             }
-            else
-            {
-                RestartFire();
-            }
+
+            ShowIncident(retry);
 
             PlayDispatch();
         }

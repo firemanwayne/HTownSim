@@ -329,6 +329,11 @@ public static class AddStation8Apparatus
 
             lit.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(DistrictChiefTextures + "/DC08_Door_Crest.jpg"));
         }
+        else if (name.Contains("Clear_optical_lens"))
+        {
+            // Lens covers over the LED modules: nearly clear, so the flashing diodes behind them show.
+            MakeTransparent(lit, new Color(0.9f, 0.95f, 1f, 0.18f));
+        }
         else if (name.Contains("tinted_glass"))
         {
             // Windshield and windows: tinted, see-through glass.
@@ -361,8 +366,8 @@ public static class AddStation8Apparatus
             lit.SetTexture("_BaseMap", original.mainTexture);
         }
 
-        // Glass and door decals are single sheets whose faces may point into the truck: draw both sides.
-        if (name.Contains("glass") || name.Contains("HFD_shield") || name.Contains("photographic_decal"))
+        // Glass, lenses, decals, chevrons and reflective striping are single sheets whose faces may point into the truck: draw both sides.
+        if (name.Contains("glass") || name.Contains("lens") || name.Contains("HFD_shield") || name.Contains("photographic_decal") || name.Contains("chevrons") || name.Contains("Reflective_white"))
         {
             lit.SetFloat("_Cull", 0f);
         }
@@ -370,6 +375,30 @@ public static class AddStation8Apparatus
         AssetDatabase.CreateAsset(lit, path);
 
         return lit;
+    }
+
+    /// <summary>Turns a Lit material into an alpha-blended, see-through one with the given colour (alpha is the opacity).</summary>
+    private static void MakeTransparent(Material lit, Color colour)
+    {
+        lit.SetColor("_BaseColor", colour);
+
+        lit.SetFloat("_Smoothness", 0.95f);
+
+        lit.SetFloat("_Surface", 1f);
+
+        lit.SetFloat("_Blend", 0f);
+
+        lit.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+
+        lit.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+        lit.SetFloat("_ZWrite", 0f);
+
+        lit.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+
+        lit.SetOverrideTag("RenderType", "Transparent");
+
+        lit.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
     }
 
     /// <summary>A copy of the material that wears the unit's new textures, or the material itself when it uses none of the swapped ones.</summary>
