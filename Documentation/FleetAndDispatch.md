@@ -66,13 +66,6 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   and that with no player unit every unit (including the one the player would have driven) is computer-driven. Noted only; no change
   made yet.
 
-- **AI siren sound.** When watching a computer-driven unit respond, its siren does not sound right. It should use the same sirens the
-  player can control (the real wail, yelp and pier tones and the air horn from the siren control in `Runtime/Player/FireResponse.cs`
-  and `Runtime/Units/AirHorn.cs`, resources under `Resources/SirenAudio`), not the plain synthesized wail now made in
-  `Runtime/Units/AiEmergencyLights.cs`. The sound also needs a sense of distance (louder and brighter near, quieter and duller far,
-  with the pitch shift of a passing vehicle) and echo or reverb (stronger between buildings), instead of the plain linear fade now used.
-  Noted only; no change made yet.
-
 - **Night time.** The game needs a night (the owner asked about this earlier and it was never built; the city is always daytime).
   It ties into the items above: the emergency lights and glow halos only read properly in the dark (the HPD lightbar bloom was never
   checked at night), and it should follow the current time (see "incidents close to the current time"). Things it touches: a
@@ -82,6 +75,13 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   a manual toggle, and how dark it should get. Noted only; no change made yet.
 
 ## Done from the notes
+
+- **AI siren sound** (`Runtime/Units/AiSiren.cs`, started by `AiEmergencyLights`): computer-driven units now play the player's recorded
+  tones (wail, yelp, pier from `Resources/SirenAudio`), alternating every 8-15 s. Distance: logarithmic fade, a low-pass filter that
+  closes from 22 kHz to 1.6 kHz with distance, and Doppler. Echo and reverb: an echo and reverb filter whose wet level rises with
+  distance and with buildings found by side raycasts (street between buildings rings louder than open ground). Checked in the editor:
+  all 14 units carry the source and three filters and the Wail clip plays; how it actually sounds has not been listened to, so the
+  numbers (all documented on the constants) may need tuning by ear. The air horn is not used by computer-driven units.
 
 - **Other units on the City Map** (`Runtime/Player/FleetMapMarkers.cs`, hooked in `CityMap.cs`): a square per computer-driven unit under the
   player's marker; red for fire, blue for PD (the owner's colors), white for EMS and orange for chiefs (my picks, not yet confirmed by the owner).

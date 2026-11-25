@@ -26,7 +26,7 @@ When you add a new tunable number, give it the same kind of comment: what it is,
 | Louder or quieter sirens and horn (player) | `SirenVolume`, `HornVolume` | `FireResponse.cs` |
 | Louder or quieter engine | `MasterVolume`, `RoadVolume`, `TurboVolume`, `SquealVolume`, `AirBrakeVolume`, `AlarmVolume` | `Runtime/Units/EngineSound.cs` |
 | Change how revs and gears behave | `RpmRiseRate`, `RpmFallRate`, `GearTop`, `ShiftDrop`, `HeavyPitch` | `EngineSound.cs` |
-| Computer-driven units' siren loudness and range | `SirenVolume`, `SirenMinimumDistance`, `SirenMaximumDistance` | `Runtime/Units/AiEmergencyLights.cs` |
+| Computer-driven units' siren loudness, range, dulling, echo, reverb, tone switching | `Volume`, `MinimumDistance`, `MaximumDistance`, `FarCutoff`, `EchoStreetMix`, `ReverbStreetLevel`, `PierChance` | `Runtime/Units/AiSiren.cs` |
 | City traffic, horns, birds | `CarVoices`, `CarMaxDistance`, `IdleVolume`, `MovingVolume`, `HornMinInterval`, `BirdMinInterval` | `Runtime/World/CityAmbience.cs` |
 | Fire crackle range | `AudioMinDistance`, `AudioMaxDistance` | `Runtime/Player/LiveFireVfx.cs`, `Runtime/Simulation/FireSpread.cs` |
 | Rain, weather blending | `RainRate`, `TransitionSeconds` | `Runtime/World/EnvironmentWeather.cs` |
