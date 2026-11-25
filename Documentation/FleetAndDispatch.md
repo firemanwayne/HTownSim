@@ -77,6 +77,11 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   and that with no player unit every unit (including the one the player would have driven) is computer-driven. Noted only; no change
   made yet.
 
+- **Reduce the size of the HTOWN HUD.** The top-left panel headed "H T O W N / <unit>" (the unit name, call text, speed, distance and
+  status block) should be smaller. It is built and sized in `Runtime/Player/HudLayout.cs` / `HudLayoutParts.cs` and filled by
+  `FireResponse`; the city map panel below it is positioned from it, so the map and the other HUD blocks may need to move up with it.
+  Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
