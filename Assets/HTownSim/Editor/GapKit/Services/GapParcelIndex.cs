@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Linq;
 using HTownSim.EditorTools.GapKit.Models;
 using UnityEngine;
 
@@ -55,6 +56,48 @@ namespace HTownSim.EditorTools.GapKit.Services
             }
 
             return false;
+        }
+
+        /// <summary>The lot the point is inside, or null.</summary>
+        internal GapParcel? LotAt(Vector2 point)
+        {
+            foreach (var parcel in Near(point))
+            {
+                if (Contains(parcel, point))
+                {
+                    return parcel;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>True when the point is inside a lot or within the sidewalk's width of one.</summary>
+        internal bool OnLotOrSidewalk(Vector2 point)
+        {
+            return Near(point).Any(parcel => GapSidewalk.OnLotOrSidewalk(parcel, point));
+        }
+
+        /// <summary>The lots whose grid cells are the point's or next to it (the sidewalk reaches into the next cell).</summary>
+        private IEnumerable<GapParcel> Near(Vector2 point)
+        {
+            var cx = Cell(point.x);
+
+            var cz = Cell(point.y);
+
+            for (var x = cx - 1; x <= cx + 1; x++)
+            {
+                for (var z = cz - 1; z <= cz + 1; z++)
+                {
+                    if (_cells.TryGetValue(Key(x, z), out var list))
+                    {
+                        foreach (var parcel in list)
+                        {
+                            yield return parcel;
+                        }
+                    }
+                }
+            }
         }
 
         private static bool Contains(GapParcel parcel, Vector2 point)

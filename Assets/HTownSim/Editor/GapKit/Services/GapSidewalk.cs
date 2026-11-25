@@ -42,6 +42,18 @@ namespace HTownSim.EditorTools.GapKit.Services
             return inside;
         }
 
+        /// <summary>True when the point is inside the polygon and at least <paramref name="margin"/> metres from its outline.</summary>
+        internal static bool InsideBy(float[] polygon, Vector2 point, float margin)
+        {
+            return Inside(polygon, point) && DistanceToOutline(polygon, point) >= margin;
+        }
+
+        /// <summary>How far outside the polygon a point is: 0 when it is inside, else the distance to the outline.</summary>
+        internal static float DistanceOutside(float[] polygon, Vector2 point)
+        {
+            return Inside(polygon, point) ? 0f : DistanceToOutline(polygon, point);
+        }
+
         /// <summary>The shortest distance from a point to the polygon's outline.</summary>
         private static float DistanceToOutline(float[] polygon, Vector2 point)
         {
