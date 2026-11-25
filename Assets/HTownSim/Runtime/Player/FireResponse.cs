@@ -394,6 +394,11 @@ namespace HTownSim.Runtime
             // Other units' EMS calls on the board get a patient lying at the scene too.
             gameObject.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
 
+            if (_fireVfxMain != null)
+            {
+                gameObject.AddComponent<LiveIncidentFires>().Initialize(_liveFeed, _fireVfxMain);
+            }
+
             // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
             gameObject.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
 

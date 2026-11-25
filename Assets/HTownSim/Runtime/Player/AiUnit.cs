@@ -37,6 +37,19 @@ namespace HTownSim.Runtime
             Returning,
         }
 
+        /// <summary>What kind of incident the unit is on, which sets how long it works the scene.</summary>
+        internal enum Call
+        {
+            /// <summary>A fire or rescue.</summary>
+            Fire,
+
+            /// <summary>An EMS call (a patient; only an ambulance or medic unit takes them to the hospital).</summary>
+            Ems,
+
+            /// <summary>A police call.</summary>
+            Police,
+        }
+
         /// <summary>Driving: top speed with siren, the easier speed home, acceleration and braking (metres per second and per second squared).</summary>
         private const float ResponseSpeed = 17f;
 
@@ -97,7 +110,7 @@ namespace HTownSim.Runtime
 
         private bool _hasPatient;
 
-        private bool _emsIncident;
+        private Call _call;
 
         private Func<Vector2, Vector2?>? _hospitalFor;
 
@@ -136,14 +149,16 @@ namespace HTownSim.Runtime
             _homeRotation = transform.rotation;
 
             _lights = gameObject.AddComponent<AiEmergencyLights>();
+
+            gameObject.AddComponent<AiWheelSpin>();
         }
 
         /// <summary>Sends the unit to an incident.</summary>
         /// <param name="incidentId">The incident.</param>
         /// <param name="scene">Where it is (ground x, z).</param>
-        /// <param name="emsIncident">True when the incident is an EMS call (there is a patient; only an ambulance or medic unit takes them).</param>
+        /// <param name="call">What kind of incident it is.</param>
         /// <param name="slot">How many units are already stopping at the scene: each one stops a vehicle length further back along the street.</param>
-        internal void Dispatch(string incidentId, Vector2 scene, bool emsIncident, int slot)
+        internal void Dispatch(string incidentId, Vector2 scene, Call call, int slot)
         {
             if (Busy)
             {
@@ -152,9 +167,9 @@ namespace HTownSim.Runtime
 
             IncidentId = incidentId;
 
-            _emsIncident = emsIncident;
+            _call = call;
 
-            _hasPatient = emsIncident && LiveDispatchRule.CanTransport(UnitName);
+            _hasPatient = call == Call.Ems && LiveDispatchRule.CanTransport(UnitName);
 
             var route = _graph.Route(Position, scene);
 
@@ -328,7 +343,7 @@ namespace HTownSim.Runtime
                 case Phase.Responding:
                     Current = Phase.OnScene;
 
-                    _timer = _hasPatient ? PatientSceneSeconds : _emsIncident ? SupportSceneSeconds : FireSceneSeconds;
+                    _timer = _hasPatient ? PatientSceneSeconds : _call == Call.Fire ? FireSceneSeconds : SupportSceneSeconds;
 
                     _lights?.Set(true, false);
 

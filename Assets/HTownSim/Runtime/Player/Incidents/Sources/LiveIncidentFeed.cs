@@ -18,16 +18,13 @@ namespace HTownSim.Runtime.Incidents.Sources
     /// the <see cref="IncidentManager"/> as a standard call and played like any other. Logic lives in the pure C# queue and rules;
     /// this component only does the folder, the clock and the scene lookups.
     /// Every fire and EMS incident is also matched to the units the game has (<see cref="FleetDispatcher"/>): each unit the City lists
-    /// goes to the game unit of that name, or to the closest free unit of the same kind. The player's unit, when it is one of them,
+    /// goes to the game unit of that name; a listed unit the game does not have gets nobody. The player's unit, when it is one of them,
     /// is sent as above; the others are driven by the computer (<see cref="AiFleet"/>). The incident is cleared when every unit on it is done.
     /// </summary>
     internal sealed class LiveIncidentFeed : MonoBehaviour
     {
         /// <summary>The subfolder of the incident inbox the harvester writes to.</summary>
         internal const string FolderName = "Live";
-
-        /// <summary>Scene names of the game's stations, in station-index order (Station 7 is the scene origin).</summary>
-        private static readonly string[] StationObjects = { "Station07", "FireStation8", "FireStation16" };
 
         private LiveFeedSettings _settings = null!;
 
@@ -48,25 +45,21 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>Incidents already matched to units.</summary>
         private readonly HashSet<string> _matched = new HashSet<string>();
 
-        /// <summary>EMS incidents that have no ambulance or medic unit yet (none was free), with where they are; one is sent when a unit frees up.</summary>
-        private readonly Dictionary<string, (LiveIncidentRecord Record, Vector2 Target)> _awaitingTransport = new Dictionary<string, (LiveIncidentRecord Record, Vector2 Target)>();
-
-        private float _nextTransportCheck;
-
-        /// <summary>How often the incidents waiting for a transport unit are tried again, in seconds.</summary>
-        private const float TransportRetrySeconds = 5f;
-
         private Transform _player = null!;
 
         private Rect? _playableArea;
 
         private string _folder = "";
 
-        private readonly List<Vector2> _stations = new List<Vector2>();
-
         private float _nextScan;
 
         private float _lastFeedTime = float.NegativeInfinity;
+
+        /// <summary>True when the computer-driven fleet has patrol units, which then answer the police calls (the parked scene car is not used).</summary>
+        internal bool HasPatrols => _fleet != null && _fleet.Units.Any(unit => unit.UnitName.StartsWith("HPD", System.StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Computer-driven units were sent to a fire (no one in the game is on it): the incident id and where it is, for the flames.</summary>
+        internal event System.Action<string, Vector3>? FireDispatched;
 
         /// <summary>The queue and board (read by the HUD).</summary>
         internal LiveIncidentQueue Queue => _queue;
@@ -94,14 +87,6 @@ namespace HTownSim.Runtime.Incidents.Sources
             _folder = Path.Combine(setup.InboxDirectory, FolderName);
 
             Directory.CreateDirectory(_folder);
-
-            // Station positions are looked up once; an absent station (not built in this scene) is left out of first-due.
-            foreach (var name in StationObjects)
-            {
-                var station = GameObject.Find(name);
-
-                _stations.Add(station != null ? new Vector2(station.transform.position.x, station.transform.position.z) : new Vector2(float.NaN, float.NaN));
-            }
 
             _queue = new LiveIncidentQueue(new LiveQueueSettings(_settings.MinimumGapSeconds, _settings.MaximumGapSeconds, _settings.BoardSize), new System.Random());
 
@@ -179,8 +164,6 @@ namespace HTownSim.Runtime.Incidents.Sources
         private void OnIncidentCleared(string incidentId)
         {
             _matched.Remove(incidentId);
-
-            _awaitingTransport.Remove(incidentId);
         }
 
         /// <summary>A computer-driven unit finished its part of an incident.</summary>
@@ -226,48 +209,6 @@ namespace HTownSim.Runtime.Incidents.Sources
             }
 
             _queue.Tick(Time.time);
-
-            if (Time.time >= _nextTransportCheck)
-            {
-                _nextTransportCheck = Time.time + TransportRetrySeconds;
-
-                SendWaitingTransport();
-            }
-        }
-
-        /// <summary>Sends a free computer-driven ambulance or medic unit to each EMS incident that has none yet.</summary>
-        private void SendWaitingTransport()
-        {
-            foreach (var id in _awaitingTransport.Keys.ToList())
-            {
-                var (record, target) = _awaitingTransport[id];
-
-                var unit = FleetDispatcher.Choose(record, target, Candidates().Where(candidate => !candidate.IsPlayer));
-
-                var driver = unit == null ? null : _fleet.Find(unit.Name);
-
-                if (driver == null)
-                {
-                    continue;
-                }
-
-                driver.Dispatch(id, target, true, _assigned.TryGetValue(id, out var current) ? current.Length : 0);
-
-                if (!driver.Sent)
-                {
-                    continue;
-                }
-
-                _awaitingTransport.Remove(id);
-
-                var names = (_assigned.TryGetValue(id, out var existing) ? existing : new string[0]).Append(driver.UnitName).ToArray();
-
-                _assigned[id] = names;
-
-                _pending[id] = (_pending.TryGetValue(id, out var left) ? left : 0) + 1;
-
-                _service.Assign(id, new AssignPayload(names, record.IncidentType, record.Address, record.Geo));
-            }
         }
 
         /// <summary>Reads every finished feed file, oldest first, and deletes it.</summary>
@@ -332,14 +273,17 @@ namespace HTownSim.Runtime.Incidents.Sources
         {
             var entry = new LiveBoardEntry(record, 0d);
 
-            if (record.Agency != PoliceAgency)
-            {
-                var target = PlaceOnMap(entry);
+            var target = PlaceOnMap(entry);
 
-                return target != null && FleetDispatcher.Match(record, target.Value, Candidates()).Any(unit => unit.IsPlayer);
-            }
+            return target != null && MatchFor(record, target.Value).Any(unit => unit.IsPlayer);
+        }
 
-            return DispatchReason(entry).Length > 0 && entry.InMap;
+        /// <summary>The units to send to an incident: the listed units the game has (fire and EMS) or the closest free patrol units (police).</summary>
+        private IReadOnlyList<FleetCandidate> MatchFor(LiveIncidentRecord record, Vector2 target)
+        {
+            var candidates = Candidates();
+
+            return record.Agency == PoliceAgency ? FleetDispatcher.MatchPolice(record, target, candidates) : FleetDispatcher.Match(record, candidates);
         }
 
         /// <summary>The page agency code of a police incident (fire and EMS incidents are FD).</summary>
@@ -381,63 +325,14 @@ namespace HTownSim.Runtime.Incidents.Sources
             return candidates;
         }
 
-        /// <summary>Places the incident on the map and works out whether the player is sent (the reason, or empty).</summary>
-        private string DispatchReason(LiveBoardEntry entry)
-        {
-            var record = entry.Record;
-
-            var nearest = -1;
-
-            if (record.HasPosition)
-            {
-                var world = GeoProjection.ToWorld(record.Geo);
-
-                entry.InMap = _playableArea == null || _playableArea.Value.Contains(new Vector2(world.x, world.z));
-
-                if (entry.InMap)
-                {
-                    nearest = NearestStation(new Vector2(world.x, world.z));
-                }
-            }
-
-            var unitName = ApparatusProfile.For(_player.gameObject).UnitName;
-
-            var context = new LiveDispatchContext(LiveDispatchRule.UnitCodes(unitName), LiveDispatchRule.KindOf(unitName), PlayerStationIndex());
-
-            return LiveDispatchRule.Reason(record, context, nearest);
-        }
-
-        /// <summary>Places the incident, and sends it to the player when the dispatch rule says so and it is inside the map.</summary>
+        /// <summary>Matches the incident to units and sends them (the player when it is one of them, the computer-driven units otherwise).</summary>
         private void Evaluate(LiveBoardEntry entry)
         {
-            if (entry.Record.Agency != PoliceAgency)
-            {
-                MatchUnits(entry);
-
-                return;
-            }
-
-            var reason = DispatchReason(entry);
-
-            if (reason.Length == 0 || !entry.InMap)
-            {
-                return;
-            }
-
-            var unitName = ApparatusProfile.For(_player.gameObject).UnitName;
-
-            var payload = LivePayloadBuilder.Build(entry.Record, RequiredUnit(unitName, LiveDispatchRule.KindOf(unitName)));
-
-            var result = _manager.Submit(JsonUtility.ToJson(payload), LivePayloadBuilder.SourceName);
-
-            if (result.Accepted > 0)
-            {
-                entry.DispatchReason = reason;
-            }
+            MatchUnits(entry);
         }
 
         /// <summary>
-        /// Matches a fire or EMS incident to the units the game has and sends them: the player's unit through the incident manager, the
+        /// Matches an incident to the units the game has and sends them: the player's unit through the incident manager, the
         /// others by driving. The service is told every unit that was sent.
         /// </summary>
         private void MatchUnits(LiveBoardEntry entry)
@@ -451,14 +346,14 @@ namespace HTownSim.Runtime.Incidents.Sources
                 return;
             }
 
-            var matched = FleetDispatcher.Match(record, target.Value, Candidates());
+            var matched = MatchFor(record, target.Value);
 
             if (matched.Count == 0)
             {
                 return;
             }
 
-            var ems = LiveDispatchRule.TypeFits(record, LiveUnitKind.Ems);
+            var call = record.Agency == PoliceAgency ? AiUnit.Call.Police : LiveDispatchRule.TypeFits(record, LiveUnitKind.Ems) ? AiUnit.Call.Ems : AiUnit.Call.Fire;
 
             var names = new List<string>();
 
@@ -473,7 +368,7 @@ namespace HTownSim.Runtime.Incidents.Sources
                     continue;
                 }
 
-                driver.Dispatch(record.IncidentId, target.Value, ems, names.Count);
+                driver.Dispatch(record.IncidentId, target.Value, call, names.Count);
 
                 if (driver.Sent)
                 {
@@ -497,10 +392,9 @@ namespace HTownSim.Runtime.Incidents.Sources
 
             _matched.Add(record.IncidentId);
 
-            // An EMS call with no ambulance or medic unit among the units sent waits until one is free.
-            if (ems && !matched.Any(unit => LiveDispatchRule.CanTransport(unit.Name)))
+            if (call == AiUnit.Call.Fire && player == null && record.IncidentType.ToUpperInvariant().Contains("FIRE"))
             {
-                _awaitingTransport[record.IncidentId] = (record, target.Value);
+                FireDispatched?.Invoke(record.IncidentId, GeoProjection.ToWorld(record.Geo));
             }
 
             _assigned[record.IncidentId] = names.ToArray();
@@ -544,43 +438,6 @@ namespace HTownSim.Runtime.Incidents.Sources
 
                 _assigned.Remove(record.IncidentId);
             }
-        }
-
-        private int NearestStation(Vector2 position)
-        {
-            var best = -1;
-
-            var bestDistance = float.MaxValue;
-
-            for (var i = 0; i < _stations.Count; i++)
-            {
-                if (float.IsNaN(_stations[i].x))
-                {
-                    continue;
-                }
-
-                var distance = Vector2.Distance(_stations[i], position);
-
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-
-                    best = i;
-                }
-            }
-
-            return best;
-        }
-
-        /// <summary>The player's station as an index into the station list (7, 8, 16).</summary>
-        private int PlayerStationIndex()
-        {
-            return StartingTruckChoice.StationOf(ApparatusLoadout.Detect(_player)) switch
-            {
-                StartingStation.Station8 => 1,
-                StartingStation.Station16 => 2,
-                _ => 0,
-            };
         }
 
         /// <summary>The player's rig in payload terms, so the call shows them assigned.</summary>

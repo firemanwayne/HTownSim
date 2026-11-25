@@ -85,7 +85,8 @@ namespace HTownSim.Runtime
 
             var id = record.IncidentId;
 
-            if (_prefab == null || _units.ContainsKey(id) || _units.Count >= MaximumUnits || entry.DispatchedToPlayer)
+            // The fleet's patrol units drive to police calls themselves: the parked scene car is only for a game without them.
+            if (_prefab == null || _units.ContainsKey(id) || _units.Count >= MaximumUnits || entry.DispatchedToPlayer || _feed.HasPatrols)
             {
                 return;
             }

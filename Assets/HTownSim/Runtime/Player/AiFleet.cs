@@ -35,6 +35,21 @@ namespace HTownSim.Runtime
 
         private const string HospitalPrefix = "ER_Bay_";
 
+        /// <summary>The patrol units (officers) the fleet has, where they start (the HPD substation's apron, <see cref="PatrolPlace"/>) and how far apart they stand (metres).</summary>
+        private const int PatrolCount = 4;
+
+        private const string PatrolPrefab = "HpdPatrol";
+
+        private const float PatrolSpacing = 7f;
+
+        private const float PatrolSearchRadius = 22f;
+
+        /// <summary>The ground clearance a parked patrol car needs: half its size (width, height, length) for the free-space check.</summary>
+        private static readonly Vector3 PatrolHalfSize = new Vector3(1.4f, 1f, 2.8f);
+
+        /// <summary>The HPD substation next to Station 7 (its apron; the patrol cars are parked around it).</summary>
+        private static readonly Vector3 PatrolPlace = new Vector3(48f, 0f, -24f);
+
         private readonly List<AiUnit> _units = new List<AiUnit>();
 
         private readonly List<Vector2> _hospitals = new List<Vector2>();
@@ -90,7 +105,77 @@ namespace HTownSim.Runtime
                 _units.Add(unit);
             }
 
+            SpawnPatrols(graph);
+
             Debug.Log("AI fleet: " + _units.Count + " units (" + string.Join(", ", _units.Select(unit => unit.UnitName)) + "), " + graph.NodeCount + " street nodes, " + _hospitals.Count + " hospital bays.");
+        }
+
+        /// <summary>
+        /// Parks the patrol units (officers) on the HPD substation's apron, each in a free spot at least <see cref="PatrolSpacing"/> from the
+        /// others. They are copies of the patrol car prefab, and are not made when the prefab is missing.
+        /// </summary>
+        private void SpawnPatrols(RoadGraph graph)
+        {
+            var prefab = Resources.Load<GameObject>(PatrolPrefab);
+
+            if (prefab == null)
+            {
+                return;
+            }
+
+            var spots = new List<Vector3>();
+
+            var steps = Mathf.CeilToInt(PatrolSearchRadius / PatrolSpacing);
+
+            for (var ring = 0; ring <= steps && spots.Count < PatrolCount; ring++)
+            {
+                for (var i = 0; i < Mathf.Max(1, ring * 6) && spots.Count < PatrolCount; i++)
+                {
+                    var angle = ring == 0 ? 0f : i * 2f * Mathf.PI / (ring * 6);
+
+                    var guess = PatrolPlace + (new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * (ring * PatrolSpacing));
+
+                    var ground = GroundPoint(guess);
+
+                    if (ground != null && Free(ground.Value) && spots.TrueForAll(spot => Vector3.Distance(spot, ground.Value) >= PatrolSpacing))
+                    {
+                        spots.Add(ground.Value);
+                    }
+                }
+            }
+
+            for (var i = 0; i < spots.Count; i++)
+            {
+                var car = Instantiate(prefab, spots[i], Quaternion.Euler(0f, 90f, 0f));
+
+                car.name = "AiPatrol" + (i + 1);
+
+                var unit = car.AddComponent<AiUnit>();
+
+                unit.Initialize("HPD Unit " + (i + 1), graph, NearestHospital);
+
+                unit.Finished += OnUnitFinished;
+
+                _units.Add(unit);
+            }
+        }
+
+        /// <summary>The ground under a point, or null.</summary>
+        private static Vector3? GroundPoint(Vector3 point)
+        {
+            return Physics.Raycast(point + (Vector3.up * 40f), Vector3.down, out var hit, 80f, ~0, QueryTriggerInteraction.Ignore) ? hit.point : (Vector3?)null;
+        }
+
+        /// <summary>True when a patrol car fits at a ground point with nothing solid in the way.</summary>
+        private static bool Free(Vector3 ground)
+        {
+            return !Physics.CheckBox(ground + (Vector3.up * (PatrolHalfSize.y + 0.2f)), PatrolHalfSize, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>How many units are stopped at the scene of an incident now.</summary>
+        internal int UnitsOnScene(string incidentId)
+        {
+            return _units.Count(unit => unit.Current == AiUnit.Phase.OnScene && unit.IncidentId == incidentId);
         }
 
         /// <summary>The unit with a name, or null.</summary>
