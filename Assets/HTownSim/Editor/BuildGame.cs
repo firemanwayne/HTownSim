@@ -1,9 +1,11 @@
 #nullable enable
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace HTownSim.EditorTools
 {
@@ -18,6 +20,15 @@ namespace HTownSim.EditorTools
         private const string CityScene = "Assets/Scenes/HoustonResponse.unity";
 
         private const string ExecutableName = "HTownSim.exe";
+
+        /// <summary>The live-incident programs shipped beside the game (<c>LiveServicesLauncher</c> starts them): project, output folder under Services.</summary>
+        private static readonly (string Project, string Folder)[] Services =
+        {
+            ("Tools/IncidentService/src/Api/IncidentService.Api.csproj", "IncidentService"),
+            ("Tools/HoustonIncidents/src/Harvester/HoustonIncidents.Harvester.csproj", "HoustonIncidents"),
+        };
+
+        private const int PublishTimeoutMilliseconds = 600000;
 
         [MenuItem("HTownSim/Build/Windows Player")]
         private static void BuildFromMenu()
@@ -65,7 +76,48 @@ namespace HTownSim.EditorTools
                 return "Build " + summary.result + " after " + summary.totalTime.TotalMinutes.ToString("0.0") + " min: " + string.Join(" | ", errors);
             }
 
-            return "Built " + options.locationPathName + ": " + (summary.totalSize / (1024f * 1024f)).ToString("0") + " MB in " + summary.totalTime.TotalMinutes.ToString("0.0") + " min, " + summary.totalWarnings + " warnings.";
+            var published = PublishServices(folder);
+
+            return "Built " + options.locationPathName + ": " + (summary.totalSize / (1024f * 1024f)).ToString("0") + " MB in " + summary.totalTime.TotalMinutes.ToString("0.0") + " min, " + summary.totalWarnings + " warnings. " + published;
+        }
+
+        /// <summary>Publishes the incident service and the harvester self-contained into the build's Services folder; returns what happened.</summary>
+        private static string PublishServices(string folder)
+        {
+            var done = 0;
+
+            foreach (var (project, name) in Services)
+            {
+                var output = Path.Combine(folder, "Services", name);
+
+                var start = new ProcessStartInfo("dotnet", "publish \"" + project + "\" -c Release -r win-x64 --self-contained true -o \"" + output + "\"")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+
+                try
+                {
+                    using var process = Process.Start(start);
+
+                    if (process != null && process.WaitForExit(PublishTimeoutMilliseconds) && process.ExitCode == 0)
+                    {
+                        done++;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Publishing " + project + " failed.");
+                    }
+                }
+                catch (System.ComponentModel.Win32Exception exception)
+                {
+                    Debug.LogWarning("Could not run dotnet to publish " + project + " (is the .NET SDK installed?): " + exception.Message);
+                }
+            }
+
+            return done + " of " + Services.Length + " live services published.";
         }
     }
 }
