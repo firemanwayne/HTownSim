@@ -10,7 +10,9 @@ namespace HTownSim.Runtime
     /// The start screen: pauses the game, asks which service to drive for (Houston Fire Department, Houston Police Department or a
     /// citizen car); for the fire department it then asks which station to start from, and finally which vehicle to drive. Picking the
     /// apparatus the scene already fits just resumes; picking another stores the choice and reloads the scene, where
-    /// <see cref="ApparatusLoadout"/> fits it before anything else starts.
+    /// <see cref="ApparatusLoadout"/> fits it before anything else starts. Played from the small start scene (<see cref="StartScene"/>),
+    /// which the editor and the build open first, the screen comes before the city: the pick is stored and the city is loaded once,
+    /// behind a loading message, so no scene is ever loaded twice.
     /// </summary>
     internal sealed class StartingTruckMenu : MonoBehaviour
     {
@@ -21,6 +23,11 @@ namespace HTownSim.Runtime
             Station,
             Apparatus,
         }
+
+        /// <summary>The small scene that holds only the start screen, and the city scene it loads once a vehicle is picked.</summary>
+        internal const string StartScene = "StartMenu";
+
+        internal const string CityScene = "HoustonResponse";
 
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
@@ -48,6 +55,12 @@ namespace HTownSim.Runtime
         private static readonly Color Faint = new Color(0.4f, 0.44f, 0.5f, 1f);
 
         private readonly List<MenuCard> _cards = new List<MenuCard>();
+
+        /// <summary>True when the screen runs in the start scene, before the city is loaded.</summary>
+        private bool _startMode;
+
+        /// <summary>The city's load, once a vehicle has been picked in the start scene.</summary>
+        private AsyncOperation? _loading;
 
         private Step _step = Step.Agency;
 
@@ -110,6 +123,11 @@ namespace HTownSim.Runtime
 
             if (response == null)
             {
+                if (SceneManager.GetActiveScene().name == StartScene)
+                {
+                    ShowInStartScene();
+                }
+
                 return;
             }
 
@@ -128,6 +146,30 @@ namespace HTownSim.Runtime
             menu._station8Ready = ApparatusLoadout.Station8Ready(response.gameObject.scene);
 
             menu._station16Ready = ApparatusLoadout.Station16Ready(response.gameObject.scene);
+
+            menu.ShowStep(Step.Agency);
+        }
+
+        /// <summary>The start scene's screen: everything the city scene offers is taken as ready, and the last pick is the one shown as current.</summary>
+        private static void ShowInStartScene()
+        {
+            var menu = new GameObject(nameof(StartingTruckMenu)).AddComponent<StartingTruckMenu>();
+
+            menu._startMode = true;
+
+            menu._current = StartingTruckChoice.Saved ?? StartingTruck.Engine;
+
+            menu._agency = StartingTruckChoice.AgencyOf(menu._current);
+
+            menu._station = StartingTruckChoice.StationOf(menu._current);
+
+            menu._hpdReady = true;
+
+            menu._citizenReady = true;
+
+            menu._station8Ready = true;
+
+            menu._station16Ready = true;
 
             menu.ShowStep(Step.Agency);
         }
@@ -156,6 +198,11 @@ namespace HTownSim.Runtime
         /// <summary>Keyboard: 1, 2, 3 pick directly; the arrows move; Enter or Space confirms; Backspace goes back to the stations.</summary>
         private void Update()
         {
+            if (_loading != null)
+            {
+                return;
+            }
+
             _mouseMoved = Mouse.current is not null && Mouse.current.delta.ReadValue().sqrMagnitude > 0f;
 
             var keyboard = Keyboard.current;
@@ -313,6 +360,14 @@ namespace HTownSim.Runtime
 
             StartingTruckChoice.Save(truck);
 
+            if (_startMode)
+            {
+                // The city loads once, fitted with this pick, while the screen shows that it is loading.
+                _loading = SceneManager.LoadSceneAsync(CityScene);
+
+                return;
+            }
+
             if (truck == _current)
             {
                 Destroy(gameObject);
@@ -354,6 +409,15 @@ namespace HTownSim.Runtime
             var height = DesignHeight;
 
             Fill(new Rect(0f, 0f, width, height), Dim);
+
+            if (_loading != null)
+            {
+                GUI.Label(new Rect(0f, (height / 2f) - 40f, width, 64f), "LOADING THE CITY", _title);
+
+                GUI.Label(new Rect(0f, (height / 2f) + 30f, width, 36f), Mathf.RoundToInt(Mathf.Clamp01(_loading.progress / 0.9f) * 100f) + "%", _subtitle);
+
+                return;
+            }
 
             var title = _step switch
             {
