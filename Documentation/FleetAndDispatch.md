@@ -82,6 +82,13 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   `FireResponse`; the city map panel below it is positioned from it, so the map and the other HUD blocks may need to move up with it.
   Noted only; no change made yet.
 
+- **AI siren sound.** When watching a computer-driven unit respond, its siren does not sound right. It should use the same sirens the
+  player can control (the real wail, yelp and pier tones and the air horn from the siren control in `Runtime/Player/FireResponse.cs`
+  and `Runtime/Units/AirHorn.cs`, resources under `Resources/SirenAudio`), not the plain synthesized wail now made in
+  `Runtime/Units/AiEmergencyLights.cs`. The sound also needs a sense of distance (louder and brighter near, quieter and duller far,
+  with the pitch shift of a passing vehicle) and echo or reverb (stronger between buildings), instead of the plain linear fade now used.
+  Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
