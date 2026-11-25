@@ -70,6 +70,13 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   new one out of it, the live incident feed's player-unit identity (`LiveIncidentFeed`, dispatch candidates), and the start flow
   (the start scene would join an existing city rather than load one). Noted only; no change made yet.
 
+- **Spectator mode.** A mode with no unit under the player's control where you float freely around the map (a free camera), watching
+  the computer-driven units work. It fits the "join the map" direction above: the spectator joins the running city without a unit,
+  and could later take control of one. Open choices to settle when it is built: how it is entered (start screen choice and/or a key
+  in game), camera controls and speed, whether it can follow a unit or an incident, which HUD parts stay (map, incident board),
+  and that with no player unit every unit (including the one the player would have driven) is computer-driven. Noted only; no change
+  made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
