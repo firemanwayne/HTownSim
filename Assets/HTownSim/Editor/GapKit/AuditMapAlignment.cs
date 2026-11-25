@@ -290,12 +290,17 @@ namespace HTownSim.EditorTools.GapKit
         }
 
         /// <summary>Every lot of the map with its outline moved into world space (the container's rotation applied), indexed for lookup.</summary>
-        private static List<GapParcel> LoadWorldParcels(Transform root)
+        internal static List<GapParcel> LoadWorldParcels(Transform root, System.Func<string, bool>? include = null)
         {
             var all = new List<GapParcel>();
 
             foreach (var (file, containerName) in Sources)
             {
+                if (include != null && !include(file))
+                {
+                    continue;
+                }
+
                 var container = containerName == null ? null : root.Find(containerName);
 
                 foreach (var parcel in GapParcelReader.Read(DataFolder + file))

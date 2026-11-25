@@ -79,7 +79,7 @@ namespace HTownSim.EditorTools.GapKit.Services
         }
 
         /// <summary>The lots whose grid cells are the point's or next to it (the sidewalk reaches into the next cell).</summary>
-        private IEnumerable<GapParcel> Near(Vector2 point)
+        internal IEnumerable<GapParcel> Near(Vector2 point)
         {
             var cx = Cell(point.x);
 

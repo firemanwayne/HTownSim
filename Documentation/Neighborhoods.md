@@ -98,6 +98,12 @@ Measuring the street angle of every lot edge in 300 m cells (relative to Midtown
 and `NeighborhoodFill` cover all of them. After building a neighborhood, run `ExpandGap` again (it rebuilds the placeholders around it) and
 `AddCityDetail.Run`.
 
+## Gap street markings, signals and open land
+
+`HTownSim > Gap > Paint Gap Streets` (`AddGapStreetMarkings`) marks the gap streets along the City's street centre lines (`node AgentScripts/ExtractStreets.js` writes `Data/CityStreets.txt`). Only street points near a gap lot and not near Midtown, South Midtown or Station 16 (which have their own marking pass) are used. Major streets get a double yellow line and local streets a dashed one, both left out around junctions; every junction (found by `StreetJunctionFinder`: crossings and T ends, at least three legs) that has a major street gets zebra crosswalks and stop bars; junctions where three or more major legs meet get mast-arm signals. Street widths are assumed (16 m major, 10 m local, `StreetLeg`). The paint and the signal structure are one mesh each; the lenses are two meshes (phase A and B) that `Runtime/GapSignalCycle` switches by swapping the three lens materials of each (48 s cycle). The signals are scenery: no traffic uses the gap streets, and the Med Center (which has its OSM paint) is not touched.
+
+`HTownSim > Gap > Fill Open Land` (`AddOpenLand`) covers ground that is neither lot nor street with a vacant-ground texture (4 m cells, 12 m clear of local and 16 m of major street centre lines, 6 m of any lot). The city's ground is one asphalt sheet, so without it the bayou banks and other unmapped land read as huge empty roads. It follows the street and lot data, so re-run it after changing either; the edges are stepped at the cell size.
+
 ## US 59
 
 The Southwest Freeway runs diagonally through the gap and the neighborhoods. `BuildRealMidtown.AddUs59Freeway` builds it as raised
