@@ -29,6 +29,9 @@ namespace HTownSim.Runtime
 
         internal const string CityScene = "HoustonResponse";
 
+        /// <summary>The command-line switch that skips the screen and starts with the last pick.</summary>
+        private const string AutoStartArgument = "-autostart";
+
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
 
@@ -131,6 +134,8 @@ namespace HTownSim.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Show()
         {
+            Debug.Log("StartingTruckMenu.Show: scene " + SceneManager.GetActiveScene().name + ", decided " + StartingTruckChoice.Decided);
+
             if (StartingTruckChoice.Decided)
             {
                 return;
@@ -210,6 +215,12 @@ namespace HTownSim.Runtime
             menu._station16Ready = true;
 
             menu.ShowStep(Step.Agency);
+
+            // "-autostart" on the command line takes the last pick without asking, for quick starts and for testing a build unattended.
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), AutoStartArgument) >= 0)
+            {
+                menu.Choose(menu._current);
+            }
         }
 
         /// <summary>Freezes the game under the menu and frees the mouse.</summary>
@@ -408,6 +419,8 @@ namespace HTownSim.Runtime
         private void Choose(StartingTruck truck)
         {
             StartingTruckChoice.Decided = true;
+
+            Debug.Log("StartingTruckMenu.Choose: " + truck + (_startMode ? " (start scene)" : " (city)"));
 
             StartingTruckChoice.Save(truck);
 
