@@ -82,6 +82,12 @@ namespace HTownSim.Runtime
             _patients[id] = patient;
         }
 
+        /// <summary>A unit has loaded the patient of an incident: they leave the scene with it.</summary>
+        internal void Load(string id)
+        {
+            Remove(id, 1f);
+        }
+
         /// <summary>The incident is cleared: its patient goes.</summary>
         private void OnCleared(string id)
         {

@@ -43,6 +43,9 @@ namespace HTownSim.Runtime
 
         private const float StreetProbeUp = 6f;
 
+        /// <summary>Cars closer than this (metres) to a responding computer-driven emergency unit are cleared out of its way.</summary>
+        private const float EmergencyClearRadius = 9f;
+
         private const float StreetProbeReach = 12f;
 
         private readonly RaycastHit[] _probeHits = new RaycastHit[12];
@@ -999,6 +1002,21 @@ namespace HTownSim.Runtime
                 StepKnocked(car, dt);
 
                 return;
+            }
+
+            // A computer-driven emergency unit with its siren on has the road: a car within this distance of it is removed (and comes back elsewhere).
+            foreach (var vehicle in EmergencyTraffic.Vehicles)
+            {
+                var gap = vehicle.position - car.Transform.position;
+
+                gap.y = 0f;
+
+                if (gap.sqrMagnitude < EmergencyClearRadius * EmergencyClearRadius)
+                {
+                    Despawn(car);
+
+                    return;
+                }
             }
 
             car.StreetCheck -= dt;

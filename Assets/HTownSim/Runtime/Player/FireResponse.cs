@@ -1716,12 +1716,12 @@ namespace HTownSim.Runtime
             return found.ToArray();
         }
 
-        /// <summary>True when this call has a patient, this unit is an ambulance (no water), and there is a hospital to deliver to.</summary>
+        /// <summary>True when this call has a patient, this unit is an ambulance or a medic unit (the only units that can transport), and there is a hospital to deliver to.</summary>
         private bool CanTransportPatient()
         {
             return _hospitals.Length > 0
                 && _patient != null
-                && !_profile.CanSprayWater
+                && LiveDispatchRule.CanTransport(_profile.UnitName)
                 && _activeIncident is not null
                 && (_activeIncident.Agency == IncidentAgency.Ems || _activeIncident.CallType == IncidentCallType.Medical);
         }

@@ -1,7 +1,0 @@
-result: Built J:\Unity\projects\HTownSim\Builds\HTownSim_0.1.0\HTownSim.exe: 713 MB in 9.3 min, 530 warnings.
-diagnostics: []
-compileMs: 1742
-executeMs: 560423
-assemblyName: PipelineRunScript_build_43c38472be064b23a6c5144e3bb00231
-<claude-code-hint v="1" type="plugin" value="unity@claude-plugins-official" />
-done

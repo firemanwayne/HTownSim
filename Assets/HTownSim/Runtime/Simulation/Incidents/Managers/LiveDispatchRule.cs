@@ -125,6 +125,17 @@ namespace HTownSim.Runtime.Incidents.Managers
             return upper.StartsWith("AMBULANCE") || upper.StartsWith("MEDIC") || upper.StartsWith("SUPERVISOR") ? LiveUnitKind.Ems : LiveUnitKind.Fire;
         }
 
+        /// <summary>
+        /// True for the units that can take a patient to a hospital: ambulances and medic units. Engines, ladders, supervisors, chiefs,
+        /// patrol units and citizen cars cannot, whatever the call.
+        /// </summary>
+        internal static bool CanTransport(string unitName)
+        {
+            var upper = unitName.Trim().ToUpperInvariant();
+
+            return upper.StartsWith("AMBULANCE") || upper.StartsWith("MEDIC");
+        }
+
         private static bool ContainsAny(string text, string[] words)
         {
             foreach (var word in words)
