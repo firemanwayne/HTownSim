@@ -122,8 +122,14 @@ and AI fleet already exist outside any one player). What it means for design, to
 - **One city, many players.** The city, its incidents and its computer-driven units are shared state; a player is a client that
   takes control of one unit (or spectates). Avoid anything that assumes exactly one player (`GameObject.FindGameObjectWithTag("Player")`,
   a single `FireResponse`, one saved start pick in PlayerPrefs, the static `StartingTruckChoice`, the one-player `LiveIncidentFeed`).
-- **Authority.** Decide who owns the incident ledger and the dispatch (the incident service is the natural home, and it already owns
-  created / assigned / handled / cleared), and who simulates the computer-driven units (one host, not every client).
+- **A central host receives updates (owner's decision).** There is one central host. Every client (a person playing or spectating)
+  sends its updates to the host: its unit's position and state, the actions it takes on a call, and when it claims or releases a unit.
+  The host is the authority: it owns the incident ledger and the dispatch (the incident service, which already owns created /
+  assigned / handled / cleared and runs outside the game, is the natural seed for it), it runs the computer-driven units, and it
+  sends the shared world state back out to every client. Clients do not talk to each other. Design consequences to keep in mind:
+  client updates are small and frequent (unit transform, siren and light state, phase of the call), the host decides conflicts (two
+  people claiming one unit, who is closest and free), and a client that drops out has its unit handed back to the computer.
+  The host is a place that needs a clock, a list of connected clients and the unit claims.
 - **Dispatch is by unit, not by "the player".** `FleetDispatcher` already matches units by name; keep candidates as units that are
   either person-driven or computer-driven, so any number of people can hold units.
 - **Units are claimed, not assumed.** Two people cannot drive the same unit; a unit nobody holds is computer-driven; a person who
@@ -133,7 +139,9 @@ and AI fleet already exist outside any one player). What it means for design, to
 - **Deterministic or replicated.** Pick for each system (fire growth, AI routes, traffic): either deterministic from a shared seed and
   clock, or simulated on the host and sent to clients. Routing already works from fixed data (`RoadGraph`).
 - **Time.** A shared clock (also what night time and "incidents close to the current time" need).
-- **Network choice and hosting** (Unity Netcode for GameObjects, dedicated server, or peer-hosted) are not decided.
+- **Network choice** is still open (for example Unity Netcode for GameObjects against the host, or the existing incident service
+  grown into the host over HTTP/WebSocket); the shape is decided: one central host, clients send it updates. Where the host runs
+  (a dedicated server or a player's PC) is not decided.
 
 ## Open items / ideas
 
