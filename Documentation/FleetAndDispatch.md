@@ -46,8 +46,9 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
 - **Other units on the City Map.** The owner wants to see the other (computer-driven) units on their map. Nothing was changed; the
   owner asked for no changes until told. Plan to propose when told: a marker per fleet unit (the 10 apparatus and 4 HPD officers) on the
   scrolling map in `Runtime/Player/CityMap.cs`, colored by kind (fire red, EMS white, chief orange, police blue), bright with a short
-  label (E16, A16, DC8, P1) while out on a call and dim without a label when parked. Open choices to confirm: colors, labels on parked
-  units, whether to show only units that are out.
+  label (E16, A16, DC8, P1) while out on a call and dim without a label when parked.
+  **Colors decided by the owner: red for fire, blue for PD.** Still open: the color for EMS (proposed white) and the chief (proposed
+  orange), labels on parked units, whether to show only units that are out.
 
 ## Open items / ideas
 
