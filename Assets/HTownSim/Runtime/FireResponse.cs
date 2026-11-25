@@ -136,6 +136,7 @@ namespace HTownSim.Runtime
             new[] { "Z  X  C", "LEFT  HAZARD  RIGHT" },
             new[] { "ESC", "PAUSE" },
             new[] { "R", "RETURN TO STATION" },
+            new[] { "U", "CHANGE UNIT" },
             new[] { "M", "MAP" },
             new[] { "I", "INCIDENT PANEL" },
         };
@@ -884,6 +885,11 @@ namespace HTownSim.Runtime
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 _paused = !_paused;
+            }
+
+            if (keyboard.uKey.wasPressedThisFrame)
+            {
+                StartingTruckMenu.Reopen();
             }
 
             if (keyboard.iKey.wasPressedThisFrame)

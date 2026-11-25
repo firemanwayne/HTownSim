@@ -56,6 +56,9 @@ namespace HTownSim.Runtime
 
         private readonly List<MenuCard> _cards = new List<MenuCard>();
 
+        /// <summary>The frame the screen was opened on, so the key that opened it does not also close it.</summary>
+        private int _openedFrame;
+
         /// <summary>True when the screen runs in the start scene, before the city is loaded.</summary>
         private bool _startMode;
 
@@ -131,7 +134,28 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            Create(response);
+        }
+
+        /// <summary>Opens the screen again while playing (the U key): picking the unit already driven resumes, picking another loads the city fitted with it.</summary>
+        internal static void Reopen()
+        {
+            var response = FindAnyObjectByType<FireResponse>();
+
+            if (response == null || FindAnyObjectByType<StartingTruckMenu>() != null)
+            {
+                return;
+            }
+
+            Create(response);
+        }
+
+        /// <summary>Builds the screen for the city scene: the unit fitted now is the current one, and what the scene holds is what can be picked.</summary>
+        private static void Create(FireResponse response)
+        {
             var menu = new GameObject(nameof(StartingTruckMenu)).AddComponent<StartingTruckMenu>();
+
+            menu._openedFrame = Time.frameCount;
 
             menu._current = ApparatusLoadout.Detect(response.transform);
 
@@ -209,6 +233,14 @@ namespace HTownSim.Runtime
 
             if (keyboard is null)
             {
+                return;
+            }
+
+            // The key that opened the screen in the city also closes it, carrying on with the unit already driven.
+            if (!_startMode && Time.frameCount > _openedFrame && keyboard.uKey.wasPressedThisFrame)
+            {
+                Destroy(gameObject);
+
                 return;
             }
 
@@ -375,11 +407,14 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            Reload();
+            _loading = Reload();
         }
 
-        /// <summary>Reloads the active scene; in the editor a scene missing from the build settings is reloaded through play mode.</summary>
-        private static void Reload()
+        /// <summary>
+        /// Reloads the active scene in the background, so the screen can show that it is loading; in the editor a scene missing from the
+        /// build settings is reloaded through play mode instead (which has no progress to show).
+        /// </summary>
+        private static AsyncOperation? Reload()
         {
             var scene = SceneManager.GetActiveScene();
 
@@ -388,11 +423,11 @@ namespace HTownSim.Runtime
             {
                 UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(scene.path, new LoadSceneParameters(LoadSceneMode.Single));
 
-                return;
+                return null;
             }
 #endif
 
-            SceneManager.LoadScene(scene.buildIndex);
+            return SceneManager.LoadSceneAsync(scene.buildIndex);
         }
 
         /// <summary>Draws the dimmed backdrop, the heading for the step and one card per choice.</summary>
