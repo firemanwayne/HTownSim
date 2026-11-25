@@ -106,6 +106,13 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   traffic and signal lenses, window lights on buildings, and the map's brightness. Open choices: real clock or an accelerated day,
   a manual toggle, and how dark it should get. Noted only; no change made yet.
 
+- **Bug: police cars spawn stacked next to Station 7.** The four computer-driven patrol cars (`AiFleet.SpawnPatrols`) appear piled on
+  top of other vehicles beside the HPD substation. Checked in the editor (read only): AiPatrol1 and AiPatrol2 start at y 2.0-2.2, on
+  top of the parked citizen car and the parked HPD patrol car (ground is y 0.2), and AiPatrol3 and AiPatrol4 start at y 5.6, on a
+  roof. Likely cause: `GroundPoint` takes the first thing the downward ray hits (a car roof, a building roof) instead of the street or
+  slab surface, so the "free spot" test passes at that height. Fix idea: take only the ground surface (collider named Streets, Slab_*
+  or Ground*, as `AiUnit.GroundHeight` does), and test free space at that height against everything else. No change made yet.
+
 ## Direction: future development should be multiplayer oriented
 
 Owner's direction: build new things so they can work with several people in the same city. Nothing is implemented; this is a design
