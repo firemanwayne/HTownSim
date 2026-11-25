@@ -4,6 +4,7 @@ using System.Linq;
 using TMPro;
 using HTownSim.Runtime.Incidents.Managers;
 using HTownSim.Runtime.Incidents.Models;
+using HTownSim.Runtime.Incidents.Sources;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -68,6 +69,9 @@ namespace HTownSim.Runtime
         private const float SceneSeconds = 8f;
         /// <summary>The one door every call comes through: standard incident JSON in, queued calls out.</summary>
         private IncidentManager _incidents = null!;
+
+        /// <summary>The live City of Houston incident feed (harvester files to the board and to dispatches).</summary>
+        private LiveIncidentFeed? _liveFeed;
         /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
         private Incident? _activeIncident;
         private Incident? _firstIncident;
@@ -375,7 +379,13 @@ namespace HTownSim.Runtime
 
             _incidents = gameObject.AddComponent<IncidentManager>();
 
-            _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), System.IO.Path.Combine(Application.persistentDataPath, "Incidents")));
+            var inbox = System.IO.Path.Combine(Application.persistentDataPath, "Incidents");
+
+            _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), inbox));
+
+            _liveFeed = gameObject.AddComponent<LiveIncidentFeed>();
+
+            _liveFeed.Initialize(new LiveFeedSetup(_incidents, transform, PlayableArea(), inbox));
 
             _firstIncident = TakeFallbackIncident(_firstSiteIndex);
 
@@ -391,6 +401,13 @@ namespace HTownSim.Runtime
             ArrangeHud();
 
             AddEmergencyHud();
+
+            var boardCanvas = _status.GetComponentInParent<Canvas>();
+
+            if (_liveFeed != null && boardCanvas != null)
+            {
+                new GameObject("ActiveIncidentsHud").AddComponent<ActiveIncidentsHud>().Initialize(_liveFeed, boardCanvas);
+            }
 
             gameObject.AddComponent<EngineSound>().Initialize(this);
 
@@ -1090,6 +1107,12 @@ namespace HTownSim.Runtime
             var external = _incidents.HasPending;
 
             if (!external && _incidentSites.Length < 2)
+            {
+                return;
+            }
+
+            // While the live City feed is running, calls come from it (dispatches to this unit); no made-up calls in between.
+            if (!external && _liveFeed != null && _liveFeed.IsLive)
             {
                 return;
             }

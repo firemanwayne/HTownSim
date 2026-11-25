@@ -1,0 +1,45 @@
+# Live incidents (City of Houston feed)
+
+Real Houston incidents come into the game through the **HoustonIncidents** harvester (`J:\HoustonIncidents\HoustonIncidents`).
+
+## Running it
+
+```powershell
+cd J:\HoustonIncidents\HoustonIncidents
+dotnet run --project src/Harvester
+```
+
+Every 30 s it reads the City's Active Incidents pages:
+
+- `Combined.aspx?agency=%` for every incident (agency, address, type, call time);
+- `Combined.aspx?agency=F` for fire and EMS incidents, which adds the cross street, Key Map, alarm level and the **units**
+  assigned (E007, L016, A008, M074, MS092 ...).
+
+New incidents are placed on the map with the City's GIS layers (Site Addresses for numbered addresses, the road
+centre lines for a street and its cross street). Each poll writes one feed file, `live-*.json`, into
+`%USERPROFILE%\AppData\LocalLow\DefaultCompany\HTownSim\Incidents\Live` with new incidents, incidents whose units
+changed, and closed ids.
+
+## In the game
+
+- `LiveIncidentFeed` (Runtime/Incidents/Sources) reads the Live folder into a `LiveIncidentQueue`, which releases
+  incidents onto the board one at a time, in random order, every 8 to 35 seconds.
+- **Active incidents board** (top right, **B** shows or hides it): every released incident, newest first, with time,
+  type, place and units. Incidents outside the drivable map are dimmed.
+- **Dispatch**: the player is sent (as a standard call through `IncidentManager`) when
+  1. one of the player's unit codes is on the incident (Engine 07 is E007, Ladder 16 L016, Ambulance 16 A016,
+     Medic 08 M008, Supervisor 16 MS016, District Chief 08 D008 / DC08), or
+  2. **first due**: the incident is inside the map, the nearest of Stations 7, 8 and 16 is the player's, and the type
+     fits the rig (EMS events for ambulances, medics and the supervisor; fires, alarms, gas, hazards and rescues for
+     engines and ladders; fires and multi-alarm incidents for the chief).
+  An incident that would dispatch the player skips the random trickle. A unit added later (the City lists units a
+  minute or two after the call opens) is picked up and can still dispatch the player. The dispatch is marked
+  `> YOUR UNIT` or `> FIRST DUE` on the board, and it is played after any call already in progress.
+- While feed files are arriving (the last 10 minutes), the random fallback calls stay off.
+- Tunables (release gap, board size, HUD lines, live window): create `Assets > Create > HTownSim > Live Feed Settings`
+  and save it as `Resources/LiveFeedSettings`.
+
+## Limits
+
+- The all-agencies page gives no cross street for police incidents, so many of them cannot be placed.
+- Most Houston incidents are outside the drivable map; they appear on the board only.
