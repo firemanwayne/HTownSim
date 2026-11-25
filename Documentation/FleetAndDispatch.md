@@ -41,6 +41,14 @@ Play starts at the StartMenu scene. A script run in the editor can reach the int
 then read `AiFleet.Units` (name, phase, position). Time can be run at 4-8x (`Time.timeScale`). The player was a citizen car so
 every unit was computer-driven. The player-dispatched path (player matched) was not exercised in these runs.
 
+## Requested, not built yet (waiting for the go-ahead)
+
+- **Other units on the City Map.** The owner wants to see the other (computer-driven) units on their map. Nothing was changed; the
+  owner asked for no changes until told. Plan to propose when told: a marker per fleet unit (the 10 apparatus and 4 HPD officers) on the
+  scrolling map in `Runtime/Player/CityMap.cs`, colored by kind (fire red, EMS white, chief orange, police blue), bright with a short
+  label (E16, A16, DC8, P1) while out on a call and dim without a label when parked. Open choices to confirm: colors, labels on parked
+  units, whether to show only units that are out.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
