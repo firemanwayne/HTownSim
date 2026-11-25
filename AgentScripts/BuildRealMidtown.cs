@@ -4724,7 +4724,7 @@ public static class BuildRealMidtown
     {
         try
         {
-            return AddUs59FreewayCore();
+            return AddUs59FreewayCore(Us59DataPath, "Freeway_US59", "US 59");
         }
         finally
         {
@@ -4732,16 +4732,51 @@ public static class BuildRealMidtown
         }
     }
 
-    private static string AddUs59FreewayCore()
+    private const string I45DataPath = "Assets/HTownSim/Data/I45.txt";
+
+    /// <summary>The placeholder deck that runs straight north from Midtown's edge; the real run replaces it.</summary>
+    private const string PlaceholderFreeway = "Freeway_Exp";
+
+    /// <summary>
+    /// Adds US 59 from where the Midtown-edge deck stops to its interchange with I-45, then I-45 both ways and US 59 north, each to the
+    /// edge of the map, along the City's road centre lines (same decks as <see cref="AddUs59Freeway"/>). The straight placeholder deck
+    /// north of Midtown is hidden, since the real run does not follow it. Data: <c>node AgentScripts/ExtractFreeway.js</c>. Can be run again.
+    /// </summary>
+    public static string AddI45Freeway()
+    {
+        try
+        {
+            var result = AddUs59FreewayCore(I45DataPath, "Freeway_I45", "US 59 / I-45");
+
+            var placeholder = GameObject.Find(RootName)?.transform.Find(PlaceholderFreeway);
+
+            if (placeholder != null && placeholder.gameObject.activeSelf)
+            {
+                placeholder.gameObject.SetActive(false);
+
+                EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+                EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
+            }
+
+            return result;
+        }
+        finally
+        {
+            ResetState();
+        }
+    }
+
+    private static string AddUs59FreewayCore(string dataPath, string containerName, string label)
     {
         if (EditorApplication.isPlaying)
         {
             return "Exit Play Mode first.";
         }
 
-        if (!File.Exists(Us59DataPath))
+        if (!File.Exists(dataPath))
         {
-            return "Missing " + Us59DataPath + ". Run: node AgentScripts/ExtractFreeway.js";
+            return "Missing " + dataPath + ". Run: node AgentScripts/ExtractFreeway.js";
         }
 
         var cityRoot = GameObject.Find(RootName);
@@ -4753,14 +4788,14 @@ public static class BuildRealMidtown
 
         ResetState();
 
-        var old = cityRoot.transform.Find("Freeway_US59");
+        var old = cityRoot.transform.Find(containerName);
 
         if (old != null)
         {
             Object.DestroyImmediate(old.gameObject);
         }
 
-        var container = new GameObject("Freeway_US59").transform;
+        var container = new GameObject(containerName).transform;
 
         container.SetParent(cityRoot.transform, false);
 
@@ -4774,7 +4809,7 @@ public static class BuildRealMidtown
 
         var lengthTotal = 0f;
 
-        foreach (var line in File.ReadAllLines(Us59DataPath))
+        foreach (var line in File.ReadAllLines(dataPath))
         {
             var fields = line.Split('\t');
 
@@ -4810,7 +4845,7 @@ public static class BuildRealMidtown
 
         AssetDatabase.SaveAssets();
 
-        return "US 59: " + segments + " deck segments, " + (lengthTotal / 1000f).ToString("0.0") + " km of carriageway.";
+        return label + ": " + segments + " deck segments, " + (lengthTotal / 1000f).ToString("0.0") + " km of carriageway.";
     }
 
     /// <summary>One straight stretch of carriageway between two points (scene x, z): deck, barriers, asphalt, lane paint and columns.</summary>

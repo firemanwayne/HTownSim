@@ -107,6 +107,10 @@ road centre lines: one 16 m deck per carriageway line, 105 segments and about 7.
 deck). It is scenery: there are no ramps or frontage-road logic, the streets pass underneath, and it is not part of any neighborhood, so it
 survives neighborhood rebuilds. Re-run the pass to replace it.
 
+## US 59 to I-45
+
+`BuildRealMidtown.AddI45Freeway` continues the freeway north of Midtown along the City's road centre lines (`Data/I45.txt`, written by the same `ExtractFreeway.js`): US 59 from z 640 to its interchange with I-45 near (540, 1030), I-45 both ways from there (north-west to the map edge at z 1575, east to the map edge at x 690) and US 59 north to the map edge. It builds the same decks as the south-western run into `Freeway_I45`, and hides the straight placeholder deck `MidtownReal/Freeway_Exp`, which did not follow the real route. Scenery only: no ramps, the two freeways cross at one height and the streets pass underneath. The Midtown-edge deck (x 610, up to z 700) is unchanged, so there is a jog of about 40 m where the real run takes over.
+
 ## Building footprints
 
 Buildings are boxes built from the 2018 LiDAR footprint bounds, which do not line up with the tax lots (in South Midtown 30% of the boxes reached
