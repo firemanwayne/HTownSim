@@ -8,11 +8,19 @@ namespace HoustonIncidents.Harvester.Services;
 internal sealed class IncidentPageClient(HttpClient httpClient, IOptions<IncidentOptions> options) : IIncidentPageClient
 {
     /// <inheritdoc />
-    public async Task<Result<string>> GetPageAsync(CancellationToken cancellationToken)
+    public Task<Result<string>> GetPageAsync(CancellationToken cancellationToken)
+    {
+        return GetPageAsync(options.Value.Url, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<string>> GetPageAsync(string url, CancellationToken cancellationToken)
     {
         try
         {
-            var html = await httpClient.GetStringAsync(options.Value.Url, cancellationToken).ConfigureAwait(false);
+            var html = await httpClient
+                .GetStringAsync(url, cancellationToken)
+                .ConfigureAwait(false);
 
             return Result<string>.Ok(html);
         }
