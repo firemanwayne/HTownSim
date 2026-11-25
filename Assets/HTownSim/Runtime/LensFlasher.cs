@@ -201,7 +201,7 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>A soft round glow (bright centre, smooth fall-off to clear).</summary>
-        private static Texture2D SoftDisc()
+        internal static Texture2D SoftDisc()
         {
             const int size = 64;
 

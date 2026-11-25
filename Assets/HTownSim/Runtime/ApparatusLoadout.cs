@@ -416,7 +416,7 @@ namespace HTownSim.Runtime
                 unitName, 0.395f, 2.86f, new[] { "HPD_WheelFront" }, new[] { "HPD_WheelRear" }, 10f, 0.75f,
                 new Vector3(0f, 1.5f, 1f), new Vector3(0.95f, 1.5f, -0.9f), false,
                 new[] { "HPD_Flash_Red" }, new[] { "HPD_Flash_Blue" }, new[] { "HPD_Steady_Headlight", "HPD_Steady_Fog" },
-                false, false, "", false);
+                false, false, "HpdLenses", false);
         }
 
         /// <summary>

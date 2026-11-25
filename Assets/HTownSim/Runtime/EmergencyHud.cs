@@ -1,6 +1,8 @@
 #nullable enable
 using System.Collections.Generic;
+
 using TMPro;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -35,22 +37,22 @@ namespace HTownSim.Runtime
         private const int RoundedRadius = 8;
         private const string Title = "SIREN CONTROL";
 
-        internal static readonly Color Body = new Color(0.045f, 0.047f, 0.055f, 0.94f);
-        private static readonly Color FaceOff = new Color(0.9f, 0.93f, 0.97f, 0.7f);
-        private static readonly Color FaceOn = new Color(0.04f, 0.045f, 0.05f, 0.97f);
-        internal static readonly Color RimGreen = new Color(0.22f, 1f, 0.48f, 1f);
-        internal static readonly Color RimRed = new Color(1f, 0.2f, 0.17f, 1f);
-        private static readonly Color TextOff = new Color(0.09f, 0.11f, 0.14f, 1f);
+        internal static readonly Color Body = new(0.045f, 0.047f, 0.055f, 0.94f);
+        private static readonly Color FaceOff = new(0.9f, 0.93f, 0.97f, 0.7f);
+        private static readonly Color FaceOn = new(0.04f, 0.045f, 0.05f, 0.97f);
+        internal static readonly Color RimGreen = new(0.22f, 1f, 0.48f, 1f);
+        internal static readonly Color RimRed = new(1f, 0.2f, 0.17f, 1f);
+        private static readonly Color TextOff = new(0.09f, 0.11f, 0.14f, 1f);
         private static readonly Color TextOn = Color.white;
-        private static readonly Color HintOff = new Color(0.32f, 0.36f, 0.42f, 1f);
-        private static readonly Color HintOn = new Color(0.62f, 0.68f, 0.74f, 1f);
-        internal static readonly Color TextDim = new Color(0.72f, 0.78f, 0.85f, 1f);
-        internal static readonly Color Accent = new Color(0.96f, 0.46f, 0.2f, 1f);
-        internal static readonly Color LedOff = new Color(0.16f, 0.17f, 0.2f, 1f);
-        private static readonly Color LedOn = new Color(1f, 0.55f, 0.18f, 1f);
+        private static readonly Color HintOff = new(0.32f, 0.36f, 0.42f, 1f);
+        private static readonly Color HintOn = new(0.62f, 0.68f, 0.74f, 1f);
+        internal static readonly Color TextDim = new(0.72f, 0.78f, 0.85f, 1f);
+        internal static readonly Color Accent = new(0.96f, 0.46f, 0.2f, 1f);
+        internal static readonly Color LedOff = new(0.16f, 0.17f, 0.2f, 1f);
+        private static readonly Color LedOn = new(1f, 0.55f, 0.18f, 1f);
 
-        private readonly List<EmergencyButton> _buttons = new List<EmergencyButton>();
-        private readonly List<Image> _leds = new List<Image>();
+        private readonly List<EmergencyButton> _buttons = new();
+        private readonly List<Image> _leds = new();
         private FireResponse _response = null!;
         private Canvas _canvas = null!;
         private Sprite _rounded = null!;

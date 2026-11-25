@@ -3,7 +3,17 @@ guid: b7c206a827f72bd4ba2bbaf41deaa4e4
 ModelImporter:
   serializedVersion: 24600
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HPD_Chrome
+    second: {fileID: 2100000, guid: 44d97d5aaf5dab84a9fcff248cd3964c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HPD_Clear_optic
+    second: {fileID: 2100000, guid: 9ddc6838693cbe341a7034a6681bb0c5, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
