@@ -25,8 +25,18 @@ from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCE = os.path.join(HERE, "DistrictChief08", "HFD_District_Chief_08.blend")
-UNITY_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\DistrictChief08"
-FBX = os.path.join(UNITY_DIR, "DistrictChief08.fbx")
+# HFD_VARIANT=AS016 exports the EMS (ambulance) supervisor pickup instead: the same truck, two-wheel drive so the body rides
+# lower, no green command beacon, EMS SUPERVISOR 16 on the camper, 16 on the rear, AS 16 plates, no DISTRICT CHIEF arch.
+VARIANT = os.environ.get("HFD_VARIANT", "DC08").upper()
+if VARIANT == "AS016":
+    UNITY_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Supervisor16"
+    FBX = os.path.join(UNITY_DIR, "AS016.fbx")
+else:
+    UNITY_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\DistrictChief08"
+    FBX = os.path.join(UNITY_DIR, "DistrictChief08.fbx")
+
+# How much lower the two-wheel-drive supervisor body sits over its wheels (metres).
+SUPERVISOR_DROP = 0.07
 
 WHEEL_WORDS = ("tire", "rim", "hub", "wheel lug", "wheel tire", "wheel ventilation", "steel wheel", "tire center", "rolled rim")
 
@@ -40,6 +50,23 @@ for o in scene.objects:
     o.hide_set(False)
     o.hide_viewport = False
     o.hide_select = False
+
+if VARIANT == "AS016":
+    for o in list(vehicle.all_objects):
+        if o.type == "FONT":
+            body = o.data.body
+            if body == "DISTRICT CHIEF":
+                o.data.body = "EMS SUPERVISOR"
+            elif body == "08":
+                o.data.body = "16"
+            elif body == "DC 08":
+                o.data.body = "AS 16"
+            elif body == "TEXAS  DC08":
+                o.data.body = "TEXAS  AS16"
+        # The green command beacon and the rear DISTRICT CHIEF arch are district-chief equipment.
+        if o.name.startswith(("Green beacon", "Beacon lens ring", "Beacon rounded cap", "Rear arch letter")):
+            bpy.data.objects.remove(o, do_unlink=True)
+
 objects = [o for o in vehicle.all_objects if o.type in ("MESH", "FONT")]
 
 # ------------------------------------------------------------------ materials by role
@@ -172,6 +199,9 @@ b = join(body, "DC08_Body")
 b.data.transform(b.matrix_world)
 b.matrix_world = Matrix.Identity(4)
 b.data.transform(to_game)
+if VARIANT == "AS016":
+    # Two-wheel drive: the body sits lower over the same wheels.
+    b.data.transform(Matrix.Translation(Vector((0, 0, -SUPERVISOR_DROP))))
 finals.append(b)
 
 print("wheelbase", round(front_x - rear_x, 3), "axle height", round(axle_z, 3), "wheel parts", {k: len(v) for k, v in wheel_parts.items()}, "body tris",

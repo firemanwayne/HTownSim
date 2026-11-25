@@ -78,8 +78,8 @@ namespace HTownSim.Runtime
         /// <summary>District Chief 08's cab-roof light bar.</summary>
         private static readonly Vector3 PickupBeacon = new Vector3(0.6f, 2.3f, 0.9f);
 
-        /// <summary>The Suburban's roof light bar.</summary>
-        private static readonly Vector3 SuvBeacon = new Vector3(0.55f, 2.35f, 0.15f);
+        /// <summary>The supervisor pickup's cab-roof light bar (7 cm lower than District Chief 08's).</summary>
+        private static readonly Vector3 SuvBeacon = new Vector3(0.6f, 2.23f, 0.9f);
 
         /// <summary>Ladder 07's fit-out (0.558 m tyres, front axle +3.80, tandem -1.76/-3.13).</summary>
         private static readonly ApparatusProfileValues LadderValues = new ApparatusProfileValues(
@@ -96,13 +96,17 @@ namespace HTownSim.Runtime
                 new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
         }
 
-        /// <summary>Supervisor 16's fit-out: a Chevrolet Suburban (0.40 m tyres, wheelbase 3.3 m), a tight turn, no water, EMS tones and the plain horn.</summary>
+        /// <summary>
+        /// Supervisor 16's fit-out: the EMS supervisor pickup (District Chief 08's truck, two-wheel drive, riding lower, no command beacon):
+        /// quick turns, no water, EMS tones, the electric horn, red LEDs flashing in two halves with glow halos.
+        /// </summary>
         private static ApparatusProfileValues SupervisorAs(string unitName)
         {
             return new ApparatusProfileValues(
-                unitName, 0.40f, 3.3f, new[] { "SubWheelFront" }, new[] { "SubWheelRear" }, 7f, 0.8f,
-                new Vector3(0f, 2.2f, -1.5f), new Vector3(0.9f, 1.9f, -0.5f), false,
-                new string[0], new string[0], new string[0], false, false, "", true);
+                unitName, 0.525f, 4.2f, new[] { "DC08_WheelFront" }, new[] { "DC08_WheelRear" }, 6.5f, 0.9f,
+                new Vector3(0f, 2.1f, -2f), new Vector3(0.95f, 2.0f, -1f), false,
+                new[] { "DC08_Flash_RedA" }, new[] { "DC08_Flash_RedB" }, new[] { "DC08_Steady_Headlight", "DC08_Steady_Fog" },
+                false, false, "AS016Lenses", true);
         }
 
         /// <summary>

@@ -37,7 +37,10 @@ public static class AddStation16Apparatus
 
     private const string LadderModel = VehicleRoot + "/Ladder07/Ladder07.fbx";
 
-    private const string SupervisorModel = VehicleRoot + "/Supervisor16/Supervisor16.fbx";
+    private const string SupervisorModel = VehicleRoot + "/Supervisor16/AS016.fbx";
+
+    /// <summary>District Chief 08's game materials, which the supervisor pickup (the same truck) shares by name.</summary>
+    private const string PickupMaterials = VehicleRoot + "/DistrictChief08/Materials";
 
     private const string EngineModel = VehicleRoot + "/Engine07Hi3D/Engine07Clean.fbx";
 
@@ -279,6 +282,16 @@ public static class AddStation16Apparatus
                     if (made.TryGetValue(original.name, out var existing))
                     {
                         return existing;
+                    }
+
+                    // The supervisor pickup is District Chief 08's truck: use its materials (glass, lenses, decals already set up).
+                    var shared = AssetDatabase.LoadAssetAtPath<Material>(PickupMaterials + "/" + original.name + ".mat");
+
+                    if (shared != null)
+                    {
+                        made[original.name] = shared;
+
+                        return shared;
                     }
 
                     var path = MaterialFolder + "/" + unit.Name + "_" + original.name + ".mat";
