@@ -1,13 +1,19 @@
 # Live incidents (City of Houston feed)
 
-Real Houston incidents come into the game through the **HoustonIncidents** harvester (`J:\HoustonIncidents\HoustonIncidents`).
+Real Houston incidents come into the game through the **HoustonIncidents** harvester, a .NET 10 worker in `Tools/HoustonIncidents`
+(its own solution, tests and design notes; brought in from the former standalone repo with its history).
 
 ## Running it
 
+Pressing Play in Unity starts it (and stopping Play stops it): `Assets/HTownSim/Editor/HarvesterLauncher.cs` runs
+`dotnet run --project Tools/HoustonIncidents/src/Harvester` hidden and logs to `Logs/HoustonIncidents.log`
+(menu **HTownSim > Live Incidents** turns this off or points it elsewhere). To run it by hand:
+
 ```powershell
-cd J:\HoustonIncidents\HoustonIncidents
-dotnet run --project src/Harvester
+dotnet run --project Tools/HoustonIncidents/src/Harvester
 ```
+
+Tests: `dotnet test Tools/HoustonIncidents/HoustonIncidents.slnx`.
 
 Every 30 s it reads the City's Active Incidents pages:
 

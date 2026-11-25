@@ -8,11 +8,12 @@
   - `Assets/HTownSim/Runtime/` — Core gameplay (`FireResponse`, `ApparatusProfile`, `ApparatusLoadout`, `StartingTruckMenu`, `Incidents/`, traffic, weather, HUD map, aerial ladder, patient/hospital transport).
   - `Assets/HTownSim/Editor/` — Editor menu tools (Station 8/16 apparatus setup, Med Center ER bays, Drive Ladder/Ambulance).
   - `Assets/HTownSim/Data/` — City GIS text files (neighborhoods, gaps, US-59, south roads, footprints, OSM).
-  - `Assets/HTownSim/Vehicles/` — FBX models and liveries (`Engine 07`, `Ladder 07`, `Ambulance 07`, `Supervisor 16 Suburban`, Station 8/16 variants).
+  - `Assets/HTownSim/Vehicles/` — FBX models and liveries (`Engine 07`, `Ladder 07`, `Ambulance 07`, `District Chief 08`, `Supervisor 16` EMS supervisor pickup, Station 8/16 variants).
   - `Assets/HTownSim/Shaders/` — Custom shaders (`WorldTriplanar`, sky).
   - `AgentScripts/` — Automated Unity Editor scripts executed via CLI (`unity command script run --file <path> --entry <Method>`).
   - `Blender/HTown/` — Headless city map & upgrade pipeline (`fetch_houston.js` -> `build_map.py` -> `render_all.py` -> `Assets/HTownSim/Textures/Map/CityMapBlender.png`).
   - `Blender/HFD Apparatus/` — Procedural apparatus builders and `HFD_UNIT_NUMBER` livery/decal generators.
+  - `Tools/HoustonIncidents/` — .NET 10 harvester for the live City of Houston incident feed (started by Unity on Play; see `Documentation/LiveIncidents.md`).
 
 ## Engine & Rendering Constraints (Unity 6000.6.3f1 URP)
 - **Render Pipeline:** URP (`PC_RPAsset`) with **GPU Resident Drawer** enabled.

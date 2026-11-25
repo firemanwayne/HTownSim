@@ -6,7 +6,7 @@ using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
-/// Starts the HoustonIncidents harvester (the live City of Houston incident feed, see Documentation/LiveIncidents.md) when Play Mode
+/// Starts the HoustonIncidents harvester (Tools/HoustonIncidents; the live City of Houston incident feed, see Documentation/LiveIncidents.md) when Play Mode
 /// starts and stops it when Play Mode ends. It runs hidden with <c>dotnet run</c> (which rebuilds it if its code changed); its output
 /// goes to Logs/HoustonIncidents.log. The process id is kept in SessionState so it survives the domain reload on entering Play Mode.
 /// Menu: HTownSim > Live Incidents.
@@ -23,7 +23,8 @@ internal static class HarvesterLauncher
     /// <summary>Session key holding the running harvester's process id.</summary>
     private const string ProcessKey = "HTownSim.Harvester.Pid";
 
-    private const string DefaultProject = @"J:\HoustonIncidents\HoustonIncidents\src\Harvester";
+    /// <summary>The harvester project inside this repository (Tools/HoustonIncidents), relative to the Unity project folder.</summary>
+    private const string DefaultProject = "Tools/HoustonIncidents/src/Harvester";
 
     private const string LogPath = "Logs/HoustonIncidents.log";
 
@@ -58,7 +59,7 @@ internal static class HarvesterLauncher
             return;
         }
 
-        var project = EditorPrefs.GetString(ProjectKey, DefaultProject);
+        var project = Path.GetFullPath(EditorPrefs.GetString(ProjectKey, DefaultProject));
 
         if (!Directory.Exists(project))
         {
@@ -162,7 +163,7 @@ internal static class HarvesterLauncher
     [MenuItem("HTownSim/Live Incidents/Set Harvester Folder...")]
     private static void SetFolder()
     {
-        var folder = EditorUtility.OpenFolderPanel("HoustonIncidents harvester project (src/Harvester)", EditorPrefs.GetString(ProjectKey, DefaultProject), "");
+        var folder = EditorUtility.OpenFolderPanel("HoustonIncidents harvester project (src/Harvester)", Path.GetFullPath(EditorPrefs.GetString(ProjectKey, DefaultProject)), "");
 
         if (!string.IsNullOrEmpty(folder))
         {
