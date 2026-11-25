@@ -57,7 +57,7 @@ public sealed class TrafficTestDriver : MonoBehaviour
 
         _response = _truck.GetComponent("FireResponse");
 
-        _traffic = FindAnyObjectByType(Type.GetType("HTownSim.Runtime.TrafficSystem, Assembly-CSharp")) as Component;
+        _traffic = FindAnyObjectByType(Type.GetType("HTownSim.Runtime.TrafficSystem, HTownSim.World")) as Component;
 
         StartCoroutine(Run());
     }
