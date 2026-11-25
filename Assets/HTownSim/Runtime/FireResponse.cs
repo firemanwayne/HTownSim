@@ -340,9 +340,13 @@ namespace HTownSim.Runtime
 
             LoadSirenTones();
 
+            // The two beacon point lights only throw coloured bounce light on walls and asphalt; the LED modules themselves are emissive
+            // lenses picked up by Bloom. Shadows stay on the sun (and headlights) alone.
             foreach (var beacon in _beacons)
             {
                 beacon.intensity = 0f;
+
+                beacon.shadows = LightShadows.None;
             }
 
             _siren.Play();
@@ -396,6 +400,9 @@ namespace HTownSim.Runtime
             }
 
             gameObject.AddComponent<SceneLights>().Initialize(this);
+
+            // Blinkers, brake and reverse lamps modelled in the mesh (District Chief 08); removes itself on a model without them.
+            gameObject.AddComponent<SignalLamps>().Initialize(this);
 
             _aerial = AerialController.Create(this);
 

@@ -463,6 +463,13 @@ namespace HTownSim.Runtime
 
             _clock += dt;
 
+            // A neighborhood far from the apparatus is put to sleep: its cars and pedestrians are hidden and not stepped (no transform
+            // or collider updates), and they pick up where they were when the apparatus comes back within range.
+            if (!SetDormant(DistanceToPlayer() > SimulationRadius))
+            {
+                return;
+            }
+
             ApplySignals(force: false);
 
             var respawned = 0;
@@ -490,6 +497,52 @@ namespace HTownSim.Runtime
                     respawned++;
                 }
             }
+        }
+
+        /// <summary>Beyond this distance (metres from the apparatus to the system's street area) the system sleeps.</summary>
+        private const float SimulationRadius = 800f;
+
+        /// <summary>True while the cars and pedestrians are hidden because the apparatus is far away.</summary>
+        private bool _dormant;
+
+        /// <summary>Ground distance from the apparatus to this system's street rectangle (0 inside it); 0 when no area is set.</summary>
+        private float DistanceToPlayer()
+        {
+            if (_player == null || _boundsMax.x <= _boundsMin.x || _boundsMax.y <= _boundsMin.y)
+            {
+                return 0f;
+            }
+
+            var p = new Vector2(_player.position.x, _player.position.z);
+
+            var dx = Mathf.Max(_boundsMin.x - p.x, 0f, p.x - _boundsMax.x);
+
+            var dz = Mathf.Max(_boundsMin.y - p.y, 0f, p.y - _boundsMax.y);
+
+            return Mathf.Sqrt((dx * dx) + (dz * dz));
+        }
+
+        /// <summary>Hides or shows every car and pedestrian when the sleep state changes; returns true when the system should run this frame.</summary>
+        private bool SetDormant(bool dormant)
+        {
+            if (dormant == _dormant)
+            {
+                return !dormant;
+            }
+
+            _dormant = dormant;
+
+            foreach (var car in _cars)
+            {
+                car.Transform.gameObject.SetActive(!dormant && car.Active);
+            }
+
+            foreach (var ped in _pedestrians)
+            {
+                ped.Transform.gameObject.SetActive(!dormant && ped.Active);
+            }
+
+            return !dormant;
         }
 
         // ------------------------------------------------------------------ signals

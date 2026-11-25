@@ -43,12 +43,22 @@ public static class AddStation8Apparatus
 
     private const string AmbulanceLivery = VehicleRoot + "/Ambulance07/Ambulance07_Livery.png";
 
+    /// <summary>District Chief 08's model (Blender/HFD Apparatus/Chiefs/export_dc08.py) and where its game materials are written.</summary>
+    private const string DistrictChiefModel = VehicleRoot + "/DistrictChief08/DistrictChief08.fbx";
+
+    private const string DistrictChiefMaterials = VehicleRoot + "/DistrictChief08/Materials";
+
+    private const string DistrictChiefTextures = VehicleRoot + "/DistrictChief08/Textures";
+
     /// <summary>Station 7's bay x positions (left, middle, right from the street) and the signs Station 8's copy carries.</summary>
     private const float LeftBay = 20.3f;
 
     private const float MiddleBay = 12.3f;
 
     private const float RightBay = 4.3f;
+
+    /// <summary>District Chief 08 stands on the apron beside the left-hand (medic) bay.</summary>
+    private const float ApronBay = 29.5f;
 
     private const string MiddleSignOld = "LADDER 8";
 
@@ -88,6 +98,7 @@ public static class AddStation8Apparatus
         new Unit("Medic08", LeftBay, AmbulanceModel, "Ambulance07Visual", new[] { AmbulanceLivery, Station8Folder + "/Medic08_Livery.png" }),
         new Unit("Engine01", MiddleBay, EngineModel, "Engine07CleanVisual", new[] { EngineLivery, Station8Folder + "/Engine01_Livery.png", EngineDecals, Station8Folder + "/Engine01_Decals.png" }),
         new Unit("Engine08", RightBay, EngineModel, "Engine07CleanVisual", new[] { EngineLivery, Station8Folder + "/Engine08_Livery.png", EngineDecals, Station8Folder + "/Engine08_Decals.png" }),
+        new Unit("DistrictChief08", ApronBay, DistrictChiefModel, string.Empty, new string[0]),
     };
 
     [MenuItem("HTownSim/Station 8/Add Apparatus")]
@@ -131,7 +142,7 @@ public static class AddStation8Apparatus
 
         RelabelMiddleSign(station8, MiddleSignOld, MiddleSignNew);
 
-        return Save(scene, "Parked Medic 08, Engine 01 and Engine 08 at Station 8.");
+        return Save(scene, "Parked Medic 08, Engine 01, Engine 08 and District Chief 08 at Station 8.");
     }
 
     /// <summary>Removes the parked apparatus and restores the middle bay sign.</summary>
@@ -203,17 +214,26 @@ public static class AddStation8Apparatus
     {
         var unit = request.Unit;
 
-        var source = FindVisual(request.Group.gameObject.scene, unit.SourceVisual);
+        var source = unit.SourceVisual.Length == 0 ? null : FindVisual(request.Group.gameObject.scene, unit.SourceVisual);
 
         var root = new GameObject(unit.Name).transform;
 
         root.SetParent(request.Group, false);
 
-        root.SetPositionAndRotation(request.Frame.Position(unit.BayX, source.parent.position.y), request.Frame.Rotation);
+        root.SetPositionAndRotation(request.Frame.Position(unit.BayX, source == null ? 0f : source.parent.position.y), request.Frame.Rotation);
 
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(unit.Model) ?? throw new InvalidOperationException("Model not found: " + unit.Model);
 
         var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root);
+
+        if (source == null)
+        {
+            LitMaterials(model.transform);
+
+            FitCollider(root);
+
+            return;
+        }
 
         model.transform.localPosition = source.localPosition;
 
@@ -242,6 +262,114 @@ public static class AddStation8Apparatus
         }
 
         FitCollider(root);
+    }
+
+    /// <summary>
+    /// Gives a model with no existing look to copy (District Chief 08) universal-pipeline Lit materials with the colours and textures of its
+    /// imported ones, one asset per material, named exactly as in the model so ApparatusProfile and SignalLamps can find the lamps by name.
+    /// Lamps start dark; the game lights them.
+    /// </summary>
+    private static void LitMaterials(Transform model)
+    {
+        var made = new Dictionary<string, Material>();
+
+        System.IO.Directory.CreateDirectory(DistrictChiefMaterials);
+
+        foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+        {
+            renderer.sharedMaterials = renderer.sharedMaterials
+                .Select(original => original == null ? original! : made.TryGetValue(original.name, out var existing) ? existing : made[original.name] = Lit(original))
+                .ToArray();
+        }
+    }
+
+    /// <summary>One Lit material asset matching an imported material: base colour and texture, chrome and glass made shiny.</summary>
+    private static Material Lit(Material original)
+    {
+        var path = DistrictChiefMaterials + "/" + original.name + ".mat";
+
+        var lit = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+        if (lit != null)
+        {
+            return lit;
+        }
+
+        lit = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? original.shader) { name = original.name };
+
+        lit.SetColor("_BaseColor", original.color);
+
+        var name = original.name;
+
+        var shiny = name.Contains("chrome") || name.Contains("clearcoat") || name.Contains("glass") || name.Contains("lens");
+
+        lit.SetFloat("_Smoothness", shiny ? 0.8f : 0.35f);
+
+        lit.SetFloat("_Metallic", name.Contains("chrome") ? 0.9f : 0f);
+
+        // The FBX carries no images: the HFD shield and the door crest come from the copies beside the model.
+        if (name.Contains("HFD_shield"))
+        {
+            // The shield artwork has a transparent surround: cut it out so no white box shows.
+            lit.SetColor("_BaseColor", Color.white);
+
+            lit.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(DistrictChiefTextures + "/DC08_HFD_Shield.png"));
+
+            lit.SetFloat("_AlphaClip", 1f);
+
+            lit.SetFloat("_Cutoff", 0.5f);
+
+            lit.EnableKeyword("_ALPHATEST_ON");
+
+            lit.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+        }
+        else if (name.Contains("photographic_decal"))
+        {
+            lit.SetColor("_BaseColor", Color.white);
+
+            lit.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(DistrictChiefTextures + "/DC08_Door_Crest.jpg"));
+        }
+        else if (name.Contains("tinted_glass"))
+        {
+            // Windshield and windows: tinted, see-through glass.
+            var tint = original.color;
+
+            tint.a = 0.75f;
+
+            lit.SetColor("_BaseColor", tint);
+
+            lit.SetFloat("_Smoothness", 0.95f);
+
+            lit.SetFloat("_Surface", 1f);
+
+            lit.SetFloat("_Blend", 0f);
+
+            lit.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+
+            lit.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+            lit.SetFloat("_ZWrite", 0f);
+
+            lit.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+
+            lit.SetOverrideTag("RenderType", "Transparent");
+
+            lit.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
+        else if (original.mainTexture != null)
+        {
+            lit.SetTexture("_BaseMap", original.mainTexture);
+        }
+
+        // Glass and door decals are single sheets whose faces may point into the truck: draw both sides.
+        if (name.Contains("glass") || name.Contains("HFD_shield") || name.Contains("photographic_decal"))
+        {
+            lit.SetFloat("_Cull", 0f);
+        }
+
+        AssetDatabase.CreateAsset(lit, path);
+
+        return lit;
     }
 
     /// <summary>A copy of the material that wears the unit's new textures, or the material itself when it uses none of the swapped ones.</summary>

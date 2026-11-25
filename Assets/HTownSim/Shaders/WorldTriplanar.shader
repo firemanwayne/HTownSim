@@ -143,24 +143,38 @@ Shader "HTownSim/WorldTriplanar"
                 float3 pos = i.positionWS / tileSize;
                 float2 uvX = pos.zy, uvY = pos.xz, uvZ = pos.xy;
 
-                half3 albedoDetail = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvX).rgb * w.x
-                                   + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb * w.y
-                                   + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).rgb * w.z;
+                // Flat ground and roads (normal within ~18 degrees of up) use only the top-down projection: 2 texture reads instead of 6.
+                // Steep faces (embankments, overpass sides, curbs, walls) blend all three.
+                bool flat = abs(n.y) > 0.95;
+                half3 albedoDetail;
+                float3 nW;
+                [branch] if (flat)
+                {
+                    albedoDetail = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb;
+                    half3 top = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvY), bumpScale);
+                    top = half3(top.xy + n.xz, abs(top.z) * n.y);
+                    nW = normalize(top.xzy);
+                }
+                else
+                {
+                    albedoDetail = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvX).rgb * w.x
+                                 + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvY).rgb * w.y
+                                 + SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvZ).rgb * w.z;
+                    // Whiteout-blended triplanar normal mapping.
+                    half3 tx = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX), bumpScale);
+                    half3 ty = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvY), bumpScale);
+                    half3 tz = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvZ), bumpScale);
+                    tx = half3(tx.xy + n.zy, abs(tx.z) * n.x);
+                    ty = half3(ty.xy + n.xz, abs(ty.z) * n.y);
+                    tz = half3(tz.xy + n.xy, abs(tz.z) * n.z);
+                    nW = normalize(tx.zyx * w.x + ty.xzy * w.y + tz.xyz * w.z);
+                }
                 half3 detail = lerp(half3(1,1,1), albedoDetail * 2.0h, detailStrength);
 
                 // Large-scale tonal patches (resurfacing, wear, stains) so surfaces read as textured from a distance.
                 float2 macroUV = abs(n.y) > 0.5 ? i.positionWS.xz : (abs(n.x) > abs(n.z) ? i.positionWS.zy : i.positionWS.xy);
                 float macro = ValueNoise(macroUV / 19.0) * 0.55 + ValueNoise(macroUV / 5.3) * 0.3 + ValueNoise(macroUV / 1.7) * 0.15;
                 detail *= 1.0 + (macro - 0.5) * 2.0 * macroStrength;
-
-                // Whiteout-blended triplanar normal mapping.
-                half3 tx = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvX), bumpScale);
-                half3 ty = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvY), bumpScale);
-                half3 tz = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvZ), bumpScale);
-                tx = half3(tx.xy + n.zy, abs(tx.z) * n.x);
-                ty = half3(ty.xy + n.xz, abs(ty.z) * n.y);
-                tz = half3(tz.xy + n.xy, abs(tz.z) * n.z);
-                float3 nW = normalize(tx.zyx * w.x + ty.xzy * w.y + tz.xyz * w.z);
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = i.positionWS;

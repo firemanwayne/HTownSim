@@ -251,6 +251,12 @@ public static class AddStation16Apparatus
         }
 
         FitCollider(root);
+
+        if (unit.Name == "Ladder16")
+        {
+            // Ladder 07's "07" is modelled into the chassis; cut it out and letter the copy 16.
+            Debug.Log(LadderNumbering.Apply(model.transform, "16", Station16Folder + "/Ladder16Meshes"));
+        }
     }
 
     /// <summary>Gives a model with no existing look to copy (the Suburban) universal-pipeline Lit materials in the colours of its imported ones; lens materials glow.</summary>

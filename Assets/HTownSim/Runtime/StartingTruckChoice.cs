@@ -11,7 +11,7 @@ namespace HTownSim.Runtime
 
         private static readonly StartingTruck[] Station7Trucks = { StartingTruck.Engine, StartingTruck.Ladder, StartingTruck.Ambulance };
 
-        private static readonly StartingTruck[] Station8Trucks = { StartingTruck.Engine08, StartingTruck.Engine01, StartingTruck.Medic08 };
+        private static readonly StartingTruck[] Station8Trucks = { StartingTruck.Engine08, StartingTruck.Engine01, StartingTruck.Medic08, StartingTruck.DistrictChief08 };
 
         private static readonly StartingTruck[] Station16Trucks = { StartingTruck.Engine16, StartingTruck.Ladder16, StartingTruck.Ambulance16, StartingTruck.Supervisor16 };
 
@@ -53,7 +53,7 @@ namespace HTownSim.Runtime
                 return StartingStation.Station16;
             }
 
-            return truck is StartingTruck.Engine08 or StartingTruck.Engine01 or StartingTruck.Medic08
+            return truck is StartingTruck.Engine08 or StartingTruck.Engine01 or StartingTruck.Medic08 or StartingTruck.DistrictChief08
                 ? StartingStation.Station8
                 : StartingStation.Station7;
         }
@@ -85,7 +85,7 @@ namespace HTownSim.Runtime
         {
             return station switch
             {
-                StartingStation.Station8 => "1919 Louisiana St, north-east of Midtown. Engine 08, Engine 01 and Medic 08.",
+                StartingStation.Station8 => "1919 Louisiana St, north-east of Midtown. Engine 08, Engine 01, Medic 08 and District Chief 08.",
                 StartingStation.Station16 => "1700 Richmond Ave, in Montrose. Engine 16, Ladder 16, Ambulance 16 and Supervisor 16.",
                 _ => "1402 Elgin St, in Midtown. Engine 07, Ladder 07 and Ambulance 07.",
             };
@@ -105,6 +105,7 @@ namespace HTownSim.Runtime
                 StartingTruck.Ladder16 => "Ladder 16",
                 StartingTruck.Ambulance16 => "Ambulance 16",
                 StartingTruck.Supervisor16 => "Supervisor 16",
+                StartingTruck.DistrictChief08 => "District Chief 08",
                 _ => "Engine 07",
             };
         }
@@ -123,6 +124,7 @@ namespace HTownSim.Runtime
                 StartingTruck.Ladder16 => "Station 16's aerial: the same rig as Ladder 07. Wide turning circle; set the outriggers to raise the ladder.",
                 StartingTruck.Ambulance16 => "Station 16's medic unit: the same rig as Ambulance 07, with EMS tones and no water.",
                 StartingTruck.Supervisor16 => "The EMS supervisor's Chevrolet Suburban: quick and tight, EMS dispatch tones, no water.",
+                StartingTruck.DistrictChief08 => "The district chief's command pickup: quick, electric horn, blinkers and a full light package, no water.",
                 _ => "Pumper. The quickest to get to a fire, with a hose line and the full water supply.",
             };
         }

@@ -36,5 +36,8 @@ namespace HTownSim.Runtime
 
         /// <summary>Supervisor 16, the Suburban the EMS supervisor drives from Station 16.</summary>
         Supervisor16 = 9,
+
+        /// <summary>District Chief 08, the command pickup at Station 8.</summary>
+        DistrictChief08 = 10,
     }
 }

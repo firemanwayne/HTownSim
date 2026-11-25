@@ -44,6 +44,8 @@ namespace HTownSim.Runtime
 
         private const string Medic08Unit = "Medic08";
 
+        private const string DistrictChief08Unit = "DistrictChief08";
+
         /// <summary>The group AddStation16Apparatus fills, and the unit names inside it.</summary>
         private const string Station16Group = "Station16Apparatus";
 
@@ -54,6 +56,11 @@ namespace HTownSim.Runtime
         private const string Ambulance16Unit = "Ambulance16";
 
         private const string Supervisor16Unit = "Supervisor16";
+
+        /// <summary>The renumbered meshes (chassis and aerial, with "07" cut out) and the number lettering the Station 16 tool adds (see LadderNumbering).</summary>
+        private const string RenumberedMeshPrefix = "L16_";
+
+        private const string NumberLabelPrefix = "UnitNumber_";
 
         /// <summary>The visuals' drop below the driven object, so every apparatus's tyres sit on the floor the same way.</summary>
         private const float VisualDrop = -0.15f;
@@ -67,6 +74,9 @@ namespace HTownSim.Runtime
         private static readonly Vector3 LadderBeacon = new Vector3(0.95f, 3.25f, 5.4f);
 
         private static readonly Vector3 AmbulanceBeacon = new Vector3(0.8f, 3.1f, 0.7f);
+
+        /// <summary>District Chief 08's cab-roof light bar.</summary>
+        private static readonly Vector3 PickupBeacon = new Vector3(0.6f, 2.3f, 0.9f);
 
         /// <summary>The Suburban's roof light bar.</summary>
         private static readonly Vector3 SuvBeacon = new Vector3(0.55f, 2.35f, 0.15f);
@@ -95,6 +105,20 @@ namespace HTownSim.Runtime
                 new string[0], new string[0], new string[0], false, false, "", true);
         }
 
+        /// <summary>
+        /// District Chief 08's fit-out: a crew-cab pickup with a command box (0.525 m tyres, wheelbase 4.2 m), quick turns, no water, the
+        /// electric horn, and its lamps in the mesh: red LEDs flash in two alternating halves, headlights, fog lights and the green command
+        /// beacon burn with the headlights. Blinkers, brake and reverse lamps are handled by SignalLamps (Lamp_* materials).
+        /// </summary>
+        private static ApparatusProfileValues DistrictChiefAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.525f, 4.2f, new[] { "DC08_WheelFront" }, new[] { "DC08_WheelRear" }, 6.5f, 0.9f,
+                new Vector3(0f, 2.2f, -2f), new Vector3(0.95f, 2.1f, -1f), false,
+                new[] { "DC08_Flash_RedA" }, new[] { "DC08_Flash_RedB" }, new[] { "DC08_Steady_Headlight", "DC08_Steady_Fog", "DC08_Steady_Command" },
+                false, false, "", false);
+        }
+
         /// <summary>Which apparatus the driven object currently is: a run-time profile names a Station 8 unit, else the fitted model decides.</summary>
         internal static StartingTruck Detect(Transform driven)
         {
@@ -110,6 +134,8 @@ namespace HTownSim.Runtime
                         return StartingTruck.Engine01;
                     case "Medic 08":
                         return StartingTruck.Medic08;
+                    case "District Chief 08":
+                        return StartingTruck.DistrictChief08;
                     case "Engine 16":
                         return StartingTruck.Engine16;
                     case "Ladder 16":
@@ -161,7 +187,8 @@ namespace HTownSim.Runtime
             return group != null
                 && group.transform.Find(Engine08Unit) != null
                 && group.transform.Find(Engine01Unit) != null
-                && group.transform.Find(Medic08Unit) != null;
+                && group.transform.Find(Medic08Unit) != null
+                && group.transform.Find(DistrictChief08Unit) != null;
         }
 
         /// <summary>Makes the driven object the requested apparatus; a no-op when it already is. Logs and leaves the scene as it is if the scene lacks a piece.</summary>
@@ -250,6 +277,7 @@ namespace HTownSim.Runtime
             {
                 StartingTruck.Engine01 => Engine01Unit,
                 StartingTruck.Medic08 => Medic08Unit,
+                StartingTruck.DistrictChief08 => DistrictChief08Unit,
                 _ => Engine08Unit,
             };
 
@@ -266,19 +294,21 @@ namespace HTownSim.Runtime
 
             driven.SetPositionAndRotation(unit.position, unit.rotation);
 
-            if (request.Target == StartingTruck.Medic08)
+            if (request.Target == StartingTruck.Medic08 || request.Target == StartingTruck.DistrictChief08)
             {
                 engineVisual.gameObject.SetActive(false);
 
                 var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
 
-                MoveBeacons(new BeaconMove(request.Apparatus, AmbulanceBeacon));
+                var chief = request.Target == StartingTruck.DistrictChief08;
+
+                MoveBeacons(new BeaconMove(request.Apparatus, chief ? PickupBeacon : AmbulanceBeacon));
 
                 oldVisual.gameObject.SetActive(false);
 
                 model.SetParent(driven, true);
 
-                SetProfile(driven, AmbulanceAs("Medic 08"));
+                SetProfile(driven, chief ? DistrictChiefAs("District Chief 08") : AmbulanceAs("Medic 08"));
             }
             else
             {
@@ -311,6 +341,10 @@ namespace HTownSim.Runtime
             {
                 // The aerial rig of Ladder 07 moves to the Ladder 16 bay and takes the Station 16 unit's name.
                 ApplyLadder(request, unit, "Ladder 16");
+
+                var ladder = driven.Find(LadderVisual) ?? throw new InvalidOperationException("Not driving Ladder 07.");
+
+                CopyNumbering(ladder, unit);
 
                 unit.gameObject.SetActive(false);
 
@@ -349,6 +383,38 @@ namespace HTownSim.Runtime
             }
 
             unit.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Gives the driven ladder the parked Ladder 16's number: its chassis meshes (with Ladder 07's "07" cut out) and its UnitNumber_
+        /// lettering, both made by HTownSim > Station 16 > Add Apparatus (LadderNumbering).
+        /// </summary>
+        private static void CopyNumbering(Transform target, Transform source)
+        {
+            var meshes = source.GetComponentsInChildren<MeshFilter>(true)
+                .Where(filter => filter.sharedMesh != null && filter.sharedMesh.name.StartsWith(RenumberedMeshPrefix, StringComparison.Ordinal))
+                .GroupBy(filter => filter.name)
+                .ToDictionary(group => group.Key, group => group.First().sharedMesh);
+
+            var targets = target.GetComponentsInChildren<Transform>(true);
+
+            foreach (var filter in target.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (meshes.TryGetValue(filter.name, out var mesh))
+                {
+                    filter.sharedMesh = mesh;
+                }
+            }
+
+            foreach (var label in source.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith(NumberLabelPrefix, StringComparison.Ordinal)).ToList())
+            {
+                var parent = targets.FirstOrDefault(t => t.name == label.parent.name);
+
+                if (parent != null)
+                {
+                    UnityEngine.Object.Instantiate(label.gameObject, parent, false).name = label.name;
+                }
+            }
         }
 
         /// <summary>Gives the renderers of one model the materials of the same-named renderers of another (the other unit's livery and number).</summary>

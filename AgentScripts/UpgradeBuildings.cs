@@ -15,7 +15,7 @@ using UnityEngine.Rendering;
 ///
 /// Gameplay objects are untouched: incident sites, signs, awnings, tower crowns and antennas stay. The old Body and
 /// Podium boxes keep their GameObjects but lose their renderer and collider; each building gets an "Upgraded" child
-/// with the new mesh and a matching MeshCollider. Houses are not changed.
+/// with the new mesh (collision stays on the old box). Houses are not changed.
 ///
 /// Apply rebuilds from the JSON (safe to run again); Revert restores the boxes. Both refuse to run with unsaved
 /// scene changes, then save the scene.
@@ -219,7 +219,7 @@ public static class UpgradeBuildings
 
             go.GetComponent<MeshRenderer>().sharedMaterials = slots;
 
-            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            // No MeshCollider: the old shell keeps its BoxCollider (SetShell only hides its renderer), which is cheaper and fits the footprint.
 
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
@@ -453,11 +453,12 @@ public static class UpgradeBuildings
             renderer.enabled = on;
         }
 
+        // The shell's primitive BoxCollider stays on either way: it is the building's collision volume under the upgraded mesh.
         var collider = shell.GetComponent<Collider>();
 
         if (collider != null)
         {
-            collider.enabled = on;
+            collider.enabled = true;
         }
     }
 

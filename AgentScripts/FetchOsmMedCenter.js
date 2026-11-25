@@ -34,14 +34,15 @@ const inWin = (x, z) => x >= WIN.x0 && x <= WIN.x1 && z >= WIN.z0 && z <= WIN.z1
 
 const queryFor = (box) => `[out:json][timeout:90];(way["building"](${box});way["highway"](${box});node["amenity"="hospital"](${box});way["amenity"="hospital"](${box});node["emergency"="yes"](${box}););out geom tags;`;
 
-// The window is fetched in a 3 x 3 grid of smaller boxes (one big query times out) and merged by element id.
+// The window is fetched in a 6 x 6 grid of smaller boxes (one big query times out) and merged by element id.
 const tiles = [];
-for (let i = 0; i < 3; i++) {
-  for (let j = 0; j < 3; j++) {
-    const s0 = south + ((north - south) * i) / 3;
-    const s1 = south + ((north - south) * (i + 1)) / 3;
-    const w0 = west + ((east - west) * j) / 3;
-    const w1 = west + ((east - west) * (j + 1)) / 3;
+const N = 6;
+for (let i = 0; i < N; i++) {
+  for (let j = 0; j < N; j++) {
+    const s0 = south + ((north - south) * i) / N;
+    const s1 = south + ((north - south) * (i + 1)) / N;
+    const w0 = west + ((east - west) * j) / N;
+    const w1 = west + ((east - west) * (j + 1)) / N;
     tiles.push(`${s0},${w0},${s1},${w1}`);
   }
 }
@@ -70,7 +71,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchTile(box) {
   const hosts = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     const host = hosts[attempt % hosts.length];
     try {
       const r = await fetch(host, { method: "POST", body: "data=" + encodeURIComponent(queryFor(box)), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HTownSim-dev/1.0" } });
@@ -78,7 +79,7 @@ async function fetchTile(box) {
       return JSON.parse(text).elements;
     } catch (e) {
       console.error(host + " " + box + ": " + e.message.slice(0, 80));
-      await sleep(4000);
+      await sleep(8000);
     }
   }
   throw new Error("Overpass unavailable for " + box);
