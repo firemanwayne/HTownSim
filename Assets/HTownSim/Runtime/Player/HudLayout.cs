@@ -20,6 +20,9 @@ namespace HTownSim.Runtime
         private const float ControlsHeight = 522f;
         private const float IncidentWidth = 620f;
         private const float IncidentHeight = 295f;
+
+        /// <summary>The incident panel is drawn at this fraction of its designed size (it took too much of the screen); the stack beneath it follows.</summary>
+        private const float IncidentScale = 0.72f;
         private const float MapWidth = 384f;
         private const float MapHeight = 556f;
 
@@ -58,7 +61,7 @@ namespace HTownSim.Runtime
 
             controls.pivot = new Vector2(0f, 1f);
 
-            controls.anchoredPosition = new Vector2(IncidentWidth + ColumnGap, 0f);
+            controls.anchoredPosition = new Vector2((IncidentWidth * IncidentScale) + ColumnGap, 0f);
 
             controls.sizeDelta = new Vector2(ControlsWidth, ControlsHeight);
 
@@ -72,19 +75,34 @@ namespace HTownSim.Runtime
 
             var element = incident.gameObject.AddComponent<LayoutElement>();
 
-            element.preferredWidth = IncidentWidth;
+            element.preferredWidth = IncidentWidth * IncidentScale;
 
-            element.preferredHeight = IncidentHeight;
+            element.preferredHeight = IncidentHeight * IncidentScale;
 
-            Place(parts.Panel, incident, new Vector2(0f, 0f));
+            // The parts keep their designed size inside a scaled frame, so the whole panel shrinks together.
+            var scaled = NewRect("IncidentScaled", incident);
 
-            Place(parts.Header, incident, new Vector2(22f, -14f));
+            scaled.anchorMin = new Vector2(0f, 1f);
 
-            Place(parts.Status.transform, incident, new Vector2(22f, -56f));
+            scaled.anchorMax = new Vector2(0f, 1f);
 
-            Place(parts.Telemetry.transform, incident, new Vector2(22f, -207f));
+            scaled.pivot = new Vector2(0f, 1f);
 
-            Place(parts.HideLabel != null ? parts.HideLabel.transform : null, incident, new Vector2(IncidentWidth - 110f, -18f));
+            scaled.anchoredPosition = Vector2.zero;
+
+            scaled.sizeDelta = new Vector2(IncidentWidth, IncidentHeight);
+
+            scaled.localScale = Vector3.one * IncidentScale;
+
+            Place(parts.Panel, scaled, new Vector2(0f, 0f));
+
+            Place(parts.Header, scaled, new Vector2(22f, -14f));
+
+            Place(parts.Status.transform, scaled, new Vector2(22f, -56f));
+
+            Place(parts.Telemetry.transform, scaled, new Vector2(22f, -207f));
+
+            Place(parts.HideLabel != null ? parts.HideLabel.transform : null, scaled, new Vector2(IncidentWidth - 110f, -18f));
 
             if (parts.Map != null)
             {

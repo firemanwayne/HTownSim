@@ -19,6 +19,9 @@ namespace HTownSim.Runtime
         /// <summary>Within this many degrees of straight ahead the ladder counts as in line with its bed.</summary>
         private const float InLineTolerance = 1f;
 
+        /// <summary>The aerial panel stands on top of the siren controls, which stay in view; this is the gap between them (HUD units).</summary>
+        private const float StackGap = 12f;
+
         private const float DialSize = 116f;
 
         private const float PointerWidth = 6f;
@@ -81,7 +84,7 @@ namespace HTownSim.Runtime
                 new Vector2(1f, 0f),
                 new Vector2(1f, 0f),
                 new Vector2(1f, 0f),
-                new Vector2(-EmergencyHud.Margin, EmergencyHud.BottomMargin),
+                new Vector2(-EmergencyHud.Margin, EmergencyHud.BottomMargin + EmergencyHud.PanelHeight + StackGap),
                 new Vector2(EmergencyHud.PanelWidth, EmergencyHud.PanelHeight));
 
             var background = _panel.gameObject.AddComponent<Image>();
@@ -204,11 +207,6 @@ namespace HTownSim.Runtime
             if (_panel.gameObject.activeSelf != show)
             {
                 _panel.gameObject.SetActive(show);
-
-                if (_sirenHud != null)
-                {
-                    _sirenHud.Panel.gameObject.SetActive(!show);
-                }
             }
 
             if (!show)
@@ -241,15 +239,6 @@ namespace HTownSim.Runtime
                 $"LADDER  {_aerial.Elevation:0}°     EXTENSION  {_aerial.Extension * 100f:0}%\n" +
                 $"OUTRIGGERS  OUT {_aerial.OutriggerOut * 100f:0}%  DOWN {_aerial.OutriggerDown * 100f:0}%" +
                 notice;
-        }
-
-        /// <summary>Gives the siren panel back if this panel goes away.</summary>
-        private void OnDestroy()
-        {
-            if (_sirenHud != null && _sirenHud.Panel != null)
-            {
-                _sirenHud.Panel.gameObject.SetActive(true);
-            }
         }
 
         /// <summary>A white anti-aliased disc sprite, tinted by each Image.</summary>

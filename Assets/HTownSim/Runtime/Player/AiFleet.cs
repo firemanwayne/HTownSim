@@ -160,10 +160,33 @@ namespace HTownSim.Runtime
             }
         }
 
-        /// <summary>The ground under a point, or null.</summary>
+        /// <summary>
+        /// The ground under a point, or null: the first street, slab or ground surface the ray meets. Roofs and parked vehicles are not
+        /// ground, or a car would be put on top of them.
+        /// </summary>
         private static Vector3? GroundPoint(Vector3 point)
         {
-            return Physics.Raycast(point + (Vector3.up * 40f), Vector3.down, out var hit, 80f, ~0, QueryTriggerInteraction.Ignore) ? hit.point : (Vector3?)null;
+            var hits = Physics.RaycastAll(point + (Vector3.up * 40f), Vector3.down, 80f, ~0, QueryTriggerInteraction.Ignore);
+
+            Vector3? best = null;
+
+            var bestDistance = float.MaxValue;
+
+            foreach (var hit in hits)
+            {
+                var name = hit.collider.name;
+
+                var surface = name == "Streets" || name.StartsWith("Slab", StringComparison.Ordinal) || name.StartsWith("Ground", StringComparison.Ordinal);
+
+                if (surface && hit.distance < bestDistance)
+                {
+                    bestDistance = hit.distance;
+
+                    best = hit.point;
+                }
+            }
+
+            return best;
         }
 
         /// <summary>True when a patrol car fits at a ground point with nothing solid in the way.</summary>

@@ -43,17 +43,6 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
 
 ## Requested, not built yet (waiting for the go-ahead)
 
-- **Other units on the City Map.** The owner wants to see the other (computer-driven) units on their map. Nothing was changed; the
-  owner asked for no changes until told. Plan to propose when told: a marker per fleet unit (the 10 apparatus and 4 HPD officers) on the
-  scrolling map in `Runtime/Player/CityMap.cs`, colored by kind (fire red, EMS white, chief orange, police blue), bright with a short
-  label (E16, A16, DC8, P1) while out on a call and dim without a label when parked.
-  **Colors decided by the owner: red for fire, blue for PD.** Still open: the color for EMS (proposed white) and the chief (proposed
-  orange), labels on parked units, whether to show only units that are out.
-
-- **Ladder aerial HUD placement.** On the ladder trucks the aerial HUD (`Runtime/Player/AerialHud.cs`) should stack on top of the
-  emergency (siren) controls (`Runtime/Player/EmergencyHud.cs`, laid out by `HudLayout.cs`) instead of sharing or overlapping their
-  place. Noted only; no change made yet.
-
 - **Vehicle collision boundaries.** Vehicles clip into each other, so their physical boundaries (colliders) need to be extended.
   Places to look: the player's `CharacterController` (`Runtime/Player/FireResponse.cs`), the parked and computer-driven units'
   BoxColliders (`AiUnit`, `AiFleet`; computer-driven units move as plain bodies and ignore physics), and the traffic cars' colliders
@@ -76,11 +65,6 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   in game), camera controls and speed, whether it can follow a unit or an incident, which HUD parts stay (map, incident board),
   and that with no player unit every unit (including the one the player would have driven) is computer-driven. Noted only; no change
   made yet.
-
-- **Reduce the size of the HTOWN HUD.** The top-left panel headed "H T O W N / <unit>" (the unit name, call text, speed, distance and
-  status block) should be smaller. It is built and sized in `Runtime/Player/HudLayout.cs` / `HudLayoutParts.cs` and filled by
-  `FireResponse`; the city map panel below it is positioned from it, so the map and the other HUD blocks may need to move up with it.
-  Noted only; no change made yet.
 
 - **AI siren sound.** When watching a computer-driven unit respond, its siren does not sound right. It should use the same sirens the
   player can control (the real wail, yelp and pier tones and the air horn from the siren control in `Runtime/Player/FireResponse.cs`
@@ -106,12 +90,16 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   traffic and signal lenses, window lights on buildings, and the map's brightness. Open choices: real clock or an accelerated day,
   a manual toggle, and how dark it should get. Noted only; no change made yet.
 
-- **Bug: police cars spawn stacked next to Station 7.** The four computer-driven patrol cars (`AiFleet.SpawnPatrols`) appear piled on
-  top of other vehicles beside the HPD substation. Checked in the editor (read only): AiPatrol1 and AiPatrol2 start at y 2.0-2.2, on
-  top of the parked citizen car and the parked HPD patrol car (ground is y 0.2), and AiPatrol3 and AiPatrol4 start at y 5.6, on a
-  roof. Likely cause: `GroundPoint` takes the first thing the downward ray hits (a car roof, a building roof) instead of the street or
-  slab surface, so the "free spot" test passes at that height. Fix idea: take only the ground surface (collider named Streets, Slab_*
-  or Ground*, as `AiUnit.GroundHeight` does), and test free space at that height against everything else. No change made yet.
+## Done from the notes
+
+- **Other units on the City Map** (`Runtime/Player/FleetMapMarkers.cs`, hooked in `CityMap.cs`): a square per computer-driven unit under the
+  player's marker; red for fire, blue for PD (the owner's colors), white for EMS and orange for chiefs (my picks, not yet confirmed by the owner).
+  A unit out on a call is bright and larger with a short label (E16, A16, DC08, P2); a parked unit is dim with no label.
+- **HTOWN HUD smaller** (`HudLayout.cs`, `IncidentScale` 0.72): the whole top-left panel is drawn at 72% and the map below it moves up.
+- **Aerial HUD stacks on top of the siren controls** (`AerialHud.cs`): the siren panel now stays in view and the aerial panel sits 12 units
+  above it, instead of swapping with it.
+- **Police cars no longer spawn stacked** (`AiFleet.GroundPoint`): the spawn takes only street, slab or ground surfaces, never roofs or
+  parked cars. Checked in the editor: AiPatrol1 and 2 stand on the ground (y 0.2) beside the citizen car, about 7 m apart.
 
 ## Direction: future development should be multiplayer oriented
 

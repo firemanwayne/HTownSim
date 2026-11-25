@@ -105,6 +105,9 @@ namespace HTownSim.Runtime
 
         private CinemachineBrain? _brain;
 
+        /// <summary>The computer-driven units' markers; made once the fleet exists (it is made after the map).</summary>
+        private FleetMapMarkers? _fleetMarkers;
+
         /// <summary>The masked frame the map image scrolls inside; created on first use.</summary>
         private RectTransform? _viewport;
 
@@ -335,6 +338,18 @@ namespace HTownSim.Runtime
             _incidentMarker.rectTransform.localScale = Vector3.one * pulse;
 
             _stationMarker.rectTransform.anchoredPosition = ToMap(_stationPosition);
+
+            if (_fleetMarkers == null)
+            {
+                var fleet = _player.GetComponent<AiFleet>();
+
+                if (fleet != null && fleet.Units.Count > 0 && _stationMarker.sprite != null)
+                {
+                    _fleetMarkers = new FleetMapMarkers(fleet, _mapRect, _stationMarker.sprite);
+                }
+            }
+
+            _fleetMarkers?.Update(ToMap);
         }
 
         /// <summary>Converts a world position to a position inside the map rect.</summary>
