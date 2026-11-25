@@ -7,15 +7,17 @@ using UnityEngine.SceneManagement;
 namespace HTownSim.Runtime
 {
     /// <summary>
-    /// The start screen: pauses the game, asks which station to start from, then which of its apparatus to drive. Picking the
+    /// The start screen: pauses the game, asks which service to drive for (Houston Fire Department, Houston Police Department or a
+    /// citizen car); for the fire department it then asks which station to start from, and finally which vehicle to drive. Picking the
     /// apparatus the scene already fits just resumes; picking another stores the choice and reloads the scene, where
     /// <see cref="ApparatusLoadout"/> fits it before anything else starts.
     /// </summary>
     internal sealed class StartingTruckMenu : MonoBehaviour
     {
-        /// <summary>The two steps of the screen.</summary>
+        /// <summary>The three steps of the screen.</summary>
         private enum Step
         {
+            Agency,
             Station,
             Apparatus,
         }
@@ -47,13 +49,22 @@ namespace HTownSim.Runtime
 
         private readonly List<MenuCard> _cards = new List<MenuCard>();
 
-        private Step _step = Step.Station;
+        private Step _step = Step.Agency;
 
         /// <summary>The apparatus the scene is fitted with right now.</summary>
         private StartingTruck _current;
 
-        /// <summary>The station whose apparatus are listed in the second step.</summary>
+        /// <summary>The service whose vehicles are listed in the last step.</summary>
+        private StartingAgency _agency;
+
+        /// <summary>The station whose apparatus are listed in the last step (fire department only).</summary>
         private StartingStation _station;
+
+        /// <summary>False when the scene has no parked HPD patrol unit, so HPD cannot be chosen yet.</summary>
+        private bool _hpdReady;
+
+        /// <summary>False when the scene has no parked citizen car, so the citizen car cannot be chosen yet.</summary>
+        private bool _citizenReady;
 
         /// <summary>False when the scene has no parked Station 8 units, so Station 8 cannot be chosen yet.</summary>
         private bool _station8Ready;
@@ -106,13 +117,19 @@ namespace HTownSim.Runtime
 
             menu._current = ApparatusLoadout.Detect(response.transform);
 
+            menu._agency = StartingTruckChoice.AgencyOf(menu._current);
+
             menu._station = StartingTruckChoice.StationOf(menu._current);
+
+            menu._hpdReady = ApparatusLoadout.HpdReady(response.gameObject.scene);
+
+            menu._citizenReady = ApparatusLoadout.CitizenReady(response.gameObject.scene);
 
             menu._station8Ready = ApparatusLoadout.Station8Ready(response.gameObject.scene);
 
             menu._station16Ready = ApparatusLoadout.Station16Ready(response.gameObject.scene);
 
-            menu.ShowStep(Step.Station);
+            menu.ShowStep(Step.Agency);
         }
 
         /// <summary>Freezes the game under the menu and frees the mouse.</summary>
@@ -168,9 +185,9 @@ namespace HTownSim.Runtime
                 _highlight = (_highlight + _cards.Count - 1) % _cards.Count;
             }
 
-            if (_step == Step.Apparatus && keyboard.backspaceKey.wasPressedThisFrame)
+            if (_step != Step.Agency && keyboard.backspaceKey.wasPressedThisFrame)
             {
-                ShowStep(Step.Station);
+                ShowStep(_step == Step.Apparatus && _agency == StartingAgency.Hfd ? Step.Station : Step.Agency);
 
                 return;
             }
@@ -200,6 +217,24 @@ namespace HTownSim.Runtime
 
             _cards.Clear();
 
+            if (step == Step.Agency)
+            {
+                foreach (var agency in StartingTruckChoice.Agencies)
+                {
+                    var available = agency == StartingAgency.Hfd || (agency == StartingAgency.Hpd && _hpdReady) || (agency == StartingAgency.Citizen && _citizenReady);
+
+                    _cards.Add(new MenuCard(
+                        StartingTruckChoice.AgencyShortName(agency).ToUpperInvariant(),
+                        StartingTruckChoice.AgencyDescription(agency),
+                        available ? (StartingTruckChoice.AgencyOf(_current) == agency ? "YOUR LAST SERVICE" : "") : "NOT SET UP IN THIS SCENE",
+                        available));
+                }
+
+                _highlight = System.Array.IndexOf(StartingTruckChoice.Agencies, StartingTruckChoice.AgencyOf(_current));
+
+                return;
+            }
+
             if (step == Step.Station)
             {
                 foreach (var station in StartingTruckChoice.Stations)
@@ -218,14 +253,14 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            var trucks = StartingTruckChoice.TrucksAt(_station);
+            var trucks = ApparatusChoices();
 
             foreach (var truck in trucks)
             {
                 _cards.Add(new MenuCard(
                     StartingTruckChoice.Designation(truck),
                     StartingTruckChoice.DisplayName(truck) + ". " + StartingTruckChoice.Description(truck),
-                    truck == _current ? "IN THE BAY NOW" : "",
+                    truck == _current ? (_agency == StartingAgency.Hfd ? "IN THE BAY NOW" : "PARKED NOW") : "",
                     true));
             }
 
@@ -242,6 +277,15 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            if (_step == Step.Agency)
+            {
+                _agency = StartingTruckChoice.Agencies[index];
+
+                ShowStep(_agency == StartingAgency.Hfd ? Step.Station : Step.Apparatus);
+
+                return;
+            }
+
             if (_step == Step.Station)
             {
                 _station = StartingTruckChoice.Stations[index];
@@ -251,7 +295,13 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            Choose(StartingTruckChoice.TrucksAt(_station)[index]);
+            Choose(ApparatusChoices()[index]);
+        }
+
+        /// <summary>The vehicles listed in the last step: a station's apparatus for the fire department, else the service's own vehicles.</summary>
+        private StartingTruck[] ApparatusChoices()
+        {
+            return _agency == StartingAgency.Hfd ? StartingTruckChoice.TrucksAt(_station) : StartingTruckChoice.VehiclesOf(_agency);
         }
 
         /// <summary>Resumes with the fitted apparatus, or stores the pick and reloads the scene to fit another.</summary>
@@ -305,11 +355,23 @@ namespace HTownSim.Runtime
 
             Fill(new Rect(0f, 0f, width, height), Dim);
 
-            var stationStep = _step == Step.Station;
+            var title = _step switch
+            {
+                Step.Agency => "CHOOSE YOUR SERVICE",
+                Step.Station => "CHOOSE YOUR STATION",
+                _ => _agency == StartingAgency.Hfd ? "CHOOSE YOUR APPARATUS" : "CHOOSE YOUR VEHICLE",
+            };
 
-            GUI.Label(new Rect(0f, 150f, width, 64f), stationStep ? "CHOOSE YOUR STATION" : "CHOOSE YOUR APPARATUS", _title);
+            var subtitle = _step switch
+            {
+                Step.Agency => "HTown emergency response",
+                Step.Station => "Houston Fire Department",
+                _ => _agency == StartingAgency.Hfd ? StartingTruckChoice.StationName(_station) : StartingTruckChoice.AgencyName(_agency),
+            };
 
-            GUI.Label(new Rect(0f, 214f, width, 36f), stationStep ? "Houston Fire Department" : StartingTruckChoice.StationName(_station), _subtitle);
+            GUI.Label(new Rect(0f, 150f, width, 64f), title, _title);
+
+            GUI.Label(new Rect(0f, 214f, width, 36f), subtitle, _subtitle);
 
             var cardWidth = Mathf.Min(CardWidth, (width - 80f - ((_cards.Count - 1) * CardGap)) / _cards.Count);
 
@@ -324,9 +386,9 @@ namespace HTownSim.Runtime
                 DrawCard(new Rect(left + (i * (cardWidth + CardGap)), top, cardWidth, CardHeight), i);
             }
 
-            var hint = stationStep
-                ? "Press 1, 2 or 3, or use the arrow keys and Enter"
-                : "Press a number, or use the arrow keys and Enter.   Backspace: change station";
+            var hint = _step != Step.Apparatus
+                ? "Press 1, 2 or 3, or use the arrow keys and Enter" + (_step == Step.Station ? ".   Backspace: change service" : string.Empty)
+                : "Press a number, or use the arrow keys and Enter.   Backspace: " + (_agency == StartingAgency.Hfd ? "change station" : "change service");
 
             GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), hint, _hint);
         }

@@ -23,7 +23,8 @@ namespace HTownSim.Runtime
             bool airHorn,
             bool canSprayWater = true,
             string lensHalos = "",
-            bool emsAlert = false)
+            bool emsAlert = false,
+            bool emergencyEquipment = true)
         {
             UnitName = unitName;
 
@@ -58,7 +59,12 @@ namespace HTownSim.Runtime
             LensHalos = lensHalos;
 
             EmsAlert = emsAlert;
+
+            EmergencyEquipment = emergencyEquipment;
         }
+
+        /// <summary>False for a citizen car: no lightbar, no siren and no horn tones, just headlights, blinkers and the pedal lamps.</summary>
+        internal bool EmergencyEquipment { get; }
 
         /// <summary>True for an EMS unit: a new call plays the EMS high/low alert tone instead of the fire station ring and beeps.</summary>
         internal bool EmsAlert { get; }

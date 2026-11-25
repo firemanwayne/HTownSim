@@ -18,6 +18,9 @@ namespace HTownSim.Runtime
         /// <summary>The stations, in the order the start screen lists them.</summary>
         internal static readonly StartingStation[] Stations = { StartingStation.Station7, StartingStation.Station8, StartingStation.Station16 };
 
+        /// <summary>The agencies, in the order the start screen lists them.</summary>
+        internal static readonly StartingAgency[] Agencies = { StartingAgency.Hfd, StartingAgency.Hpd, StartingAgency.Citizen };
+
         /// <summary>True once the player has dealt with the start screen this session, so it is not shown again after the reload.</summary>
         internal static bool Decided { get; set; }
 
@@ -43,6 +46,56 @@ namespace HTownSim.Runtime
             PlayerPrefs.SetInt(PrefKey, (int)truck);
 
             PlayerPrefs.Save();
+        }
+
+        /// <summary>Whose vehicle an apparatus is.</summary>
+        internal static StartingAgency AgencyOf(StartingTruck truck)
+        {
+            return truck switch
+            {
+                StartingTruck.PatrolHpd => StartingAgency.Hpd,
+                StartingTruck.CitizenCar => StartingAgency.Citizen,
+                _ => StartingAgency.Hfd,
+            };
+        }
+
+        /// <summary>The vehicles of an agency that has no stations (HPD and civilian), in the order the start screen lists them.</summary>
+        internal static StartingTruck[] VehiclesOf(StartingAgency agency)
+        {
+            return agency == StartingAgency.Hpd ? new[] { StartingTruck.PatrolHpd } : new[] { StartingTruck.CitizenCar };
+        }
+
+        /// <summary>The agency's short name, the title of its card on the start screen.</summary>
+        internal static string AgencyShortName(StartingAgency agency)
+        {
+            return agency switch
+            {
+                StartingAgency.Hpd => "HPD",
+                StartingAgency.Citizen => "Citizen",
+                _ => "HFD",
+            };
+        }
+
+        /// <summary>The agency's name, as shown on the start screen.</summary>
+        internal static string AgencyName(StartingAgency agency)
+        {
+            return agency switch
+            {
+                StartingAgency.Hpd => "Houston Police Department",
+                StartingAgency.Citizen => "Citizen",
+                _ => "Houston Fire Department",
+            };
+        }
+
+        /// <summary>The agency's one-line description on the start screen.</summary>
+        internal static string AgencyDescription(StartingAgency agency)
+        {
+            return agency switch
+            {
+                StartingAgency.Hpd => "Patrol from the Midtown substation: lightbar and siren, police calls.",
+                StartingAgency.Citizen => "A citizen car. No siren, no lightbar, no calls: just drive the city.",
+                _ => "Engines, ladders, medic units and chiefs from Stations 7, 8 and 16.",
+            };
         }
 
         /// <summary>The station an apparatus lives at.</summary>
@@ -106,6 +159,8 @@ namespace HTownSim.Runtime
                 StartingTruck.Ambulance16 => "Ambulance 16",
                 StartingTruck.Supervisor16 => "Supervisor 16",
                 StartingTruck.DistrictChief08 => "District Chief 08",
+                StartingTruck.PatrolHpd => "HPD Patrol 46837",
+                StartingTruck.CitizenCar => "Citizen Car",
                 _ => "Engine 07",
             };
         }
@@ -125,6 +180,8 @@ namespace HTownSim.Runtime
                 StartingTruck.Ambulance16 => "A016",
                 StartingTruck.Supervisor16 => "AS016",
                 StartingTruck.DistrictChief08 => "DC08",
+                StartingTruck.PatrolHpd => "46837",
+                StartingTruck.CitizenCar => "CIT",
                 _ => "E007",
             };
         }
@@ -144,6 +201,8 @@ namespace HTownSim.Runtime
                 StartingTruck.Ambulance16 => "Station 16's medic unit: the same rig as Ambulance 07, with EMS tones and no water.",
                 StartingTruck.Supervisor16 => "The EMS supervisor's Chevrolet Suburban: quick and tight, EMS dispatch tones, no water.",
                 StartingTruck.DistrictChief08 => "The district chief's command pickup: quick, electric horn, blinkers and a full light package, no water.",
+                StartingTruck.PatrolHpd => "Houston Police patrol SUV: quick and tight, lightbar and siren, blinkers, brake and reverse lamps, answers police calls.",
+                StartingTruck.CitizenCar => "A citizen car: headlights, blinkers, brake and reverse lamps. No siren, no lightbar, no calls.",
                 _ => "Pumper. The quickest to get to a fire, with a hose line and the full water supply.",
             };
         }

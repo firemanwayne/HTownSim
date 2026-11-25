@@ -393,6 +393,9 @@ namespace HTownSim.Runtime
             // Other units' EMS calls on the board get a patient lying at the scene too.
             gameObject.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
 
+            // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
+            gameObject.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
+
             // No start-up call: the unit starts in service and waits for a dispatch (the live feed, or a fallback call after the roam delay).
             GoInService();
 
@@ -454,7 +457,8 @@ namespace HTownSim.Runtime
         {
             var canvas = _status.GetComponentInParent<Canvas>();
 
-            if (canvas != null)
+            // A citizen car has no siren or light controls to show.
+            if (canvas != null && _profile.EmergencyEquipment)
             {
                 _emergencyHud = new GameObject("EmergencyHudDriver").AddComponent<EmergencyHud>();
 
@@ -520,6 +524,12 @@ namespace HTownSim.Runtime
         /// <summary>Chooses a tone and turns the siren on; choosing the active tone again, when asked, turns it off.</summary>
         internal void SelectTone(int tone, bool offIfSame)
         {
+            // A citizen car has no siren.
+            if (!_profile.EmergencyEquipment)
+            {
+                return;
+            }
+
             if (offIfSame && _sirenEnabled && tone == _tone)
             {
                 _sirenEnabled = false;
@@ -566,6 +576,12 @@ namespace HTownSim.Runtime
         /// <summary>Toggles the emergency lights, as the L key does.</summary>
         internal void ToggleLights()
         {
+            // A citizen car has no emergency lights.
+            if (!_profile.EmergencyEquipment)
+            {
+                return;
+            }
+
             _lightsEnabled = !_lightsEnabled;
         }
 
@@ -880,7 +896,7 @@ namespace HTownSim.Runtime
                 _controlsText.enabled = keyboard.tabKey.isPressed;
             }
 
-            if (keyboard.qKey.wasPressedThisFrame)
+            if (keyboard.qKey.wasPressedThisFrame && _profile.EmergencyEquipment)
             {
                 if (_sirenEnabled || _lightsEnabled)
                 {

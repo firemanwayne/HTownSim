@@ -41,6 +41,12 @@ namespace HTownSim.Runtime.Incidents.Managers
                 }
             }
 
+            // A patrol unit is the only HPD unit in the game, so it is first due to every police incident inside the map.
+            if (context.Kind == LiveUnitKind.Police)
+            {
+                return nearestStationIndex >= 0 && TypeFits(record, context.Kind) ? FirstDueReason : "";
+            }
+
             if (nearestStationIndex < 0 || nearestStationIndex != context.StationIndex)
             {
                 return "";
@@ -58,6 +64,8 @@ namespace HTownSim.Runtime.Incidents.Managers
             {
                 LiveUnitKind.Ems => ContainsAny(type, EmsWords),
                 LiveUnitKind.Chief => type.Contains("FIRE") || (int.TryParse(record.AlarmLevel, out var level) && level >= 1),
+                LiveUnitKind.Police => record.Agency == "PD",
+                LiveUnitKind.Citizen => false,
                 _ => record.Agency == "FD" && ContainsAny(type, FireWords),
             };
         }
@@ -89,6 +97,7 @@ namespace HTownSim.Runtime.Incidents.Managers
                 "MEDIC" => new[] { "M" + digits },
                 "SUPERVISOR" => new[] { "AS" + digits, "MS" + digits },
                 "DISTRICT CHIEF" => new[] { "DC" + number.ToString("00"), "DC" + digits, "D" + digits, "B" + digits },
+                "HPD PATROL" => new[] { number.ToString() },
                 _ => Array.Empty<string>(),
             };
         }
@@ -101,6 +110,16 @@ namespace HTownSim.Runtime.Incidents.Managers
             if (upper.StartsWith("DISTRICT CHIEF"))
             {
                 return LiveUnitKind.Chief;
+            }
+
+            if (upper.StartsWith("HPD"))
+            {
+                return LiveUnitKind.Police;
+            }
+
+            if (upper.StartsWith("CITIZEN"))
+            {
+                return LiveUnitKind.Citizen;
             }
 
             return upper.StartsWith("AMBULANCE") || upper.StartsWith("MEDIC") || upper.StartsWith("SUPERVISOR") ? LiveUnitKind.Ems : LiveUnitKind.Fire;

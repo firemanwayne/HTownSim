@@ -45,6 +45,19 @@ changed, and closed ids.
 - Tunables (release gap, board size, HUD lines, live window): create `Assets > Create > HTownSim > Live Feed Settings`
   and save it as `Resources/LiveFeedSettings`.
 
+## Scenes at other units' calls
+
+- **EMS:** `LiveIncidentPatients` lies a patient on the ground at an EMS call inside the map once a unit is assigned to it.
+- **Police:** `LiveIncidentPolice` parks an HPD patrol unit (Blender/HPD, exported by `Blender/HPD/export_hpd.py` to
+  `Vehicles/HpdPatrol`, prefab `Resources/HpdPatrol` built by `AgentScripts/BuildHpdPatrolPrefab.cs`) at a police (`PD`) call
+  inside the map, on the nearest free stretch of street and lined up with it, lightbar flashing (`PatrolLightbar` alternates the
+  red and blue LED materials). At most 12 at a time.
+- Neither decides when a scene goes. The **incident service** (`Tools/IncidentService`, started with Play) owns the lifecycle
+  created, assigned, handled, cleared and saves it to `%LOCALAPPDATA%\HTownSim\IncidentService\ledger.json`: a call the City
+  closes with no unit assigned clears at once; one with a unit assigned is held as handled (120 s) and then cleared; the game
+  clears the player's own calls. The scene (patient, patrol unit) goes when the service reports the incident cleared. Police
+  calls carry no units in the City feed, so their patrol unit leaves when the City closes the call.
+
 ## Limits
 
 - The all-agencies page gives no cross street for police incidents, so many of them cannot be placed.

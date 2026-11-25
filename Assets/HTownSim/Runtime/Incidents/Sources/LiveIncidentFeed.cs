@@ -301,6 +301,7 @@ namespace HTownSim.Runtime.Incidents.Sources
             {
                 LiveUnitKind.Ems => "AMBULANCE",
                 LiveUnitKind.Chief => "BATTALION",
+                LiveUnitKind.Police => "PATROL",
                 _ => unitName.StartsWith("Ladder", StringComparison.OrdinalIgnoreCase) ? "LADDER" : "ENGINE",
             };
         }

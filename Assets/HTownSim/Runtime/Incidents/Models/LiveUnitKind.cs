@@ -13,5 +13,11 @@ namespace HTownSim.Runtime.Incidents.Models
 
         /// <summary>District chief: fires and multi-alarm incidents.</summary>
         Chief,
+
+        /// <summary>HPD patrol unit: police (PD) incidents.</summary>
+        Police,
+
+        /// <summary>Citizen car: no emergency calls.</summary>
+        Citizen,
     }
 }

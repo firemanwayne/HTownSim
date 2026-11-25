@@ -46,6 +46,15 @@ namespace HTownSim.Runtime
 
         private const string DistrictChief08Unit = "DistrictChief08";
 
+        /// <summary>The group AddHpdStation fills with the parked patrol unit, and the group with the citizen car.</summary>
+        private const string HpdGroup = "HpdApparatus";
+
+        private const string HpdUnit = "Patrol46837";
+
+        private const string CitizenGroup = "CitizenVehicles";
+
+        private const string CitizenUnit = "CitizenCar";
+
         /// <summary>The group AddStation16Apparatus fills, and the unit names inside it.</summary>
         private const string Station16Group = "Station16Apparatus";
 
@@ -77,6 +86,12 @@ namespace HTownSim.Runtime
 
         /// <summary>District Chief 08's cab-roof light bar.</summary>
         private static readonly Vector3 PickupBeacon = new Vector3(0.6f, 2.3f, 0.9f);
+
+        /// <summary>The patrol SUV's roof lightbar (red on the driver's side, blue on the other), just ahead of the wheelbase centre.</summary>
+        private static readonly Vector3 PatrolBeacon = new Vector3(0.45f, 1.98f, 0.13f);
+
+        /// <summary>The citizen car has no roof beacons; the (dark) beacon lights are parked on its roof.</summary>
+        private static readonly Vector3 CitizenBeacon = new Vector3(0.5f, 1.6f, 0f);
 
         /// <summary>The supervisor pickup's cab-roof light bar (7 cm lower than District Chief 08's).</summary>
         private static readonly Vector3 SuvBeacon = new Vector3(0.6f, 2.23f, 0.9f);
@@ -140,6 +155,10 @@ namespace HTownSim.Runtime
                         return StartingTruck.Medic08;
                     case "District Chief 08":
                         return StartingTruck.DistrictChief08;
+                    case "HPD Patrol 46837":
+                        return StartingTruck.PatrolHpd;
+                    case "Citizen Car":
+                        return StartingTruck.CitizenCar;
                     case "Engine 16":
                         return StartingTruck.Engine16;
                     case "Ladder 16":
@@ -169,6 +188,22 @@ namespace HTownSim.Runtime
         internal static bool IsStation16(StartingTruck truck)
         {
             return StartingTruckChoice.StationOf(truck) == StartingStation.Station16;
+        }
+
+        /// <summary>True when the scene holds the parked HPD patrol unit (made by the editor command HTownSim > HPD > Add Substation).</summary>
+        internal static bool HpdReady(Scene scene)
+        {
+            var group = scene.GetRootGameObjects().FirstOrDefault(root => root.name == HpdGroup);
+
+            return group != null && group.transform.Find(HpdUnit) != null;
+        }
+
+        /// <summary>True when the scene holds the parked citizen car (made by the editor command HTownSim > HPD > Add Substation).</summary>
+        internal static bool CitizenReady(Scene scene)
+        {
+            var group = scene.GetRootGameObjects().FirstOrDefault(root => root.name == CitizenGroup);
+
+            return group != null && group.transform.Find(CitizenUnit) != null;
         }
 
         /// <summary>True when the scene holds the parked Station 16 units (made by the editor command HTownSim > Station 16 > Add Apparatus).</summary>
@@ -222,7 +257,16 @@ namespace HTownSim.Runtime
                     current = StartingTruck.Ladder;
                 }
 
-                if (IsStation8(request.Target))
+                if (request.Target is StartingTruck.PatrolHpd or StartingTruck.CitizenCar)
+                {
+                    if (current == StartingTruck.Ladder)
+                    {
+                        RevertLadder(request);
+                    }
+
+                    ApplyRoadVehicle(request);
+                }
+                else if (IsStation8(request.Target))
                 {
                     if (current == StartingTruck.Ladder)
                     {
@@ -322,6 +366,69 @@ namespace HTownSim.Runtime
             }
 
             unit.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Engine to the HPD patrol unit or the citizen car: Engine 07 is parked at Station 7 and the driven object takes the parked
+        /// vehicle's spot and model. The patrol unit keeps the roof beacons (on its lightbar); the citizen car's are parked on its roof.
+        /// </summary>
+        private static void ApplyRoadVehicle(LoadoutRequest request)
+        {
+            var driven = request.Apparatus.transform;
+
+            var patrol = request.Target == StartingTruck.PatrolHpd;
+
+            var group = FindRoot(driven, patrol ? HpdGroup : CitizenGroup);
+
+            var unit = group.Find(patrol ? HpdUnit : CitizenUnit) ?? throw new InvalidOperationException(group.name + " has no vehicle.");
+
+            var model = unit.childCount > 0 ? unit.GetChild(0) : throw new InvalidOperationException(unit.name + " has no model.");
+
+            var engineVisual = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
+
+            ParkEngine(driven);
+
+            driven.SetPositionAndRotation(unit.position, unit.rotation);
+
+            engineVisual.gameObject.SetActive(false);
+
+            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
+
+            MoveBeacons(new BeaconMove(request.Apparatus, patrol ? PatrolBeacon : CitizenBeacon));
+
+            oldVisual.gameObject.SetActive(false);
+
+            model.SetParent(driven, true);
+
+            SetProfile(driven, patrol ? PatrolAs("HPD Patrol 46837") : CitizenAs("Citizen Car"));
+
+            unit.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// The HPD patrol SUV's fit-out: 0.395 m tyres on a 2.86 m wheelbase, tight quick turns, no water, the electric horn, and its lamps in
+        /// the mesh: the red and blue lightbar modules alternate, the headlamps and fog lamps burn with the headlights, and the corner
+        /// lamps, tail lamps and reversing inserts are driven by SignalLamps (Lamp_* materials).
+        /// </summary>
+        private static ApparatusProfileValues PatrolAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.395f, 2.86f, new[] { "HPD_WheelFront" }, new[] { "HPD_WheelRear" }, 10f, 0.75f,
+                new Vector3(0f, 1.5f, 1f), new Vector3(0.95f, 1.5f, -0.9f), false,
+                new[] { "HPD_Flash_Red" }, new[] { "HPD_Flash_Blue" }, new[] { "HPD_Steady_Headlight", "HPD_Steady_Fog" },
+                false, false, "", false);
+        }
+
+        /// <summary>
+        /// The citizen car's fit-out (a SimplePoly car at 0.85 scale: 0.38 m wheels on a 3.0 m wheelbase): no water, no sirens or
+        /// lightbar, and the add-on LED brake and reverse panels because the car's mesh has no lamps of its own.
+        /// </summary>
+        private static ApparatusProfileValues CitizenAs(string unitName)
+        {
+            return new ApparatusProfileValues(
+                unitName, 0.38f, 3.0f, new[] { "Wheel_F" }, new[] { "Wheel_R" }, 8f, 0.8f,
+                new Vector3(0f, 1.5f, 1f), new Vector3(0.95f, 1.5f, -0.9f), true,
+                new string[0], new string[0], new string[0], false, false, "", false, false);
         }
 
         /// <summary>Engine to a Station 16 apparatus: Engine 07 is parked at Station 7 and the driven object takes the Station 16 unit's bay and look.</summary>

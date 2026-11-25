@@ -39,5 +39,11 @@ namespace HTownSim.Runtime
 
         /// <summary>District Chief 08, the command pickup at Station 8.</summary>
         DistrictChief08 = 10,
+
+        /// <summary>HPD patrol unit 46837, the Ford SUV at the HPD Midtown substation.</summary>
+        PatrolHpd = 11,
+
+        /// <summary>A citizen car.</summary>
+        CitizenCar = 12,
     }
 }
