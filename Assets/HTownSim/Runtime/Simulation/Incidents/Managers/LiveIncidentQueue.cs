@@ -1,7 +1,9 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using HTownSim.Runtime.Incidents.Models;
+using HTownSim.Runtime.Incidents.Projections;
 
 namespace HTownSim.Runtime.Incidents.Managers
 {
@@ -16,6 +18,9 @@ namespace HTownSim.Runtime.Incidents.Managers
 
         private readonly Random _random;
 
+        /// <summary>The time now in Houston, which the incidents' opened times are measured against.</summary>
+        private readonly Func<DateTime> _clock;
+
         /// <summary>Harvested incidents not released yet.</summary>
         private readonly List<LiveIncidentRecord> _waiting = new List<LiveIncidentRecord>();
 
@@ -25,11 +30,13 @@ namespace HTownSim.Runtime.Incidents.Managers
         private double _nextRelease;
 
         /// <summary>Creates a queue.</summary>
-        internal LiveIncidentQueue(LiveQueueSettings settings, Random random)
+        internal LiveIncidentQueue(LiveQueueSettings settings, Random random, Func<DateTime>? clock = null)
         {
             _settings = settings;
 
             _random = random;
+
+            _clock = clock ?? (() => HoustonClock.Now);
         }
 
         /// <summary>
@@ -85,7 +92,7 @@ namespace HTownSim.Runtime.Incidents.Managers
                 {
                     _waiting[waiting] = record;
                 }
-                else
+                else if (!TooOld(record))
                 {
                     _waiting.Add(record);
                 }
@@ -141,11 +148,57 @@ namespace HTownSim.Runtime.Incidents.Managers
                 return;
             }
 
-            Release(_random.Next(_waiting.Count), now);
+            Release(NextToRelease(), now);
 
             var gap = _settings.MinimumGapSeconds + (_random.NextDouble() * (_settings.MaximumGapSeconds - _settings.MinimumGapSeconds));
 
             _nextRelease = now + gap;
+        }
+
+        /// <summary>True when the incident was opened longer ago than the settings keep (an incident with no readable time is kept).</summary>
+        private bool TooOld(LiveIncidentRecord record)
+        {
+            return _settings.MaximumAgeMinutes > 0 && AgeMinutes(record) > _settings.MaximumAgeMinutes;
+        }
+
+        /// <summary>How many minutes ago the incident was opened; 0 when its time cannot be read (it is treated as current).</summary>
+        private double AgeMinutes(LiveIncidentRecord record)
+        {
+            var opened = record.OpenedAt;
+
+            return opened == null ? 0d : Math.Max(0d, (_clock() - opened.Value).TotalMinutes);
+        }
+
+        /// <summary>
+        /// The waiting incident to release next: one picked at random from those opened within the recent window, or, when none is that
+        /// recent, the newest, so the board stays as close to the current time as the feed allows.
+        /// </summary>
+        private int NextToRelease()
+        {
+            var recent = new List<int>();
+
+            var newest = 0;
+
+            var newestAge = double.MaxValue;
+
+            for (var i = 0; i < _waiting.Count; i++)
+            {
+                var age = AgeMinutes(_waiting[i]);
+
+                if (age <= _settings.RecentMinutes)
+                {
+                    recent.Add(i);
+                }
+
+                if (age < newestAge)
+                {
+                    newestAge = age;
+
+                    newest = i;
+                }
+            }
+
+            return recent.Count > 0 ? recent[_random.Next(recent.Count)] : newest;
         }
 
         /// <summary>Moves one waiting incident onto the board.</summary>

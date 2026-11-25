@@ -22,6 +22,12 @@ namespace HTownSim.Runtime.Incidents.Models
         [SerializeField] private float _maximumGapSeconds = 35f;
 
         /// <summary>How many released incidents the board keeps (the oldest drop off). Raise it to keep more calls active at once; lower it so older calls disappear sooner.</summary>
+        [Tooltip("An incident opened within this many minutes is recent: recent ones are released first.")]
+        [SerializeField] private int _recentMinutes = LiveQueueSettings.DefaultRecentMinutes;
+
+        [Tooltip("An incident opened more than this many minutes ago is not taken in at all (0 keeps everything).")]
+        [SerializeField] private int _maximumAgeMinutes = LiveQueueSettings.DefaultMaximumAgeMinutes;
+
         [Tooltip("How many released incidents the board keeps.")]
         [SerializeField] private int _boardSize = 40;
 
@@ -42,6 +48,18 @@ namespace HTownSim.Runtime.Incidents.Models
 
         /// <summary>Longest gap between releases.</summary>
         internal float MaximumGapSeconds => _maximumGapSeconds;
+
+        /// <summary>
+        /// Incidents opened within this many minutes are released first. Raise it to let older calls on the board earlier; lower it to keep the
+        /// board close to the current time.
+        /// </summary>
+        internal int RecentMinutes => _recentMinutes;
+
+        /// <summary>
+        /// Incidents opened more than this many minutes ago are not taken in. Raise it to keep older calls (the City page and the saved
+        /// ledger can hold calls from hours ago); lower it for only fresh ones; 0 keeps everything.
+        /// </summary>
+        internal int MaximumAgeMinutes => _maximumAgeMinutes;
 
         /// <summary>How many released incidents the board keeps.</summary>
         internal int BoardSize => _boardSize;

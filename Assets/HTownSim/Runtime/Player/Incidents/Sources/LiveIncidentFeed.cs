@@ -88,7 +88,7 @@ namespace HTownSim.Runtime.Incidents.Sources
 
             Directory.CreateDirectory(_folder);
 
-            _queue = new LiveIncidentQueue(new LiveQueueSettings(_settings.MinimumGapSeconds, _settings.MaximumGapSeconds, _settings.BoardSize), new System.Random());
+            _queue = new LiveIncidentQueue(new LiveQueueSettings(_settings.MinimumGapSeconds, _settings.MaximumGapSeconds, _settings.BoardSize, _settings.RecentMinutes, _settings.MaximumAgeMinutes), new System.Random());
 
             _queue.Priority = InvolvesPlayer;
 

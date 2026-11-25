@@ -47,6 +47,7 @@ When you add a new tunable number, give it the same kind of comment: what it is,
 | Calls to arrive more or less often from the live feed | `_minimumGapSeconds`, `_maximumGapSeconds`, `_boardSize` | `Runtime/Simulation/Incidents/Models/LiveFeedSettings.cs` (can be overridden with a `LiveFeedSettings` asset in Resources) |
 | More or less time between free-roam calls | `RoamCallDelay`, `MinimumCallDistance` | `FireResponse.cs` |
 | How long the player has per call | `DispatchSeconds`, `SceneSeconds` | `FireResponse.cs` |
+| How recent the calls on the board are | `_recentMinutes` (released first), `_maximumAgeMinutes` (older ones are not taken in) | `LiveFeedSettings.cs` |
 | Made-up calls: how severe | `MinSeverity`, `MaxSeverityExclusive`, `LadderSeverity` | `Runtime/Simulation/Incidents/Sources/FallbackIncidentSource.cs` |
 | How many units a call gets | `MaximumUnits`, `MaximumOfficers` | `Runtime/Simulation/Incidents/Managers/FleetDispatcher.cs` |
 | Rules for which unit goes | the rules in `Documentation/FleetAndDispatch.md` | `FleetDispatcher.cs`, `LiveDispatchRule.cs` |

@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Globalization;
 using UnityEngine;
 
 namespace HTownSim.Runtime.Incidents.Models
@@ -56,6 +57,32 @@ namespace HTownSim.Runtime.Incidents.Models
 
         /// <summary>The alarm level as shown (0 for a routine response), or empty.</summary>
         internal string AlarmLevel => alarmLevel ?? "";
+
+        /// <summary>The formats the City page writes the opened time in, all Houston local time.</summary>
+        private static readonly string[] OpenedFormats =
+        {
+            "M/d/yyyy H:mm", "M/d/yyyy H:mm:ss", "M/d/yyyy h:mm tt", "M/d/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss",
+        };
+
+        [NonSerialized] private DateTime? _opened;
+
+        [NonSerialized] private bool _openedParsed;
+
+        /// <summary>When the call was opened (Houston local time), or null when the time is missing or not understood.</summary>
+        internal DateTime? OpenedAt
+        {
+            get
+            {
+                if (!_openedParsed)
+                {
+                    _openedParsed = true;
+
+                    _opened = DateTime.TryParseExact(CallTimeOpened.Trim(), OpenedFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var value) ? value : (DateTime?)null;
+                }
+
+                return _opened;
+            }
+        }
 
         /// <summary>The assigned HFD unit codes, e.g. E007, L016, A008.</summary>
         internal string[] Units => units ?? new string[0];

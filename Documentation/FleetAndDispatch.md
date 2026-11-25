@@ -73,15 +73,6 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   with the pitch shift of a passing vehicle) and echo or reverb (stronger between buildings), instead of the plain linear fade now used.
   Noted only; no change made yet.
 
-- **Incidents at start should be close to the current time.** When the game starts, the incidents that are loaded should be recent:
-  close to the current time, not the stale ones the City page still lists (the incident board shows calls opened hours earlier, for
-  example 21:22 and 00:23 on a morning start). Where to look: the harvester (`Tools/HoustonIncidents`, which posts each poll to the
-  incident service), the service's ledger (`%LOCALAPPDATA%\HTownSim\IncidentService\ledger.json`, which persists between runs and can hold
-  old incidents), and the feed queue (`Runtime/Simulation/Incidents/Managers/LiveIncidentQueue.cs`, which releases waiting incidents in
-  random order, using `callTimeOpened` only for display). Open choices: how recent counts as close (a window such as the last hour),
-  whether to drop older incidents or just release the recent ones first, and how to treat the persisted ledger on start. Noted only;
-  no change made yet.
-
 - **Night time.** The game needs a night (the owner asked about this earlier and it was never built; the city is always daytime).
   It ties into the items above: the emergency lights and glow halos only read properly in the dark (the HPD lightbar bloom was never
   checked at night), and it should follow the current time (see "incidents close to the current time"). Things it touches: a
@@ -100,6 +91,13 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   above it, instead of swapping with it.
 - **Police cars no longer spawn stacked** (`AiFleet.GroundPoint`): the spawn takes only street, slab or ground surfaces, never roofs or
   parked cars. Checked in the editor: AiPatrol1 and 2 stand on the ground (y 0.2) beside the citizen car, about 7 m apart.
+- **Incidents at start are close to the current time** (`LiveIncidentQueue`, `HoustonClock`, `LiveIncidentRecord.OpenedAt`): an incident's
+  opened time (Houston local time, as the City page writes it) is read and measured against the current Houston time. Incidents opened
+  within `RecentMinutes` (60) are released first, in random order; when none is that recent the newest goes first; incidents opened more
+  than `MaximumAgeMinutes` (480) ago are not taken in at all (this also drops old calls the incident service's saved ledger hands back).
+  Both are in `LiveFeedSettings` (override with a Resources asset). Checked in the editor with a fake clock over 200 seeds: a call from
+  16 hours ago was never released, and the order was always the recent ones, then 90 minutes old, then 7.5 hours old. Not checked
+  against a live City page; a call with no readable time counts as current.
 
 ## Direction: future development should be multiplayer oriented
 
