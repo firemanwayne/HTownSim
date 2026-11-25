@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using HTownSim.Runtime.Incidents.Clients;
 using HTownSim.Runtime.Incidents.Managers;
 using HTownSim.Runtime.Incidents.Models;
 using HTownSim.Runtime.Incidents.Projections;
@@ -29,6 +30,8 @@ namespace HTownSim.Runtime.Incidents.Sources
         private LiveIncidentQueue _queue = null!;
 
         private IncidentManager _manager = null!;
+
+        private IncidentServiceClient _service = null!;
 
         private Transform _player = null!;
 
@@ -85,7 +88,43 @@ namespace HTownSim.Runtime.Incidents.Sources
 
             _queue.Updated += OnUpdated;
 
+            // The incident service owns the lifecycle (created, assigned, handled, cleared); the feed folder stays as the fallback.
+            _service = gameObject.AddComponent<IncidentServiceClient>();
+
+            _service.Received += OnServiceFeed;
+
+            _service.Begin();
+
+            _manager.Accepted += OnAccepted;
+
+            _manager.Completed += OnCompleted;
+
             Debug.Log("Live incident feed: run the HoustonIncidents harvester; it writes to " + _folder);
+        }
+
+        /// <summary>The incident service answered with what changed: handled like a feed file, so the board and scenes follow the ledger.</summary>
+        private void OnServiceFeed(LiveFeedFile feed)
+        {
+            _queue.Ingest(feed);
+
+            if (feed.Incidents.Length > 0 || feed.Closed.Length > 0)
+            {
+                _lastFeedTime = Time.time;
+            }
+        }
+
+        /// <summary>A call the game accepted (the player's unit is on it): the service records the assignment.</summary>
+        private void OnAccepted(Incident incident)
+        {
+            var unitName = ApparatusProfile.For(_player.gameObject).UnitName;
+
+            _service.Assign(incident.Id, new AssignPayload(new[] { unitName }, incident.CallLabel, incident.Address, incident.Geo));
+        }
+
+        /// <summary>The player finished a call: the service clears it, which removes its scene.</summary>
+        private void OnCompleted(Incident incident, IncidentOutcome outcome)
+        {
+            _service.Clear(incident.Id, outcome.ToString().ToLowerInvariant());
         }
 
         private void Update()
@@ -268,6 +307,13 @@ namespace HTownSim.Runtime.Incidents.Sources
 
         private void OnDestroy()
         {
+            if (_manager != null)
+            {
+                _manager.Accepted -= OnAccepted;
+
+                _manager.Completed -= OnCompleted;
+            }
+
             if (_queue != null)
             {
                 _queue.Released -= OnReleased;

@@ -82,7 +82,19 @@ namespace HTownSim.Runtime
         /// <summary>Generated assets released on destroy.</summary>
         private readonly List<Object> _generated = new List<Object>();
 
+        /// <summary>How much larger than its HUD frame the map image is; the frame shows the part around the unit.</summary>
+        private const float Zoom = 3f;
+
+        /// <summary>Distance in HUD units kept between a pinned incident marker and the viewport edge.</summary>
+        private const float EdgeMargin = 10f;
+
         private CinemachineBrain? _brain;
+
+        /// <summary>The masked frame the map image scrolls inside; created on first use.</summary>
+        private RectTransform? _viewport;
+
+        /// <summary>The width the map had in the HUD before it became a viewport; the frame is never narrower.</summary>
+        private float _frameMinimumWidth;
 
         private RenderTexture? _texture;
 
@@ -164,16 +176,124 @@ namespace HTownSim.Runtime
             return _brain != null && _brain.ActiveVirtualCamera is CinemachineCamera active && active == _thirdPersonCamera;
         }
 
-        /// <summary>Moves the engine arrow, pulses the incident marker and clears it once the fire is out.</summary>
+        /// <summary>
+        /// Puts the map image inside a masked viewport the size it had in the HUD and enlarges the image by <see cref="Zoom"/>, so only
+        /// the part around the unit shows and the image can scroll under the mask. Done once, when the HUD layout has given the map a size.
+        /// </summary>
+        private void EnsureViewport()
+        {
+            if (_viewport != null || _mapRect.rect.width <= 0f)
+            {
+                return;
+            }
+
+            var original = _mapRect;
+
+            var viewport = new GameObject("MapViewport", typeof(RectTransform), typeof(RectMask2D)).GetComponent<RectTransform>();
+
+            viewport.SetParent(original.parent, false);
+
+            viewport.SetSiblingIndex(original.GetSiblingIndex());
+
+            viewport.anchorMin = original.anchorMin;
+
+            viewport.anchorMax = original.anchorMax;
+
+            viewport.pivot = original.pivot;
+
+            viewport.anchoredPosition = original.anchoredPosition;
+
+            // The frame fills the panel's width (the HUD gives the panel more room than the whole-map image used); the image keeps the world's aspect.
+            var frame = new Vector2(Mathf.Max(original.rect.width, ((RectTransform)_panel.transform).rect.width - (2f * original.anchoredPosition.x)), original.rect.height);
+
+            viewport.sizeDelta = frame;
+
+            _frameMinimumWidth = original.rect.width;
+
+            original.SetParent(viewport, false);
+
+            original.anchorMin = Vector2.zero;
+
+            original.anchorMax = Vector2.zero;
+
+            original.pivot = Vector2.zero;
+
+            var imageWidth = original.rect.width * Zoom;
+
+            original.sizeDelta = new Vector2(imageWidth, imageWidth * _worldSize.y / _worldSize.x);
+
+            original.anchoredPosition = Vector2.zero;
+
+            _viewport = viewport;
+        }
+
+        /// <summary>Scrolls the map so the unit is at the centre of the viewport, without showing past the map's edges.</summary>
+        private void CenterOnPlayer()
+        {
+            var view = _viewport!.rect.size;
+
+            var content = _mapRect.rect.size;
+
+            var offset = (view * 0.5f) - ToMap(_player.position);
+
+            offset.x = Mathf.Clamp(offset.x, view.x - content.x, 0f);
+
+            offset.y = Mathf.Clamp(offset.y, view.y - content.y, 0f);
+
+            _mapRect.anchoredPosition = offset;
+        }
+
+        /// <summary>
+        /// Where the incident marker goes: on the incident, or, when the incident is outside the viewport, pinned to the viewport's edge in
+        /// its direction so it can always be found. Returned in map coordinates.
+        /// </summary>
+        private Vector2 IncidentMarkerPosition()
+        {
+            var onMap = ToMap(_incident.position);
+
+            var view = _viewport!.rect.size;
+
+            var inView = onMap + _mapRect.anchoredPosition;
+
+            var half = (view * 0.5f) - new Vector2(EdgeMargin, EdgeMargin);
+
+            var fromCentre = inView - (view * 0.5f);
+
+            if (Mathf.Abs(fromCentre.x) <= half.x && Mathf.Abs(fromCentre.y) <= half.y)
+            {
+                return onMap;
+            }
+
+            var scale = Mathf.Min(half.x / Mathf.Max(Mathf.Abs(fromCentre.x), 0.001f), half.y / Mathf.Max(Mathf.Abs(fromCentre.y), 0.001f));
+
+            return (view * 0.5f) + (fromCentre * scale) - _mapRect.anchoredPosition;
+        }
+
+        /// <summary>Scrolls the map to the unit, moves the engine arrow and pulses the incident marker while a call is in progress.</summary>
         private void UpdateMarkers()
         {
+            EnsureViewport();
+
+            if (_viewport != null)
+            {
+                // The HUD layout may resize the panel after the viewport exists, so the frame follows the panel's width.
+                var width = Mathf.Max(_frameMinimumWidth, ((RectTransform)_panel.transform).rect.width - (2f * _viewport.anchoredPosition.x));
+
+                if (!Mathf.Approximately(_viewport.sizeDelta.x, width))
+                {
+                    _viewport.sizeDelta = new Vector2(width, _viewport.sizeDelta.y);
+                }
+
+                CenterOnPlayer();
+            }
+
             _playerMarker.rectTransform.anchoredPosition = ToMap(_player.position);
 
             _playerMarker.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -_player.eulerAngles.y);
 
-            _incidentMarker.gameObject.SetActive(_response.Heat > 0f);
+            _incidentMarker.gameObject.SetActive(_response.IncidentActive);
 
-            _incidentMarker.rectTransform.anchoredPosition = ToMap(_incident.position);
+            _incidentMarker.rectTransform.anchoredPosition = _viewport != null ? IncidentMarkerPosition() : ToMap(_incident.position);
 
             var pulse = 1f + PulseAmplitude * Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI * PulseHertz);
 

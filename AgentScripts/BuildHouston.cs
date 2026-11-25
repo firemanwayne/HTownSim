@@ -193,7 +193,7 @@ public static class BuildHouston
 
         scaler.referenceResolution=new Vector2(1600,900);
 
-        scaler.matchWidthOrHeight=0.5f;
+        scaler.matchWidthOrHeight=1f;
 
         var panel = new GameObject("DispatchPanel",typeof(RectTransform),typeof(UnityEngine.UI.Image));
 

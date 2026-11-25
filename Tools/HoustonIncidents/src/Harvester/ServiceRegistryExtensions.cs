@@ -37,7 +37,19 @@ internal static class ServiceRegistryExtensions
 
         services.TryAddSingleton<IFireIncidentTableParser, FireIncidentTableParser>();
 
-        services.TryAddSingleton<IGameFeedWriter, GameFeedWriter>();
+        var serviceUrl = configuration[$"{IncidentOptions.SectionName}:{nameof(IncidentOptions.ServiceUrl)}"];
+
+        if (string.IsNullOrWhiteSpace(serviceUrl))
+        {
+            services.TryAddSingleton<IGameFeedWriter, GameFeedWriter>();
+        }
+        else
+        {
+            services.AddHttpClient<IGameFeedWriter, ServiceFeedWriter>(client =>
+            {
+                client.BaseAddress = new Uri(serviceUrl.TrimEnd('/') + "/");
+            });
+        }
 
         services.TryAddSingleton<IIncidentTracker, IncidentTracker>();
 

@@ -14,6 +14,19 @@ namespace HTownSim.Runtime.Incidents.Models
 
         [SerializeField] private string[] closed = new string[0];
 
+        [SerializeField] private string[] cleared = new string[0];
+
+        [SerializeField] private long revision;
+
+        /// <summary>The incident service's revision this answer is current to (0 for a feed file from the harvester).</summary>
+        internal long Revision => revision;
+
+        /// <summary>True when the incident service sent this (it decides when an incident is cleared), false for a harvester feed file.</summary>
+        internal bool FromService => revision > 0;
+
+        /// <summary>The ids the incident service cleared: their scene (such as a patient) can go.</summary>
+        internal string[] Cleared => cleared ?? new string[0];
+
         /// <summary>When the harvester polled.</summary>
         internal string Generated => generated ?? "";
 

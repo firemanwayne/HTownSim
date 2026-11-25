@@ -82,8 +82,6 @@ public static class AddCityMap
 
         var image = mapRect.GetComponent<RawImage>();
 
-        AddStreetLabels(mapRect, mapHeight);
-
         var stationMarker = CreateMarker(mapRect, ("StationMarker", new Vector2(12f, 12f), "E6D7B7"));
 
         AddMapLabel(mapRect, ("STN 7", ToMap(StationPosition, mapHeight) + new Vector2(24f, 0f), 0f, 12));
@@ -269,63 +267,6 @@ public static class AddCityMap
         image.raycastTarget = false;
 
         return image;
-    }
-
-    /// <summary>Adds the street-name labels over the map, placing each along its street in the grid frame.</summary>
-    private static void AddStreetLabels(RectTransform mapRect, float mapHeight)
-    {
-        var labels = new List<(string, Vector3, float)>();
-
-        var northSouth = 0;
-
-        var eastWest = 0;
-
-        var yaw = 0f;
-
-        var lines = File.ReadAllLines(ExpandedData);
-
-        foreach (var line in lines)
-        {
-            var f = line.Split('	');
-
-            if (f[0] == "Y")
-            {
-                yaw = float.Parse(f[1], System.Globalization.CultureInfo.InvariantCulture) * Mathf.Deg2Rad;
-            }
-        }
-
-        Vector3 FromFrame(float u, float v)
-        {
-            return new Vector3(u * Mathf.Cos(yaw) + v * Mathf.Sin(yaw), 0f, -u * Mathf.Sin(yaw) + v * Mathf.Cos(yaw));
-        }
-
-        foreach (var line in lines)
-        {
-            var f = line.Split('	');
-
-            if (f[0] != "G")
-            {
-                continue;
-            }
-
-            var centre = float.Parse(f.Length > 5 ? f[5] : f[2], System.Globalization.CultureInfo.InvariantCulture);
-
-            var name = f[4].ToUpperInvariant();
-
-            if (f[1] == "ns" && centre > WorldMinX + 10f && centre < WorldMinX + WorldWidth - 10f)
-            {
-                labels.Add((name, FromFrame(centre, WorldMinZ + 120f + (northSouth++ % 5) * 380f), 90f));
-            }
-            else if (f[1] == "ew" && centre > WorldMinZ + 10f && centre < WorldMinZ + WorldDepth - 10f)
-            {
-                labels.Add((name, FromFrame(WorldMinX + 120f + (eastWest++ % 4) * 330f, centre), 0f));
-            }
-        }
-
-        foreach (var label in labels)
-        {
-            AddMapLabel(mapRect, (label.Item1, ToMap(label.Item2, mapHeight), label.Item3, 12));
-        }
     }
 
     /// <summary>Marks Fire Stations 8 and 16 on the map with a small square and a label.</summary>

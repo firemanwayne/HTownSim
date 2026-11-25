@@ -43,8 +43,11 @@ namespace HTownSim.Runtime.Incidents.Managers
         /// <summary>A released incident's units changed.</summary>
         internal event Action<LiveBoardEntry>? Updated;
 
-        /// <summary>A released incident closed.</summary>
+        /// <summary>A released incident closed (it left the City's page; a unit may still be on it).</summary>
         internal event Action<string>? Closed;
+
+        /// <summary>An incident is finished for good: the incident service cleared it (or, without the service, it closed with no unit assigned).</summary>
+        internal event Action<string>? Cleared;
 
         /// <summary>Released incidents, newest first.</summary>
         internal IReadOnlyList<LiveBoardEntry> Board => _board;
@@ -92,10 +95,27 @@ namespace HTownSim.Runtime.Incidents.Managers
             {
                 _waiting.RemoveAll(item => item.IncidentId == id);
 
-                if (_board.RemoveAll(entry => entry.Record.IncidentId == id) > 0)
+                var onBoard = _board.Find(entry => entry.Record.IncidentId == id);
+
+                if (onBoard == null)
                 {
-                    Closed?.Invoke(id);
+                    continue;
                 }
+
+                _board.Remove(onBoard);
+
+                Closed?.Invoke(id);
+
+                // Without the incident service nothing decides when a scene may go, so a closed call nobody was assigned to clears here.
+                if (!feed.FromService && onBoard.Record.Units.Length == 0)
+                {
+                    Cleared?.Invoke(id);
+                }
+            }
+
+            foreach (var id in feed.Cleared)
+            {
+                Cleared?.Invoke(id);
             }
         }
 
