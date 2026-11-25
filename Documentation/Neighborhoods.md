@@ -124,3 +124,70 @@ An ambulance (a unit with no water) that finishes a medical call moves the marke
 `BuildRealMidtown.AddCorridorFootprints` puts plain boxes on the 116 LiDAR footprints of the Hermann Park corridor (the zoo, museums, golf clubhouse), oriented to each footprint, with floors from its area. Data: `CORRIDOR_CACHE=<medcorridor cache> node AgentScripts/ExtractCorridorFootprints.js`. The corridor has no lots, trees or markings.
 
 The south gap (Station 16 / Medical Center / corridor) is filled by `NEIGHBORHOOD=gapsouth node AgentScripts/PrepareMidtownData.js` then `BuildRealMidtown.ExpandGapSouth`: the same lots, sidewalks and placeholder squares as the first gap, over asphalt (grass in Hermann Park), skipping the Medical Center window. The City's road layer has almost no streets inside Hermann Park, so the park is mostly open grass with the few streets it does list.
+
+## Gap buildings and ground (the gap kit)
+
+The gap regions between the neighborhoods (Midtown to Station 16, and the south gap down to the Medical Center) were first filled with one
+plain grey box per lot. `HTownSim > Gap > Build Gap Buildings` (`Assets/HTownSim/Editor/GapKit`, entry `AddGapBuildings`) replaces
+those boxes with real buildings, one mesh per building, from the same City lot data (`Gap_Southwest.txt`, `Gap_South.txt`):
+
+- **Which lots, what style.** The lots that had a box; style and height by land use and floors, the same rules as the neighborhood
+  builders: houses (class A, up to two floors), shops (non-residential up to three floors), apartments, towers of ten floors or more
+  (stone with windows, or glass curtain wall when built after 1985).
+- **Placement.** The smallest rectangle around the lot outline, so a building sits on its lot's own angle. The street front is the side
+  with no other lot just beyond it; front setbacks and side margins depend on the style and shrink on small lots.
+- **Look.** Wall materials from Generated (siding, brick, stucco, limestone), window facades from the facade textures tiled in metres
+  (`FacadeRes`, `FacadeShop`, `Storefront`, `TowerWindows`, `HouseFront`, `HouseSide`, `CurtainWall`), gable or hip roofs on houses,
+  flat roofs with a parapet and rooftop unit on the rest. Each building has a box collider.
+- **Reversible.** The boxes are hidden, not deleted; `Remove Gap Buildings` brings them back. Meshes are kept in
+  `Generated/GapBuildings_<area>.asset`.
+- **Ground.** `HTownSim > Gap > Texture Gap Ground` gives the gap lots the textured ground materials (paved sidewalks, lawns, parking
+  asphalt, park grass); `Plain Gap Ground` puts the flat colours back. Streets are unchanged.
+
+- **Street detail.** `HTownSim > Gap > Add Street Detail` (`AddGapStreetDetail`) gives the gaps what the neighborhoods have, with the same
+  rules and assets as `BuildRealMidtown.Streetscape`: a street tree (the same weighted prefab list) in front of every second building
+  with 8 m or more of frontage, a lamp and a prop (hydrant, bin, bench, parking meter ...) in front of one building in six, live oaks in
+  parks (loose grid, thinned to 3,000 per gap so large parks stay open), and stall lines with parked cars on vacant parking lots. Lamps
+  share one mesh (`Generated/GapLamp.asset`) so they draw instanced. Run it after Build Gap Buildings; `Remove Street Detail` undoes it.
+
+Not done yet in the gaps: road markings, crosswalks, signals and traffic. The gap data has no street centre lines (only the Midtown-grid
+axes), so they need a street network first. The Station 16, South Midtown and Medical Center neighborhoods still use the plain
+procedural buildings (the Midtown upgrade has not been extended to them).
+
+## The Medical Center skyline
+
+`HTownSim > Med Center > Build Skyline` (`AddMedCenterSkyline`, `Assets/HTownSim/Editor/GapKit`) builds the Texas Medical Center from the
+OpenStreetMap buildings in `Assets/HTownSim/Data/Osm_MedCenter.txt` (`AgentScripts/FetchOsmMedCenter.js` refreshes it), with the same
+building kit as the gaps:
+
+- **Floors.** The floors OSM records are kept. Named buildings OSM leaves low are raised to the height such buildings have: a "Tower"
+  gets 14 to 24 floors, a hospital or medical plaza 8 to 16, research, institute, pavilion, clinic, college and similar 6 to 11. Parking
+  structures become plain concrete garages. Museums, churches, parks and hotels keep their OSM floors.
+- **Campuses.** The 12 big medical outlines are massed like hospitals, not as plain boxes:
+  - A single large hospital building (9,000 to 30,000 m2: Mays Clinic, Texas Children's West Tower, Zayed, Methodist Main, Ben Taub ...) is a
+    low podium over its footprint (the floors OSM records, 3 to 6) carrying one to three towers along its long axis, the middle one tallest.
+  - A whole campus (over 30,000 m2: MD Anderson, St. Luke's) is an irregular layout: the outline is cut into blocks 55 to 80 m across with
+    10 to 16 m streets, each block pulled in by a different amount, about one in eight left as an open plaza, none on top of a named
+    building standing inside the campus. Blocks are mid-rise to high-rise, the tallest toward the middle, one in six a 22 to 34 floor tower;
+    a block of 13 floors or more is a 4-floor podium with a tower on it set off to one side.
+- **Style.** Ten floors or more: a tower in stone with windows or glass curtain wall. Four to nine: an institutional mid-rise (limestone,
+  concrete, stucco, with tall windows). Each building faces the nearest OSM road.
+- **What it replaces.** The procedural apartments, shops, glass and striped towers and houses of `Neighborhood_MedCenter` inside the OSM window
+  (x -450..650, z -4700..-2400), their combined pitched roofs, and the street trees and props that would stand inside the new buildings.
+  They are hidden, not deleted: `Remove Skyline` brings them back.
+- **Ground.** The campus lots get the paved ground texture (`Texture Gap Ground` covers the Medical Center too).
+
+Result: about 250 buildings, of which about 74 are towers of 10 or more floors (21 of 20 or more).
+
+### The corridor and the Medical Center streets
+
+- **Corridor buildings.** `HTownSim > Med Center > Build Corridor Buildings` (`AddCorridorBuildings`) replaces the 116 cream boxes of the Hermann
+  Park and Museum District corridor (`Corridor_Footprints.txt`, LiDAR) with civic buildings from the kit: two storeys and up in limestone,
+  concrete or stucco with tall windows, one storey as a low building. A box that overlaps a building the skyline already makes from OpenStreetMap
+  is left out, so 90 of the 116 are not rebuilt (70 duplicated OSM buildings, the rest were tiny sheds). The boxes are hidden; `Remove
+  Corridor Buildings` brings them back.
+- **Hermann Park trees.** `Add Street Detail` also scatters about 1,500 trees in groves over the park meadow (the south gap's park slab), clear of
+  streets (`SouthRoads.txt`, OSM) and buildings.
+- **Street paint.** `HTownSim > Med Center > Paint Streets` (`AddMedCenterMarkings`) paints Midtown's double yellow center line along every
+  OSM arterial, collector and local street of the Medical Center (about 33 km), broken near junctions. The data has no one-way flags, so a
+  divided road gets a double yellow line on each carriageway. Crosswalks, signals and traffic are not done.
