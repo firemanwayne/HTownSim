@@ -31,6 +31,21 @@ namespace HTownSim.Runtime
         /// <summary>Resolution of the generated marker sprites.</summary>
         private const int MarkerTextureSize = 64;
 
+        /// <summary>
+        /// The fixed station squares and their labels were placed for the whole map at its authored size; when the map is enlarged they are
+        /// moved with it. A label sits this far to the right of its square (map pixels, which does not grow with the zoom).
+        /// </summary>
+        private const float StationLabelOffset = 24f;
+
+        private const string StationLabelPrefix = "Label STN";
+
+        private const string StationMarkerPrefix = "Station";
+
+        private const string StationMarkerSuffix = "Marker";
+
+        /// <summary>The live marker of the unit's own station, which is placed every frame and so is not moved here.</summary>
+        private const string LiveStationMarker = "StationMarker";
+
         /// <summary>The whole map panel; hidden when the third-person camera is not live.</summary>
         [SerializeField] private GameObject _panel = null!;
 
@@ -224,7 +239,27 @@ namespace HTownSim.Runtime
 
             original.anchoredPosition = Vector2.zero;
 
+            ScaleStationMarks(original);
+
             _viewport = viewport;
+        }
+
+        /// <summary>Moves the fixed station squares and labels (authored for the map at its original size) to where they belong on the enlarged map.</summary>
+        private static void ScaleStationMarks(RectTransform map)
+        {
+            foreach (RectTransform child in map)
+            {
+                if (child.name.StartsWith(StationLabelPrefix))
+                {
+                    var square = child.anchoredPosition - new Vector2(StationLabelOffset, 0f);
+
+                    child.anchoredPosition = (square * Zoom) + new Vector2(StationLabelOffset, 0f);
+                }
+                else if (child.name != LiveStationMarker && child.name.StartsWith(StationMarkerPrefix) && child.name.EndsWith(StationMarkerSuffix))
+                {
+                    child.anchoredPosition *= Zoom;
+                }
+            }
         }
 
         /// <summary>Scrolls the map so the unit is at the centre of the viewport, without showing past the map's edges.</summary>
