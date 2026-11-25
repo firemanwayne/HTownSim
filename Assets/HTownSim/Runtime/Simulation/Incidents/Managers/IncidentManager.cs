@@ -17,10 +17,10 @@ namespace HTownSim.Runtime.Incidents.Managers
     /// </summary>
     internal sealed class IncidentManager : MonoBehaviour
     {
-        /// <summary>The most calls waiting at once; further ones are refused until the player catches up.</summary>
+        /// <summary>The most calls waiting at once; further ones are refused until the player catches up. Raise it to let more calls stack up; lower it to refuse the surplus sooner.</summary>
         private const int MaxQueued = 50;
 
-        /// <summary>When this many ids have been seen the memory is cleared, so a long session cannot grow without bound.</summary>
+        /// <summary>When this many incident ids have been seen the memory is cleared, so a long session cannot grow without bound. Raise it to remember more past calls (fewer repeats); lower it to forget sooner (a very old call could repeat).</summary>
         private const int MaxSeenIds = 5000;
 
         private readonly List<Incident> _queue = new List<Incident>();

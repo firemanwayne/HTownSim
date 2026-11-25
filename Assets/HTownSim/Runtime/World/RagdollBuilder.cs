@@ -10,12 +10,19 @@ namespace HTownSim.Runtime
     /// </summary>
     internal static class RagdollBuilder
     {
+        /// <summary>Radius (metres) of the ragdoll head collider. Raise it for a bigger head hit area; lower it for a smaller one.</summary>
         private const float HeadRadius = 0.11f;
+        /// <summary>How far (metres) the head collider is lifted above the neck. Raise it to move it up; lower it to move it down.</summary>
         private const float HeadLift = 0.08f;
+        /// <summary>How quickly the ragdoll's movement dies away (linear damping). Raise it for a body that stops sooner (stiffer); lower it for a floppier, longer slide.</summary>
         private const float Damping = 0.25f;
+        /// <summary>How quickly the ragdoll's spinning dies away. Raise it for less tumbling; lower it for more rolling.</summary>
         private const float AngularDamping = 0.35f;
+        /// <summary>How far (degrees) a joint can twist. Raise it for a looser, more floppy body; lower it for a stiffer one.</summary>
         private const float TwistLimit = 40f;
+        /// <summary>How far (degrees) a joint can swing. Raise it for a looser body; lower it for a stiffer one.</summary>
         private const float SwingLimit = 55f;
+        /// <summary>The range of the random spin given to a body when it is knocked. Raise it for more dramatic tumbling; lower it for a gentler fall.</summary>
         private const float SpinRange = 4f;
 
         /// <summary>Bone, its parent bone, the bone its capsule reaches toward, capsule radius in metres and its share of the mass.</summary>

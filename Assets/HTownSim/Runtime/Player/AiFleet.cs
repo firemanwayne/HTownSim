@@ -35,13 +35,15 @@ namespace HTownSim.Runtime
 
         private const string HospitalPrefix = "ER_Bay_";
 
-        /// <summary>The patrol units (officers) the fleet has, where they start (the HPD substation's apron, <see cref="PatrolPlace"/>) and how far apart they stand (metres).</summary>
+        /// <summary>How many computer-driven patrol units (officers) the fleet has. Raise it for more police units (more can answer a call; the per-call maximum is FleetDispatcher.MaximumOfficers); lower it for fewer.</summary>
         private const int PatrolCount = 4;
 
         private const string PatrolPrefab = "HpdPatrol";
 
+        /// <summary>How far apart (metres) the parked patrol units stand at the HPD substation. Raise it to spread them out; lower it to park them closer (too low and they overlap).</summary>
         private const float PatrolSpacing = 7f;
 
+        /// <summary>How far (metres) around the HPD substation the search for free parking spots reaches. Raise it to find spots on a crowded apron; lower it to keep the cars close to the station.</summary>
         private const float PatrolSearchRadius = 22f;
 
         /// <summary>The ground clearance a parked patrol car needs: half its size (width, height, length) for the free-space check.</summary>

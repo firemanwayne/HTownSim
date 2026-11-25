@@ -16,24 +16,41 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class EmergencyHud : MonoBehaviour
     {
-        /// <summary>Panel size and placement (bottom right), shared with <see cref="AerialHud"/>, which takes this spot.</summary>
+        /// <summary>Width (HUD units) of the siren control panel (bottom right). The aerial panel on ladder trucks uses the same size. Raise it for a wider panel with more room for keys; lower it for a compact one.</summary>
         internal const float PanelWidth = 404f;
+        /// <summary>Height (HUD units) of the siren control panel. Raise it for more room for the keys; lower it for a shorter panel. The aerial panel stacks above it, so it moves up by the same amount.</summary>
         internal const float PanelHeight = 168f;
+        /// <summary>Gap (HUD units) between the panel and the right edge of the screen. Raise it to pull the panel in from the edge; lower it to push it to the edge.</summary>
         internal const float Margin = 22f;
+        /// <summary>Gap (HUD units) between the panel and the bottom edge of the screen. Raise it to lift the panel; lower it to sit lower.</summary>
         internal const float BottomMargin = 84f;
+        /// <summary>Inner padding (HUD units) between the panel edge and its contents. Raise it for more breathing room; lower it for a tighter layout.</summary>
         internal const float Padding = 14f;
+        /// <summary>Width (HUD units) of each siren key (STBY, WAIL, YELP, PIER, HORN). Raise it for bigger keys; lower it for smaller ones.</summary>
         private const float KeyWidth = 68f;
+        /// <summary>Height (HUD units) of each siren key. Raise it for taller keys; lower it for shorter ones.</summary>
         private const float KeyHeight = 52f;
+        /// <summary>Gap (HUD units) between keys. Raise it for more space; lower it to pack them.</summary>
         private const float KeyGap = 8f;
+        /// <summary>Width (HUD units) of the wide key (LIGHTS). Raise it for a wider key; lower it for a narrower one.</summary>
         private const float WideKeyWidth = 150f;
+        /// <summary>Height (HUD units) of the wide key. Raise it for a taller key; lower it for a shorter one.</summary>
         private const float WideKeyHeight = 44f;
+        /// <summary>How many chasing LED dots run along the bottom of the panel. Raise it for a longer row; lower it for a shorter one.</summary>
         private const int LedCount = 8;
+        /// <summary>Size (HUD units) of each chasing LED dot. Raise it for bigger dots; lower it for pinpoints.</summary>
         private const float LedSize = 9f;
+        /// <summary>Spacing (HUD units) between the chasing LED dots. Raise it to spread them out; lower it to pack them.</summary>
         private const float LedStep = 22f;
+        /// <summary>How fast the LEDs chase along the row. Raise it for a faster chase; lower it for a slower one.</summary>
         private const float LedChaseRate = 9f;
+        /// <summary>How quickly the keys fade between lit and unlit. Raise it for a snappier change; lower it for a slow fade.</summary>
         private const float StateEase = 20f;
+        /// <summary>Width (pixels) of the lit rim around an active key. Raise it for a thicker rim; lower it for a thin one.</summary>
         private const float RimWidth = 3f;
+        /// <summary>Size in pixels of the generated rounded-corner sprite the panels use. Raise it for crisper corners (more memory); lower it for blockier ones.</summary>
         private const int RoundedSize = 32;
+        /// <summary>Corner radius in pixels of the rounded sprite. Raise it for rounder panels; lower it for squarer ones.</summary>
         private const int RoundedRadius = 8;
         private const string Title = "SIREN CONTROL";
 

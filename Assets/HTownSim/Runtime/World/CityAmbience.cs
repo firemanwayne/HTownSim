@@ -13,25 +13,42 @@ namespace HTownSim.Runtime
     internal sealed class CityAmbience : MonoBehaviour
     {
         private const int Rate = 22050;
+        /// <summary>How many nearby traffic cars get their own engine sound at once. Raise it for a richer traffic soundscape (more audio sources); lower it for a sparser one.</summary>
         private const int CarVoices = 7;
+        /// <summary>How often (seconds) the nearest cars are re-picked for the engine voices. Raise it to re-pick less often (cheaper, but sounds can lag behind the cars); lower it for faster tracking.</summary>
         private const float CarRefreshSeconds = 0.3f;
+        /// <summary>Cars further than this (metres) from the player have no engine sound. Raise it so traffic is heard from further away; lower it to hear only the nearest cars.</summary>
         private const float CarMaxDistance = 70f;
+        /// <summary>Distance (metres) within which a traffic car's engine is at full volume. Raise it to keep nearby engines loud over a wider area; lower it so they fade sooner.</summary>
         private const float CarMinDistance = 5f;
+        /// <summary>Volume (0 to 1) of a standing car's idle. Raise it for louder idling traffic; lower it to quieten it.</summary>
         private const float IdleVolume = 0.12f;
+        /// <summary>Volume (0 to 1) of a moving car's engine at full speed. Raise it for louder passing traffic; lower it to quieten it.</summary>
         private const float MovingVolume = 0.5f;
+        /// <summary>The car speed (metres per second) at which its engine sound is at full volume and pitch. Raise it so the sound builds more slowly with speed; lower it so cars sound at full volume at lower speeds.</summary>
         private const float FullSpeed = 14f;
+        /// <summary>The shortest wait (seconds) between car horns from nearby traffic. Raise it for less frequent honking; lower it for more.</summary>
         private const float HornMinInterval = 5f;
+        /// <summary>The longest wait (seconds) between car horns from nearby traffic. Raise it for long quiet spells; lower it to keep the honking steady.</summary>
         private const float HornMaxInterval = 14f;
+        /// <summary>Cars honk only when closer than this (metres) at least; the horn is full volume inside it. Raise it to hear horns from further in; lower it to keep them distant.</summary>
         private const float HornMinRange = 12f;
+        /// <summary>The furthest (metres) a car horn can be heard. Raise it so horns carry across the neighborhood; lower it to keep them local.</summary>
         private const float HornMaxRange = 60f;
+        /// <summary>The shortest wait (seconds) between bird calls. Raise it for fewer birds; lower it for more.</summary>
         private const float BirdMinInterval = 3f;
+        /// <summary>The longest wait (seconds) between bird calls. Raise it for long silences; lower it for a steady chirp.</summary>
         private const float BirdMaxInterval = 9f;
+        /// <summary>How far (metres) from the player bird calls are placed. Raise it so birds are heard from further away; lower it to keep them close.</summary>
         private const float BirdRange = 35f;
         private const string IdleResource = "TrafficAudio/Idle";
         private const string DriveResource = "TrafficAudio/Drive";
         private const string HornResource = "TrafficAudio/Horn";
+        /// <summary>Volume (0 to 1) of a driving car's road noise at full speed. Raise it for louder tyre and road noise from passing cars; lower it to quieten it.</summary>
         private const float DriveVolume = 0.6f;
+        /// <summary>How much of the city's ambience is heard (0 to 1) when the player is sheltered (inside a building or bay). Raise it so the city is louder indoors; lower it for a quieter, more closed-in interior.</summary>
         private const float ShelterGain = 0.28f;
+        /// <summary>How much of the city's ambience remains (0 to 1) while the player's siren is on, so the siren stays in front. Raise it so the city stays loud over the siren; lower it so the siren dominates.</summary>
         private const float SirenPriorityGain = 0.5f;
 
         private TrafficSystem _traffic = null!;

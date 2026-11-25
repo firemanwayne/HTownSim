@@ -16,20 +16,25 @@ namespace HTownSim.Runtime
     {
         private const string Title = "AERIAL CONTROL";
 
-        /// <summary>Within this many degrees of straight ahead the ladder counts as in line with its bed.</summary>
+        /// <summary>Within this many degrees of straight ahead the ladder counts as in line with its bed (the lamp turns green). Raise it for an easier in-line signal; lower it to demand a precise alignment.</summary>
         private const float InLineTolerance = 1f;
 
         /// <summary>The aerial panel stands on top of the siren controls, which stay in view; this is the gap between them (HUD units).</summary>
         private const float StackGap = 12f;
 
+        /// <summary>Size (HUD units) of the turntable dial. Raise it for a bigger dial; lower it for a smaller one.</summary>
         private const float DialSize = 116f;
 
+        /// <summary>Width (HUD units) of the ladder pointer on the dial. Raise it for a thicker pointer; lower it for a thin one.</summary>
         private const float PointerWidth = 6f;
 
+        /// <summary>Width (HUD units) of the in-line lamp. Raise it for a wider lamp; lower it for a narrower one.</summary>
         private const float LampWidth = 244f;
 
+        /// <summary>Height (HUD units) of the in-line lamp. Raise it for a taller lamp; lower it for a shorter one.</summary>
         private const float LampHeight = 40f;
 
+        /// <summary>Size in pixels of the generated dial sprite. Raise it for a crisper dial (more memory); lower it for a blockier one.</summary>
         private const int CircleSize = 128;
 
         private static readonly Color DialFace = new Color(0.1f, 0.11f, 0.13f, 1f);

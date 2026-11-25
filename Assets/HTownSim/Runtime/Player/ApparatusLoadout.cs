@@ -13,6 +13,16 @@ namespace HTownSim.Runtime
     /// driven object moves to the chosen apparatus's bay, wears its model, takes its ApparatusProfile and beacon positions, and the
     /// apparatus it replaces is parked in its own bay. Nothing here is saved to the scene; the scene's own truck is only the starting
     /// point. A Station 8 apparatus borrows the look of the parked unit that AddStation8Apparatus placed in its bay (livery and number).
+    /// <para>
+    /// How to tune a unit's handling. Each unit's numbers are the arguments of its <c>ApparatusProfileValues</c> in this class
+    /// (<c>LadderValues</c> / <c>LadderAs</c>, <c>AmbulanceAs</c>, <c>SupervisorAs</c>, <c>DistrictChiefAs</c>, <c>PatrolAs</c>,
+    /// <c>CitizenAs</c> and, in ApparatusProfile, <c>EngineAs</c>); every argument is documented on <c>ApparatusProfileValues</c>.
+    /// The ones that change how a unit drives are <c>turnRate</c> (the sixth number: higher turns tighter, lower turns wider; now Engine 4,
+    /// Ladder 2.5, Ambulance and Medic 5.5, Chief and Supervisor 6.5, Citizen car 8, Patrol 10) and <c>cameraDistanceScale</c> (the seventh).
+    /// The wheel radius and wheelbase only change how the wheels look. Top speed, reverse speed and acceleration are the same for every
+    /// unit: they are <c>TopSpeed</c>, <c>ReverseSpeed</c> and <c>Acceleration</c> in FireResponse. The computer-driven units'
+    /// speeds are in AiUnit. Siren and engine volumes are in FireResponse (<c>SirenVolume</c>, <c>HornVolume</c>) and EngineSound.
+    /// </para>
     /// </summary>
     internal static class ApparatusLoadout
     {

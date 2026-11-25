@@ -16,25 +16,22 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class CityMap : MonoBehaviour
     {
-        /// <summary>Width in pixels of the generated map texture.</summary>
+        /// <summary>Width in pixels of the generated map texture (when no pre-rendered map is set). Raise it for a sharper map (more memory); lower it for a coarser one.</summary>
         private const int MapTextureWidth = 1024;
 
-        /// <summary>Brightness of the flat ambient light used for the map render only.</summary>
+        /// <summary>Brightness of the flat ambient light used for the map render only. Raise it for a brighter, flatter map; lower it for a darker map with more contrast.</summary>
         private const float MapAmbientBrightness = 0.8f;
 
-        /// <summary>Pulse rate of the incident marker, in cycles per second.</summary>
+        /// <summary>Pulse rate of the incident marker, in cycles per second. Raise it for a faster pulse; lower it for a slow breathing pulse.</summary>
         private const float PulseHertz = 1.5f;
 
-        /// <summary>Strength of the incident marker pulse as a fraction of its size.</summary>
+        /// <summary>Strength of the incident marker pulse as a fraction of its size. Raise it for a bigger pulse; lower it (or 0) for a steady marker.</summary>
         private const float PulseAmplitude = 0.3f;
 
-        /// <summary>Resolution of the generated marker sprites.</summary>
+        /// <summary>Resolution in pixels of the generated marker sprites (arrow, circle, square). Raise it for crisper markers when zoomed; lower it for blockier ones.</summary>
         private const int MarkerTextureSize = 64;
 
-        /// <summary>
-        /// The fixed station squares and their labels were placed for the whole map at its authored size; when the map is enlarged they are
-        /// moved with it. A label sits this far to the right of its square (map pixels, which does not grow with the zoom).
-        /// </summary>
+        /// <summary>How far (map pixels) a station label sits to the right of its square; it does not grow with the zoom. Raise it to move labels away from their squares; lower it to tuck them in.</summary>
         private const float StationLabelOffset = 24f;
 
         private const string StationLabelPrefix = "Label STN";
@@ -97,10 +94,10 @@ namespace HTownSim.Runtime
         /// <summary>Generated assets released on destroy.</summary>
         private readonly List<Object> _generated = new List<Object>();
 
-        /// <summary>How much larger than its HUD frame the map image is; the frame shows the part around the unit.</summary>
+        /// <summary>How much larger than its HUD frame the map image is; the frame shows the part around the unit. Raise it to zoom in (see less of the city, more detail); lower it to see more of the city at once.</summary>
         private const float Zoom = 3f;
 
-        /// <summary>Distance in HUD units kept between a pinned incident marker and the viewport edge.</summary>
+        /// <summary>Distance in HUD units kept between a pinned incident marker and the viewport edge when the incident is off the map frame. Raise it to keep the marker further in from the edge; lower it to let it sit at the edge.</summary>
         private const float EdgeMargin = 10f;
 
         private CinemachineBrain? _brain;

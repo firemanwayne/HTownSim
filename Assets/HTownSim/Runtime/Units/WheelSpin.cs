@@ -9,11 +9,13 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class WheelSpin : MonoBehaviour
     {
+        /// <summary>The most (degrees) the front wheels are drawn turned. Raise it for wheels that turn further; lower it for less visible steering. It only changes how the wheels look.</summary>
         private const float MaxSteerDegrees = 35f;
+        /// <summary>How quickly the drawn steering angle follows the real one. Raise it for snappier wheels; lower it for a lazy, smooth turn.</summary>
         private const float SteerSmoothing = 12f;
-        /// <summary>A move this long in one frame is a teleport (restart), not driving, so the wheels ignore it.</summary>
+        /// <summary>A move this long (metres) in one frame is a teleport (restart), not driving, so the wheels ignore it. Raise it if long fast frames are mistaken for teleports; lower it to catch shorter jumps.</summary>
         private const float TeleportDistance = 5f;
-        /// <summary>Below this travelled distance in a frame the steering angle cannot be measured and eases back to straight.</summary>
+        /// <summary>Below this travelled distance (metres) in a frame the steering angle cannot be measured and eases back to straight. Raise it to straighten the wheels sooner when nearly stopped; lower it to keep measuring at very low speed.</summary>
         private const float MinimumTravel = 0.002f;
 
         private float _wheelRadius;

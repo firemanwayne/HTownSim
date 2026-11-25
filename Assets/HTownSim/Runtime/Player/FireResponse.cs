@@ -16,11 +16,11 @@ namespace HTownSim.Runtime
     [DefaultExecutionOrder(-10000)]
     internal sealed class FireResponse : HTownSim.Runtime.Contracts.VehicleStateBase
     {
-        /// <summary>Initial dispatch time in seconds.</summary>
+        /// <summary>How long the player has to put out the first (or a restarted) call, in seconds, before it counts as failed. Raise it for an easier game with more time per call; lower it for a harder one. It also sets the countdown shown on the call panel.</summary>
         private const float DispatchSeconds = 180f;
-        /// <summary>Maximum monitor reach in metres.</summary>
+        /// <summary>How close (metres) the unit must be to a fire to spray it with the hose, and to a non-fire call to count as being on scene. Raise it and the player can work a call from further away (easier); lower it and the unit has to pull right up to the scene.</summary>
         private const float MonitorRange = 23f;
-        /// <summary>Reach of the aerial's master stream, measured from the ladder tip (fully raised and extended the tip can be 30+ m from a fire).</summary>
+        /// <summary>How far (metres) the ladder's master stream reaches, measured from the ladder tip. Raise it and a ladder truck can fight a fire from further out with the aerial; lower it and the tip has to be nearer the fire.</summary>
         private const float AerialStreamRange = 50f;
         /// <summary>References authored by the scene builder.</summary>
         [SerializeField] private Transform _incident = null!;
@@ -47,25 +47,31 @@ namespace HTownSim.Runtime
         [SerializeField] private Vector2 _boundsMin;
         [SerializeField] private Vector2 _boundsMax;
         /// <summary>Seconds after containment before the next call, and the nearest a new call may be, in metres.</summary>
-        /// <summary>Brightness of a lit emergency beacon.</summary>
+        /// <summary>How bright a lit emergency beacon is (the light intensity of the roof beacons). Raise it for a stronger glow on nearby buildings and bloom; lower it for a subtler flash.</summary>
         private const float BeaconIntensity = 160f;
+        /// <summary>How fast the beacons flash, in flashes per second. Raise it for a faster, more urgent flash; lower it for a slower, calmer one.</summary>
         private const float BeaconHertz = 1.15f;
+        /// <summary>The fraction (0 to 1) of each flash cycle a beacon is lit. Raise it for longer, fuller flashes; lower it for short, sharp ones.</summary>
         private const float BeaconDuty = 0.45f;
+        /// <summary>How much the flash rates of the individual beacons differ from each other, as a fraction. Raise it so the beacons drift further out of step (more random); lower it and they flash almost together.</summary>
         private const float BeaconSpread = 0.07f;
         private const float BeaconSpreadStep = 0.6180339f;
 
+        /// <summary>Seconds after a call is contained before the next free-roam call is made. Raise it for a longer quiet between calls; lower it for calls that follow each other quickly. This is how often runs are generated in free roam.</summary>
         private const float RoamCallDelay = 25f;
+        /// <summary>The nearest (metres) a newly generated call may be to the unit. Raise it so every run is a longer drive; lower it for calls close by.</summary>
         private const float MinimumCallDistance = 150f;
+        /// <summary>How close (metres) to the edge of the playable area the unit gets before the edge warning shows. Raise it for an earlier warning; lower it to warn only at the very edge.</summary>
         private const float EdgeWarningDistance = 30f;
         private static readonly string[] SignNames = { "MIDTOWN MARKET", "CORNER STORE", "ELGIN DELI", "BAYOU CAFE", "HAIR AND NAILS", "TAQUERIA", "PHARMACY", "LAUNDROMAT" };
         private float _roamClock;
         private float _alertUntil;
         private int _siteIndex;
-        /// <summary>A call from an outside source waits this long after the last one clears before it is dispatched.</summary>
+        /// <summary>How long (seconds) a call from an outside source (the live feed or a dropped file) waits after the last call clears before it is dispatched. Raise it for a breather between calls; lower it to dispatch at once.</summary>
         private const float ExternalCallSettleSeconds = 3f;
-        /// <summary>A call this close to a storefront site burns at that site (with its sign); further away it burns at the exact spot.</summary>
+        /// <summary>A call this close (metres) to a storefront site burns at that site, with its sign; further away it burns at the exact spot. Raise it to pull more calls onto the stock storefronts; lower it so calls burn exactly where the address is.</summary>
         private const float SiteSnapMeters = 30f;
-        /// <summary>Seconds a unit must stay stopped at a non-fire call to clear it.</summary>
+        /// <summary>Seconds the unit must stay stopped at a non-fire call (medical, police, hazard) before it clears. Raise it for longer scene work per call; lower it for quicker calls.</summary>
         private const float SceneSeconds = 8f;
         /// <summary>The one door every call comes through: standard incident JSON in, queued calls out.</summary>
         private IncidentManager _incidents = null!;
@@ -77,8 +83,9 @@ namespace HTownSim.Runtime
         private Incident? _firstIncident;
         /// <summary>The patient lying at an EMS call, created when the first one is needed.</summary>
         private DownedCitizen? _patient;
-        /// <summary>How far in front of the storefront the patient lies, and how long they stay after the call clears.</summary>
+        /// <summary>How far (metres) in front of the storefront the patient lies. Raise it to put the patient further out in the street or lot; lower it to put them near the door.</summary>
         private const float PatientFrontOffset = 2.5f;
+        /// <summary>How long (seconds) the patient stays after the call clears before they are removed. Raise it so the scene lingers; lower it to clear it sooner.</summary>
         private const float PatientClearSeconds = 6f;
         /// <summary>True once the active call's outcome has been reported to the manager.</summary>
         private bool _outcomeReported;
@@ -168,8 +175,11 @@ namespace HTownSim.Runtime
         /// <summary>Collision bookkeeping: the collider and point the controller last touched, the impact speed that counts as a crash and the share of speed kept after knocking a car away.</summary>
         private Collider? _lastHit;
         private Vector3 _lastHitPoint;
+        /// <summary>The speed (metres per second) at or above which hitting a traffic car knocks it away instead of simply stopping the unit. Raise it so only harder hits throw cars; lower it so even gentle bumps push them.</summary>
         private const float MinimumImpactSpeed = 1.5f;
+        /// <summary>The share (0 to 1) of its speed the unit keeps after knocking a car away. Raise it so crashes slow the unit less; lower it so they slow it a lot.</summary>
         private const float ImpactRetainedSpeed = 0.35f;
+        /// <summary>How upright a surface can be and still count as a wall in a crash (the surface's vertical component). Raise it to count gentler slopes as walls; lower it to count only steeper faces.</summary>
         private const float MaximumCrashNormalY = 0.6f;
         /// <summary>Grows and spreads the fire and thickens its smoke.</summary>
         private FireSpread _spread = null!;
@@ -203,19 +213,21 @@ namespace HTownSim.Runtime
         private float _orbitYaw;
         private float _orbitPitch;
         private bool _ownsCursor;
-        /// <summary>Mouse sensitivity and safe camera elevation limits.</summary>
+        /// <summary>How far the follow camera turns per pixel of mouse movement while the right button is held. Raise it for a faster, twitchier camera; lower it for a slower, steadier one.</summary>
         private const float OrbitSensitivity = 0.07f;
+        /// <summary>The lowest the camera can be tilted, in degrees above the horizon. Raise it to keep the camera from dropping low behind the unit; lower it to let it sit near the ground.</summary>
         private const float MinimumPitch = 12f;
+        /// <summary>The highest the camera can be tilted, in degrees. Raise it to allow a view more from above; lower it to keep the camera nearer level.</summary>
         private const float MaximumPitch = 65f;
-        /// <summary>Mouse-wheel zoom as a multiple of the authored framing (15 m behind and above the truck): out to 4x
-        /// (about 61 m); in, the camera closes to <see cref="MinimumDistanceZoom"/> (about 6 m, still clear of the 9.4 m
-        /// truck) and below that the lens narrows instead (telephoto, down to half the field of view) so the camera never
-        /// ends up inside the engine. Each notch changes it by <see cref="ZoomPerNotch"/> (multiplicative, so every notch
-        /// feels the same near and far); the camera eases there at <see cref="ZoomEase"/>.</summary>
+        /// <summary>How close the follow camera can zoom, as a multiple of its normal distance. Lower it to let the camera come in tighter (but not inside the unit); raise it to keep it back.</summary>
         private const float MinimumZoom = 0.2f;
+        /// <summary>How far the follow camera can zoom out, as a multiple of its normal distance. Raise it for a wider view; lower it to keep the camera near.</summary>
         private const float MaximumZoom = 4f;
+        /// <summary>The closest zoom allowed at the smallest normal camera distance, so the camera never ends up inside the vehicle. Raise it to keep the camera further out.</summary>
         private const float MinimumDistanceZoom = 0.4f;
+        /// <summary>How much one notch of the mouse wheel changes the zoom (a fraction of the current zoom, so every notch feels the same near and far). Raise it for faster zooming; lower it for finer control.</summary>
         private const float ZoomPerNotch = 0.15f;
+        /// <summary>How quickly the camera eases to its new zoom. Raise it for a snappier zoom; lower it for a slow glide.</summary>
         private const float ZoomEase = 12f;
         private CinemachineCamera? _followCamera;
         private float _defaultFieldOfView;
@@ -271,7 +283,9 @@ namespace HTownSim.Runtime
         /// <summary>The synthesized air horn's start and hold-loop clips (ArtSource/Audio/make_air_horn.py).</summary>
         private const string AirHornStartResource = "AirHornStart";
         private const string AirHornLoopResource = "AirHornLoop";        private AirHorn? _airHorn;
+        /// <summary>The volume (0 to 1) of the siren tones (wail, yelp, pier). Raise it to make sirens louder; lower it to make them quieter.</summary>
         private const float SirenVolume = 0.55f;
+        /// <summary>The volume (0 to 1) of the horn and air horn. Raise it to make the horn louder; lower it to make it quieter.</summary>
         private const float HornVolume = 0.7f;
         private static readonly string[] ToneNames = { "WAIL", "YELP", "PHASER" };
         private static readonly string[] ToneResources = { "Wail", "Yelp", "Phaser" };
@@ -1621,15 +1635,19 @@ namespace HTownSim.Runtime
         /// <summary>Backing state for ThrottleInput.</summary>
         private float _vehicleThrottleInput;
 
-        /// <summary>Top forward speed and reverse speed in metres per second, how fast the engine picks up speed, and how steering eases off above <see cref="SteerEaseSpeed"/>.</summary>
+        /// <summary>The fastest the unit drives forward, in metres per second (22 is about 49 mph). Raise it to make every unit faster; lower it to make them slower. It also changes how quickly the unit reaches calls.</summary>
         private const float TopSpeed = 22f;
 
+        /// <summary>The fastest the unit drives in reverse, in metres per second. Raise it for a quicker backing; lower it for a slower, more careful one.</summary>
         private const float ReverseSpeed = 6f;
 
+        /// <summary>How fast the unit picks up speed, in metres per second every second. Raise it for a quicker getaway; lower it for a heavier, slower build-up. Braking and coasting have their own, fixed rates in Drive.</summary>
         private const float Acceleration = 8.5f;
 
+        /// <summary>The speed (metres per second) above which steering starts to ease off. Raise it so the unit keeps sharp steering at higher speed; lower it so steering softens earlier.</summary>
         private const float SteerEaseSpeed = 10f;
 
+        /// <summary>How strongly steering eases off for every metre per second above SteerEaseSpeed. Raise it so fast driving steers wide (a larger effective turning radius at speed); lower it to keep steering tight at speed.</summary>
         private const float SteerEaseRate = 0.09f;
 
         /// <summary>True while the brake lights should show: braking, or the throttle held against the direction of travel.</summary>

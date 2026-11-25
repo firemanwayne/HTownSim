@@ -22,10 +22,10 @@ namespace HTownSim.Runtime.Incidents.Clients
         /// <summary>The service address when the variable is not set.</summary>
         private const string DefaultAddress = "http://127.0.0.1:5870";
 
-        /// <summary>Seconds between polls.</summary>
+        /// <summary>Seconds between the game's polls of the incident service for changes. Raise it for fewer requests (new incidents and clears show up later); lower it for faster updates.</summary>
         private const float PollSeconds = 2f;
 
-        /// <summary>Seconds to wait for the service to answer.</summary>
+        /// <summary>Seconds to wait for the service to answer before giving up on that poll. Raise it for a slow service; lower it to fall back to feed files sooner when the service is down.</summary>
         private const int TimeoutSeconds = 5;
 
         private string _address = DefaultAddress;

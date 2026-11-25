@@ -9,19 +9,29 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class SkyDecor : MonoBehaviour
     {
+        /// <summary>How many clouds are in the sky. Raise it for a cloudier sky (costs a little frame rate); lower it for a clearer one.</summary>
         private const int CloudCount = 40;
+        /// <summary>How far (metres) the sky dome is dropped below the horizon. Raise it to lower the dome edge and hide the horizon seam; lower it to lift it.</summary>
         private const float DomeDrop = 12f;
+        /// <summary>The nearest (metres, horizontally) a cloud is placed to the centre. Raise it to keep clouds further out from overhead; lower it to allow clouds right overhead.</summary>
         private const float CloudRadiusMin = 60f;
+        /// <summary>The furthest (metres, horizontally) a cloud is placed from the centre. Raise it to spread clouds wider over the horizon; lower it to bunch them.</summary>
         private const float CloudRadiusMax = 520f;
+        /// <summary>The lowest (metres) a cloud floats. Raise it for a higher cloud base; lower it for lower, closer clouds.</summary>
         private const float CloudHeightMin = 150f;
+        /// <summary>The highest (metres) a cloud floats. Raise it for taller layering; lower it to flatten the cloud layer.</summary>
         private const float CloudHeightMax = 250f;
+        /// <summary>How fast (metres per second) the clouds drift. Raise it for fast-moving clouds; lower it (or 0) for a still sky.</summary>
         private const float WindSpeed = 2.5f;
+        /// <summary>Clouds drifting past this distance (metres) wrap round to the other side. Raise it for a larger sky before clouds wrap; lower it to recycle them sooner.</summary>
         private const float WrapRadius = 600f;
+        /// <summary>The share (0 to 1) of clouds shown in clear weather. Raise it for more clouds on a clear day; lower it for a cleaner blue sky.</summary>
         private const float ClearCloudFraction = 0.45f;
 
-        /// <summary>Layer the dome and clouds live on, hidden from every camera except the main one so they stay off the minimap.</summary>
+        /// <summary>The physics and render layer number the sky dome and clouds live on, hidden from every camera but the main one so they stay off the map. Change it only if layer 30 is used for something else.</summary>
         private const int SkyLayer = 30;
 
+        /// <summary>How many frames pass between checks for the sky camera. Raise it to check less often (cheaper); lower it to react sooner when the camera changes.</summary>
         private const int FramesBetweenCameraChecks = 45;
 
         [SerializeField] private GameObject _dome = null!;

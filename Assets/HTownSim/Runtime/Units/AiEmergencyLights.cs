@@ -12,15 +12,19 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class AiEmergencyLights : MonoBehaviour
     {
-        /// <summary>Alternations per second, how bright a lit lens is, and the siren's volume and range (metres).</summary>
+        /// <summary>Alternations per second of a computer-driven unit's warning lights. Raise it for faster flashing; lower it for slower.</summary>
         private const float FlashHertz = 3f;
 
+        /// <summary>How bright a lit lens glows (HDR emission, so the bloom picks it up). Raise it for a stronger glow; lower it for a dull one.</summary>
         private const float FlashEmission = 6f;
 
+        /// <summary>Volume (0 to 1) of a computer-driven unit's siren at its source. Raise it to make responding units louder; lower it to quieten them.</summary>
         private const float SirenVolume = 0.6f;
 
+        /// <summary>Distance (metres) within which a responding unit's siren is at full volume. Raise it to keep it loud further out; lower it so it fades sooner.</summary>
         private const float SirenMinimumDistance = 12f;
 
+        /// <summary>Distance (metres) beyond which a responding unit's siren cannot be heard. Raise it so sirens carry further across the city; lower it to keep them local.</summary>
         private const float SirenMaximumDistance = 220f;
 
         /// <summary>The wail: length, sample rate and the pitch sweep (Hz).</summary>
@@ -28,8 +32,10 @@ namespace HTownSim.Runtime
 
         private const int SirenSeconds = 4;
 
+        /// <summary>The low end of the wail's pitch, in Hz. Raise it for a higher siren; lower it for a deeper one.</summary>
         private const float LowPitch = 620f;
 
+        /// <summary>How far (Hz) the wail rises above its low pitch. Raise it for a wider swing between low and high; lower it for a flatter tone.</summary>
         private const float PitchSweep = 220f;
 
         private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");

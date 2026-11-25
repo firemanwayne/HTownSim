@@ -9,10 +9,10 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class ApparatusLights : MonoBehaviour
     {
-        /// <summary>Flash rate in cycles per second (about the same as the beacon lights in <see cref="HTownSim.Runtime.Contracts.VehicleStateBase"/>).</summary>
+        /// <summary>Flash rate of the engine's emergency lights, in cycles per second (about the same as the roof beacons). Raise it for faster, more frantic flashing; lower it for a calmer rate.</summary>
         private const float FlashHertz = 1.8f;
 
-        /// <summary>Slower flash rate for the front light bar, the rear lamps and the road light pools; the side markers keep <see cref="FlashHertz"/>.</summary>
+        /// <summary>A slower flash rate (cycles per second) for the front light bar, the rear lamps and the road light pools; the side markers keep FlashHertz. Raise it to speed those lights up; lower it to slow them.</summary>
         private const float FrontRearHertz = 1.15f;
 
         /// <summary>Lenses with this in their name are the roof light bar.</summary>
@@ -38,38 +38,37 @@ namespace HTownSim.Runtime
         /// <summary>Amber front turn signals (names end in _L or _R); they flash with the turn and hazard switches, not the emergency lights.</summary>
         private const string TurnSignalPrefix = "TurnSignal";
 
+        /// <summary>How fast the turn signals and hazards blink, in blinks per second. Raise it for a quicker blink; lower it for a slower one.</summary>
         private const float SignalHertz = 1.5f;
 
+        /// <summary>The fraction (0 to 1) of each blink the turn signal is on. Raise it for longer on-time; lower it for brief blinks.</summary>
         private const float SignalDuty = 0.5f;
         private const string HighBeamPrefix = "FrontLensHigh";
         private const string RightSuffix = "_R";
 
-        /// <summary>Wig-wag rate of the high beams, which alternate left and right while the emergency lights are on.</summary>
+        /// <summary>Wig-wag rate of the high beams, which alternate left and right while the emergency lights are on, in cycles per second. Raise it for faster alternating; lower it for a slow wig-wag.</summary>
         private const float WigWagHertz = 1.4f;
 
         private const int BarLenses = 48;
         private const int BarColumns = 12;
         private const int LensesPerColumn = 4;
 
-        /// <summary>Fraction of a flash cycle the lower lens of a red column trails the upper lens, so red columns roll from top to bottom.</summary>
+        /// <summary>The fraction of a flash cycle the lower lens of a red column trails the upper lens, so red columns roll from top to bottom. Raise it for a slower, more visible roll; lower it to 0 for no roll.</summary>
         private const float RollDelay = 0.13f;
 
         /// <summary>Lenses with this in their name are the side markers.</summary>
         private const string SideLensName = "SideMarker";
 
-        /// <summary>Fraction of each cycle a lens is lit.</summary>
+        /// <summary>The fraction (0 to 1) of each cycle a lens is lit. Raise it for longer, brighter-looking flashes; lower it for short, sharp ones.</summary>
         private const float DutyCycle = 0.45f;
 
-        /// <summary>Offset between the two groups, as a fraction of a cycle.</summary>
+        /// <summary>The offset between the two flash groups, as a fraction of a cycle (0.5 means the groups alternate). Move it toward 0 to make the groups flash together; toward 0.5 for a clean alternate.</summary>
         private const float GroupOffset = 0.5f;
 
-        /// <summary>
-        /// How far each light's own flash rate may stray from <see cref="FlashHertz"/>, as a fraction. Every light runs at a
-        /// slightly different rate, so they drift in and out of step: mostly independent, now and then flashing together.
-        /// </summary>
+        /// <summary>How far each light's own flash rate may stray from FlashHertz, as a fraction. Raise it so lights drift in and out of step faster and look more random; lower it so they stay locked together.</summary>
         private const float FlashSpread = 0.07f;
 
-        /// <summary>Spacing that scatters light indices evenly across the spread (the golden ratio fraction).</summary>
+        /// <summary>Spacing that scatters light indices evenly across the spread (the golden ratio fraction). Leave it alone unless the flashing starts to look patterned.</summary>
         private const float SpreadStep = 0.6180339f;
 
         [SerializeField] private HTownSim.Runtime.Contracts.VehicleStateBase _response = null!;
@@ -107,29 +106,36 @@ namespace HTownSim.Runtime
 
         private readonly float[] _poolHertz = new float[2];
 
-        /// <summary>Distance ahead of the engine, and the size, of the flashing light pools painted on the road.</summary>
+        /// <summary>How far ahead of the engine (metres) the flashing light pools on the road start. Raise it to throw the pools further out; lower it to bring them close to the engine.</summary>
         private const float PoolForward = 10f;
 
+        /// <summary>How far to the side (metres) of the engine's centre line each light pool sits. Raise it to push the pools wider apart; lower it to bring them closer.</summary>
         private const float PoolSide = 3.2f;
 
+        /// <summary>Width (metres) of each light pool on the road. Raise it for broader washes of light; lower it for narrow ones.</summary>
         private const float PoolWidth = 8f;
 
+        /// <summary>Length (metres) of each light pool along the road. Raise it for longer washes; lower it for short ones.</summary>
         private const float PoolLength = 14f;
 
+        /// <summary>How strong (0 to 1) the light pools are on the road. Raise it for a stronger red wash; lower it to make them faint.</summary>
         private const float PoolAlpha = 0.5f;
 
         private const int PoolTextureSize = 64;
 
-        /// <summary>World size of the glow halo drawn around a lit lens, and its opacity.</summary>
+        /// <summary>World size (metres) of the glow halo drawn around a lit lens. Raise it for a bigger bloom around each light; lower it for tight glows.</summary>
         private const float HaloSize = 1.5f;
 
-        /// <summary>Halos are sized from their lens (this many times its longest side) and kept between these limits, so a small lens gets a small glow.</summary>
+        /// <summary>Halos are sized from their lens: this many times its longest side. Raise it so small lenses get larger glows; lower it for tighter glows.</summary>
         private const float HaloLensScale = 3.2f;
 
+        /// <summary>The smallest a lens halo may be (metres). Raise it so even tiny lenses glow visibly; lower it to let tiny lenses have tiny glows.</summary>
         private const float HaloMinSize = 0.3f;
 
+        /// <summary>The largest a lens halo may be (metres). Raise it to let big lenses bloom more; lower it to stop large glows swamping the truck.</summary>
         private const float HaloMaxSize = 0.8f;
 
+        /// <summary>Opacity (0 to 1) of the lens halos. Raise it for a stronger glow; lower it for a faint one (set it to 0 to switch the halos off).</summary>
         private const float HaloAlpha = 0.55f;
 
         private Transform[] _halos = new Transform[0];

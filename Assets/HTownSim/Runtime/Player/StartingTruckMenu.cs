@@ -75,9 +75,10 @@ namespace HTownSim.Runtime
 
         private System.Func<AsyncOperation?>? _startLoad;
 
-        /// <summary>How many frames the loading message is drawn before the load starts, and the dots after it that show the game is alive.</summary>
+        /// <summary>How many frames the loading message is drawn before the city load starts, so it is on screen when the editor stalls. Raise it to be sure the message appears; lower it to start loading sooner.</summary>
         private const int LoadDelayFrames = 4;
 
+        /// <summary>How fast the dots after "Please wait" count up. Raise it for quicker dots; lower it for slower ones.</summary>
         private const float DotsPerSecond = 2f;
 
         private const int MaximumDots = 3;

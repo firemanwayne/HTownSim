@@ -13,87 +13,132 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class TrafficSystem : MonoBehaviour, HTownSim.Runtime.Contracts.Interfaces.ITrafficInteractions
     {
+        /// <summary>How many traffic cars each traffic system keeps (one system per neighborhood: Midtown, South Midtown, Station 16, Medical Center). Raise it for busier streets (costs frame rate); lower it for emptier ones.</summary>
         private const int CarCount = 80;
 
+        /// <summary>How many pedestrians each traffic system keeps. Raise it for livelier sidewalks (costs frame rate); lower it for quiet ones.</summary>
         private const int PedestrianCount = 100;
 
+        /// <summary>The slowest cruising speed a traffic car is given, in metres per second. Raise it to make all traffic faster; lower it for a slow crawl. Each car picks a speed between this and CruiseSpeedMax.</summary>
+        private const float CruiseSpeedMin = 6f;
+
+        /// <summary>The fastest cruising speed a traffic car is given, in metres per second. Raise it for a faster-moving city; lower it to narrow the range of speeds.</summary>
+        private const float CruiseSpeedMax = 11f;
+
+        /// <summary>The slowest walking speed a pedestrian is given, in metres per second. Raise it for brisker walkers; lower it for strollers.</summary>
+        private const float WalkSpeedMin = 1.1f;
+
+        /// <summary>The fastest walking speed a pedestrian is given, in metres per second. Raise it so some pedestrians hurry.</summary>
+        private const float WalkSpeedMax = 1.7f;
+
+        /// <summary>The nearest (metres) to the player a new car or pedestrian may appear. Raise it so people and cars appear further out of sight; lower it and they can pop in close.</summary>
         private const float SpawnMinimum = 40f;
 
+        /// <summary>The furthest (metres) from the player a new car or pedestrian may appear. Raise it to spread traffic over a wider area (thinner near the player); lower it to pack traffic close around the player.</summary>
         private const float SpawnMaximum = 220f;
 
+        /// <summary>Beyond this distance (metres) from the player a car or pedestrian is removed and respawns nearer. Raise it to keep traffic alive further away; lower it to recycle it sooner.</summary>
         private const float DespawnDistance = 330f;
 
+        /// <summary>How far (metres) in from the road edge the outer traffic lane's centre sits. Raise it to move cars toward the middle of the road; lower it to hug the curb.</summary>
         private const float RoadEdge = 2.4f;
 
+        /// <summary>How far (metres) in from the curb pedestrians walk. Raise it to push walkers toward the buildings; lower it to put them at the curb.</summary>
         private const float SidewalkInset = 1.4f;
 
+        /// <summary>The chance (0 to 1) that a car turns at a junction instead of going straight. Raise it for twistier traffic; lower it for cars that mostly drive straight on.</summary>
         private const float TurnChance = 0.3f;
 
+        /// <summary>Length (seconds) of the whole signal cycle at the signalised junctions. Raise it for longer waits at red; lower it for quick changes.</summary>
         private const float SignalCycle = 48f;
 
+        /// <summary>Half a car's length (metres), used for following gaps and stop lines. Raise it so cars keep bigger gaps; lower it for tighter queues.</summary>
         private const float CarHalfLength = 2.3f;
 
+        /// <summary>The height (metres) of the road surface cars drive at. It must match the street surface or cars float or sink; change it only if the streets move.</summary>
         private const float RoadY = 0.06f;
 
         /// <summary>The ground collider the paved streets are made of; a car on anything else (a lot, a sidewalk, a roof) has left the road.</summary>
         private const string StreetSurface = "Streets";
 
-        /// <summary>How often a driving car checks that it is still over street, seconds (staggered per car), and how far above and below the car the probe reaches, metres.</summary>
+        /// <summary>How often (seconds) a driving car checks it is still over street, and removes itself if not. Raise it to check less often (cheaper); lower it to catch strays sooner.</summary>
         private const float StreetCheckSeconds = 0.5f;
 
+        /// <summary>How far above a car (metres) the street check starts. Raise it if cars on raised roads are missed; lower it to avoid hitting roofs.</summary>
         private const float StreetProbeUp = 6f;
 
-        /// <summary>Cars closer than this (metres) to a responding computer-driven emergency unit are cleared out of its way.</summary>
+        /// <summary>Cars closer than this (metres) to a responding computer-driven emergency unit are removed and respawn elsewhere. Raise it to clear a wider path for responding units; lower it so cars stay near them (and may overlap).</summary>
         private const float EmergencyClearRadius = 9f;
 
+        /// <summary>How far down (metres) from the start point the street check looks. Raise it to cover steep ground; lower it to ignore far-below surfaces.</summary>
         private const float StreetProbeReach = 12f;
 
         private readonly RaycastHit[] _probeHits = new RaycastHit[12];
 
+        /// <summary>The height (metres) of the sidewalk surface pedestrians walk at. It must match the sidewalk surface or people float or sink.</summary>
         private const float SidewalkY = 0.2f;
 
-        /// <summary>Siren yielding: cars within YieldRange slow and pull over, stop inside StopRange, hold for YieldHoldSeconds after the engine passes, and wait before intersections the engine is closing on.</summary>
+        /// <summary>Cars within this distance (metres) of the player's siren slow down and pull over. Raise it so traffic clears the road from further away; lower it so cars react only when you are close.</summary>
         private const float YieldRange = 90f;
 
+        /// <summary>Cars within this distance (metres) of the player's siren stop. Raise it to stop more cars early; lower it so cars keep rolling until you are nearly on them.</summary>
         private const float StopRange = 60f;
 
+        /// <summary>Within this distance (metres) a car ahead of the player pulls over hardest. Raise it for a wider, earlier pull-over; lower it for a late one.</summary>
         private const float YieldNearRange = 35f;
 
+        /// <summary>How long (seconds) a car stays pulled over after the player passes before it moves off. Raise it for a longer wait; lower it so traffic resumes quickly.</summary>
         private const float YieldHoldSeconds = 3f;
 
+        /// <summary>The slow speed (metres per second) a pulled-over car creeps at. Raise it for cars that keep rolling; lower it so they stop dead.</summary>
         private const float CreepSpeed = 3f;
 
+        /// <summary>Cross traffic waits at junctions the player is closing on within this distance (metres). Raise it to hold cross traffic from further out; lower it to let it keep crossing until you are close.</summary>
         private const float IntersectionClearRange = 80f;
 
+        /// <summary>The smallest sideways shift (metres) a car makes to pull over for the player. Raise it for a bigger minimum pull-over; lower it for a small nudge.</summary>
         private const float MinimumPull = 0.6f;
 
+        /// <summary>The largest sideways shift (metres) a car makes to pull over. Raise it so cars can pull further to the curb; lower it to keep them in their lane.</summary>
         private const float MaximumPull = 3.2f;
 
+        /// <summary>How far (metres) a pulled-over car stays off the curb. Raise it to keep cars further from the curb; lower it to let them touch it.</summary>
         private const float CurbClearance = 1.2f;
 
-        /// <summary>Collision tuning: how hard a struck car is thrown relative to the engine's speed, its mass, how long it is left wrecked, and how long pedestrians stay down.</summary>
+        /// <summary>How hard a struck car is thrown, relative to the engine's speed. Raise it for bigger crashes; lower it for gentle pushes.</summary>
         private const float CarKnockFactor = 1.15f;
 
+        /// <summary>The most speed (metres per second) a struck car can be given. Raise it to allow harder throws; lower it to cap them.</summary>
         private const float CarKnockSpeedLimit = 20f;
 
+        /// <summary>The mass (kg) of a traffic car. Raise it so cars are harder to push around; lower it so they fly more easily.</summary>
         private const float CarMass = 1400f;
 
+        /// <summary>How long (seconds) a struck car is left wrecked before it is removed. Raise it so crashes stay visible longer; lower it to tidy up sooner.</summary>
         private const float WreckSeconds = 20f;
 
+        /// <summary>How long (seconds) a wreck must be at rest before the wreck timer starts. Raise it to let wrecks settle; lower it to clear them while still sliding.</summary>
         private const float WreckRestSeconds = 6f;
 
+        /// <summary>After a hit, the car and the engine ignore each other for this long (seconds), so the engine is not stuck inside it. Raise it for more time to break free; lower it for earlier contact.</summary>
         private const float IgnoreEngineSeconds = 0.6f;
 
+        /// <summary>The mass (kg) of a pedestrian. Raise it so people are harder to knock about; lower it so they fly more easily.</summary>
         private const float PedestrianMass = 75f;
 
+        /// <summary>How long (seconds) a struck pedestrian stays down. Raise it for longer; lower it for a quick recovery.</summary>
         private const float PedestrianDownSeconds = 6f;
 
+        /// <summary>The speed (metres per second) at which the engine counts as hitting a pedestrian. Raise it so only faster contact knocks people down; lower it so a slow nudge does.</summary>
         private const float PedestrianHitSpeed = 1f;
 
+        /// <summary>Half the width (metres) the traffic treats the engine as for collisions and yielding. Raise it so traffic keeps more room from the sides; lower it for tighter passing.</summary>
         private const float EngineHalfWidth = 1.9f;
 
+        /// <summary>How far (metres) behind the engine's centre the collision footprint starts (negative). Raise it toward zero for a shorter tail; lower it (more negative) for a longer one.</summary>
         private const float EngineRear = -4.5f;
 
+        /// <summary>How far (metres) ahead of the engine's centre the collision footprint ends. Raise it for a longer nose in collisions; lower it for a shorter one.</summary>
         private const float EngineFront = 4.6f;
 
         /// <summary>Things the scene builder wires up.</summary>
@@ -110,9 +155,10 @@ namespace HTownSim.Runtime
         /// <summary>Optional civilian car models; when set, each traffic car wears one instead of the primitive body.</summary>
         [SerializeField] private GameObject[] _carModels = new GameObject[0];
 
+        /// <summary>The standard length (metres) car models are scaled to fit. Raise it for longer cars; lower it for shorter ones.</summary>
         private const float ModelLength = 4.4f;
 
-        /// <summary>Ground speed in metres per second that the walk clips were authored for; playback is scaled by speed over this.</summary>
+        /// <summary>The speed (metres per second) the walking animation was authored for. Pedestrians walking faster than this play the clip faster; match it to the animation to avoid foot sliding.</summary>
         private const float WalkClipSpeed = 1.3f;
 
         private const string PaletteMaterialPrefix = "PixelColors";
@@ -517,7 +563,7 @@ namespace HTownSim.Runtime
             }
         }
 
-        /// <summary>Beyond this distance (metres from the apparatus to the system's street area) the system sleeps.</summary>
+        /// <summary>Beyond this distance (metres) from the player a traffic system sleeps (its cars and pedestrians are hidden and not stepped). Raise it to keep distant neighborhoods alive (costs frame rate); lower it to sleep them sooner.</summary>
         private const float SimulationRadius = 800f;
 
         /// <summary>True while the cars and pedestrians are hidden because the apparatus is far away.</summary>
@@ -724,7 +770,7 @@ namespace HTownSim.Runtime
 
                 car.Speed = 0f;
 
-                car.Cruise = Random.Range(6f, 11f);
+                car.Cruise = Random.Range(CruiseSpeedMin, CruiseSpeedMax);
 
                 car.Pull = 0f;
 
@@ -1384,7 +1430,7 @@ namespace HTownSim.Runtime
 
                 ped.Direction = Random.value < 0.5f ? -1 : 1;
 
-                ped.Speed = Random.Range(1.1f, 1.7f);
+                ped.Speed = Random.Range(WalkSpeedMin, WalkSpeedMax);
 
                 ped.Phase = Random.value * 6.28f;
 

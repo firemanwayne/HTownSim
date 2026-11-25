@@ -10,18 +10,19 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class DownedCitizen : MonoBehaviour
     {
-        /// <summary>The body's mass in kilograms, shared across the ragdoll bones.</summary>
+        /// <summary>The body's mass in kilograms, shared across the ragdoll bones. Raise it for a heavier body that is harder to push; lower it for a lighter one.</summary>
         private const float BodyMass = 75f;
 
-        /// <summary>How long the body is left to fall and settle before it is frozen in place.</summary>
+        /// <summary>How long (seconds) the body is left to fall and settle before it is frozen in place. Raise it to let the body move for longer; lower it to freeze it sooner.</summary>
         private const float SettleSeconds = 5f;
 
-        /// <summary>The probe for the ground starts this far above the call and reaches this far below it.</summary>
+        /// <summary>How far above the call (metres) the ground probe starts. Raise it to find ground under a canopy or step; lower it to avoid hitting roofs.</summary>
         private const float ProbeUp = 2.5f;
 
+        /// <summary>How far below the call (metres) the ground probe reaches. Raise it to find ground on a drop; lower it to give up sooner.</summary>
         private const float ProbeDown = 8f;
 
-        /// <summary>The body starts this far above the ground so no bone begins inside it.</summary>
+        /// <summary>The body starts this far (metres) above the ground so no bone begins inside it. Raise it for a small drop as the body appears; lower it to place the body nearly on the ground.</summary>
         private const float DropHeight = 0.12f;
 
         private GameObject? _model;

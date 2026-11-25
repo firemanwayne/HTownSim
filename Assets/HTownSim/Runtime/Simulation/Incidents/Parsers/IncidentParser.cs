@@ -10,10 +10,13 @@ namespace HTownSim.Runtime.Incidents.Parsers
     /// <summary>Turns incident JSON into validated <see cref="Incident"/> objects, or says why it cannot.</summary>
     internal static class IncidentParser
     {
+        /// <summary>The longest incident id accepted, in characters; a longer id is refused. Raise it if the feed uses longer ids; lower it to be stricter.</summary>
         private const int MaxIdLength = 64;
 
+        /// <summary>The lowest severity a parsed call may have; a lower value is clamped up to it.</summary>
         private const int MinSeverity = 1;
 
+        /// <summary>The highest severity a parsed call may have; a higher value is clamped down to it.</summary>
         private const int MaxSeverity = 5;
 
         /// <summary>Marker that tells a batch (<c>{"incidents":[...]}</c>) from a single incident.</summary>

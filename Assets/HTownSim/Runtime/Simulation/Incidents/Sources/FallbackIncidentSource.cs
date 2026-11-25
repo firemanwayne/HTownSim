@@ -15,12 +15,16 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>The source name stamped on the calls.</summary>
         internal const string SourceName = "fallback";
 
+        /// <summary>The lowest severity (1 to 5) a made-up call is given. Raise it so made-up calls are never minor; lower it to allow smaller calls. Higher severity means more units wanted and a bigger scene.</summary>
         private const int MinSeverity = 2;
 
+        /// <summary>One above the highest severity a made-up call can have (severity is picked from the minimum up to but not including this). Raise it to allow big calls; lower it to keep made-up calls small.</summary>
         private const int MaxSeverityExclusive = 5;
 
+        /// <summary>The severity at or above which a made-up fire also asks for a ladder as well as an engine. Lower it so more calls need a ladder; raise it so only the big ones do.</summary>
         private const int LadderSeverity = 3;
 
+        /// <summary>The severity at or above which a made-up medical call asks for more than one unit. Lower it so more medical calls bring extra units; raise it so only severe ones do.</summary>
         private const int MultiUnitMedicalSeverity = 4;
 
         private int _counter;

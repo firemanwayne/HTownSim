@@ -21,12 +21,13 @@ namespace HTownSim.Runtime
 
         private const string ReverseMarker = "Lamp_Reverse";
 
-        /// <summary>Blink rate (cycles per second) and the lit share of each cycle.</summary>
+        /// <summary>How fast the turn signals and hazards blink, in cycles per second. Raise it for a quicker blink; lower it for a slower one.</summary>
         private const float BlinkHertz = 1.5f;
 
+        /// <summary>The share (0 to 1) of each blink cycle a lamp is lit. Raise it for longer on-time; lower it for brief blinks.</summary>
         private const float BlinkDuty = 0.5f;
 
-        /// <summary>Emission strength of a lit lamp (above the Bloom threshold).</summary>
+        /// <summary>How bright (HDR emission, above the bloom threshold) a lit lamp glows. Raise it for a stronger glow and bloom; lower it for dull lamps.</summary>
         private const float LitEmission = 5f;
 
         private HTownSim.Runtime.Contracts.VehicleStateBase _response = null!;

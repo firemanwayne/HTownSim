@@ -16,17 +16,20 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class ActiveIncidentsHud : MonoBehaviour
     {
+        /// <summary>Width (HUD units) of the active-incidents panel (top right). Raise it for wider lines (more text before it is shortened); lower it for a narrower panel.</summary>
         private const float PanelWidth = 560f;
 
+        /// <summary>Height (HUD units) of each incident line. Raise it for more spacing between lines (a taller panel for the same number of lines); lower it for tighter lines.</summary>
         private const float LineHeight = 21f;
 
+        /// <summary>How often (seconds) the list is rebuilt. Raise it to refresh less often (cheaper, but changes appear later); lower it to track the board closely.</summary>
         private const float RefreshSeconds = 2f;
 
         private const string Highlight = "#FFAF52";
 
         private const string Dim = "#8A9199";
 
-        /// <summary>Longest line, in characters, before it is shortened with an ellipsis.</summary>
+        /// <summary>Longest line, in characters, before it is shortened with an ellipsis. Raise it to show more of each incident (wide lines); lower it to cut lines sooner.</summary>
         private const int MaxChars = 70;
 
         private LiveIncidentFeed _feed = null!;

@@ -50,42 +50,52 @@ namespace HTownSim.Runtime
             Police,
         }
 
-        /// <summary>Driving: top speed with siren, the easier speed home, acceleration and braking (metres per second and per second squared).</summary>
+        /// <summary>The top speed (metres per second) of a computer-driven unit responding with lights and siren (17 is about 38 mph). Raise it so units reach calls sooner; lower it for slower responses. Units slow for corners and for the end of the route regardless.</summary>
         private const float ResponseSpeed = 17f;
 
+        /// <summary>The speed (metres per second) of a computer-driven unit driving back to its station. Raise it so units are back in service sooner (free again for the next call); lower it to keep them out longer.</summary>
         private const float ReturnSpeed = 11f;
 
+        /// <summary>How fast a computer-driven unit picks up speed, in metres per second every second. Raise it for a quicker getaway; lower it for a heavier, slower build-up.</summary>
         private const float Acceleration = 4.5f;
 
+        /// <summary>How hard a computer-driven unit slows for corners and for the end of its route, in metres per second every second. Raise it so units brake later and harder; lower it so they start slowing earlier.</summary>
         private const float Braking = 9f;
 
-        /// <summary>Corners: the angle at which the unit slows to its minimum, the slowest corner speed as a fraction of the top speed, and how far before a corner it starts slowing (metres).</summary>
+        /// <summary>The turn angle (degrees) at which a unit slows to its slowest corner speed; gentler bends slow it proportionally less. Raise it so only very sharp turns slow it fully; lower it so even moderate bends do.</summary>
         private const float SharpCornerDegrees = 110f;
 
+        /// <summary>The slowest speed through a corner, as a fraction (0 to 1) of the unit's top speed. Raise it so units keep speed through corners; lower it so they crawl round them.</summary>
         private const float CornerSpeedFraction = 0.3f;
 
+        /// <summary>How far (metres) before a corner a unit starts slowing for it. Raise it for earlier, gentler slowing; lower it for late braking.</summary>
         private const float CornerLookAhead = 16f;
 
-        /// <summary>How fast the unit turns to face the way it is going (degrees per second) and the route point counts as reached within this distance (metres).</summary>
+        /// <summary>How fast (degrees per second) a computer-driven unit turns to face the way it is going. Raise it for sharper, snappier turning; lower it for a slow swing round a corner (a wider turning circle).</summary>
         private const float TurnDegreesPerSecond = 160f;
 
+        /// <summary>How close (metres) a unit must get to a route point to count it as reached and aim for the next. Raise it to cut corners; lower it to follow the route line closely.</summary>
         private const float ReachDistance = 1.5f;
 
-        /// <summary>Time at the scene of a fire, an EMS call without a transport, and with a patient to load; at the hospital (seconds).</summary>
+        /// <summary>How long (seconds) a computer-driven unit works the scene of a fire or rescue. Raise it for longer scene time per call (units stay out longer); lower it for quick calls.</summary>
         private const float FireSceneSeconds = 110f;
 
+        /// <summary>How long (seconds) a unit works a call that is not a fire or a patient pick-up (a police call, or an engine at a medical call). Raise it for longer scene time; lower it for quicker clears.</summary>
         private const float SupportSceneSeconds = 60f;
 
+        /// <summary>How long (seconds) an ambulance or medic unit works the scene before it loads the patient. Raise it for longer patient care; lower it to load and go sooner.</summary>
         private const float PatientSceneSeconds = 45f;
 
+        /// <summary>How long (seconds) a transporting unit stays at the hospital before returning. Raise it to keep ambulances tied up longer; lower it to free them sooner.</summary>
         private const float HospitalSeconds = 25f;
 
-        /// <summary>Units at one scene stop this far apart along the street (metres).</summary>
+        /// <summary>How far apart (metres) the units at one scene stop along the street, each one this much further back than the one before. Raise it to spread units out more; lower it to bunch them (too low and they overlap).</summary>
         private const float SlotMetres = 11f;
 
-        /// <summary>The ground probe: from this far above the unit, this far down (metres).</summary>
+        /// <summary>How far above the unit (metres) the ground check for its height starts. Raise it for roads that rise steeply; lower it to avoid hitting roofs.</summary>
         private const float ProbeUp = 40f;
 
+        /// <summary>How far down (metres) the ground check for the unit's height reaches. Raise it for deep drops; lower it to ignore far-below surfaces.</summary>
         private const float ProbeDown = 80f;
 
         private readonly RaycastHit[] _hits = new RaycastHit[12];

@@ -26,16 +26,19 @@ namespace HTownSim.Runtime
         /// <summary>The name of the collider the scene's streets are made of (the parcels and sidewalks are other colliders).</summary>
         private const string StreetCollider = "Streets";
 
-        /// <summary>The most patrol units out at once, so a busy night in the city does not fill the scene.</summary>
+        /// <summary>The most parked scene patrol cars at police incidents at once (used only when the fleet has no computer-driven patrol units). Raise it for more scenes with a car; lower it to save frame rate.</summary>
         private const int MaximumUnits = 12;
 
-        /// <summary>The nearest-road search: the first ring, the last ring and the step between rings, in metres.</summary>
+        /// <summary>How far (metres) from the incident the search for a free stretch of street starts. Raise it to park further from the address; lower it to park closer.</summary>
         private const float FirstRing = 4f;
 
+        /// <summary>How far (metres) from the incident the search for street gives up. Raise it to find streets for more remote incidents; lower it to skip those with no street near.</summary>
         private const float LastRing = 40f;
 
+        /// <summary>The step (metres) between search rings. Raise it for a coarser, faster search; lower it for a finer one that finds the nearest free spot more exactly.</summary>
         private const float RingStep = 4f;
 
+        /// <summary>How many spots are tried on each search ring. Raise it for a finer search; lower it for a faster one.</summary>
         private const int SpotsPerRing = 12;
 
         /// <summary>The probe for the ground starts this far above the spot and reaches this far below it.</summary>

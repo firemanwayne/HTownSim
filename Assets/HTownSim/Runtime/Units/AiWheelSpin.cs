@@ -13,12 +13,13 @@ namespace HTownSim.Runtime
     {
         private const string WheelWord = "wheel";
 
-        /// <summary>A wheel radius is never taken as less than this (metres), and this when it cannot be measured.</summary>
+        /// <summary>A wheel radius is never taken as less than this (metres), so a tiny measured size cannot spin the wheels absurdly fast. Raise it to slow the spin of small wheels; lower it to allow small wheels.</summary>
         private const float MinimumRadius = 0.25f;
 
+        /// <summary>The radius (metres) used when a wheel's size cannot be measured. Raise it for slower spin; lower it for faster.</summary>
         private const float DefaultRadius = 0.5f;
 
-        /// <summary>A move this long in one frame is a jump (the unit was parked again), not driving, so the wheels ignore it.</summary>
+        /// <summary>A move this long (metres) in one frame is a jump (the unit was parked again), not driving, so the wheels ignore it. Raise or lower it as for the player's WheelSpin.</summary>
         private const float JumpDistance = 5f;
 
         private readonly List<Transform> _wheels = new List<Transform>();

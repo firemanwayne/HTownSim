@@ -63,58 +63,58 @@ namespace HTownSim.Runtime
             EmergencyEquipment = emergencyEquipment;
         }
 
-        /// <summary>False for a citizen car: no lightbar, no siren and no horn tones, just headlights, blinkers and the pedal lamps.</summary>
+        /// <summary>False for a citizen car: no siren, lightbar or horn tones, just headlights, blinkers and the pedal lamps.</summary>
         internal bool EmergencyEquipment { get; }
 
         /// <summary>True for an EMS unit: a new call plays the EMS high/low alert tone instead of the fire station ring and beeps.</summary>
         internal bool EmsAlert { get; }
 
-        /// <summary>Resource name of the lens glow list (Resources/*.json) for models whose lenses are in the mesh; empty for none.</summary>
+        /// <summary>Resource name of the lens glow list for a model whose lenses are part of its mesh. Set it to get camera-facing glows (bloom) on the lenses; empty means none.</summary>
         internal string LensHalos { get; }
 
-        /// <summary>True when the apparatus carries water (engine and ladder); the ambulance cannot spray.</summary>
+        /// <summary>True lets E spray water at fires (engine and ladder); false for an ambulance or car. It does not decide who can transport patients (see UnitName).</summary>
         internal bool CanSprayWater { get; }
 
-        /// <summary>True when the apparatus has the synthesized air horn (engine and ladder); false uses the plain electric horn (ambulance).</summary>
+        /// <summary>True gives the unit the air horn (engine and ladder); false gives the plain electric horn (ambulance, cars).</summary>
         internal bool AirHorn { get; }
 
-        /// <summary>The unit's radio name, e.g. "Ladder 07".</summary>
+        /// <summary>The unit's radio name, e.g. "Ladder 07". It is shown in the HUD and the incident text, and decides which unit the dispatcher thinks the player is (Engine 16 answers E016) and whether the unit can transport patients (only names starting Ambulance or Medic can).</summary>
         internal string UnitName { get; }
 
-        /// <summary>Tyre rolling radius, metres.</summary>
+        /// <summary>Tyre rolling radius, metres. It sets how fast the wheels turn for a given speed (a bigger radius turns slower), so set it to the tyre's real size or the wheels will look like they slip or spin too fast. It does not change how fast the unit drives.</summary>
         internal float WheelRadius { get; }
 
-        /// <summary>Front axle to rear axle (or tandem centre), metres.</summary>
+        /// <summary>Front axle to rear axle (or tandem centre), metres. Raise it and the front wheels are drawn turned further for the same turn (a longer truck needs more wheel angle for the same curve); it only changes how the wheels look, not the turning radius (TurnRate sets that). Use the model's real axle distance.</summary>
         internal float Wheelbase { get; }
 
-        /// <summary>Name prefixes of the steering wheels.</summary>
+        /// <summary>Name prefixes of the steering wheels. Parts whose name starts with one of these are the front wheels: they roll and turn with the steering. A wrong prefix leaves the wheels still.</summary>
         internal string[] FrontWheelPrefixes { get; }
 
-        /// <summary>Name prefixes of the non-steering wheels.</summary>
+        /// <summary>Name prefixes of the non-steering wheels. Parts whose name starts with one of these roll but do not steer.</summary>
         internal string[] RearWheelPrefixes { get; }
 
-        /// <summary>Yaw degrees per metre travelled at full lock.</summary>
+        /// <summary>Yaw in degrees per metre travelled at full steering lock. This is the turning radius: raise it for a tighter turn (a nimble patrol car, about 10), lower it for a wider one (a long ladder truck, about 2.5). The turning radius is roughly 57 divided by this value, in metres.</summary>
         internal float TurnRate { get; }
 
-        /// <summary>Chase camera distance multiplier.</summary>
+        /// <summary>Multiplies the chase camera's distance behind the unit. Raise it for a camera that sits further back (long ladder truck); lower it to bring the camera in close (a small car).</summary>
         internal float CameraDistanceScale { get; }
 
-        /// <summary>Water stream origin, local space.</summary>
+        /// <summary>Where the water stream starts, in the apparatus's local space (x right, y up, z forward). Move it to put the nozzle in the right place; wrong values make the stream come from the roof or the middle of the cab.</summary>
         internal Vector3 WaterOrigin { get; }
 
-        /// <summary>Right-hand scene light position, local space (mirrored for the left).</summary>
+        /// <summary>Position of the right-hand scene light in local space (the left one is its mirror). Move it to put the work lights where the model's light heads are.</summary>
         internal Vector3 SceneLight { get; }
 
-        /// <summary>Whether the add-on LED brake and reverse panels are built.</summary>
+        /// <summary>Whether the add-on LED brake and reverse panels are built. Turn it off for a model that has its own tail lamps, or you get doubled lights.</summary>
         internal bool RearLamps { get; }
 
-        /// <summary>Lens materials of the first flash group.</summary>
+        /// <summary>Lens materials of the first flash group (the warning lights that flash together). Add a material name to make that lens flash; the second group takes the opposite half of each cycle.</summary>
         internal string[] FlashGroupA { get; }
 
-        /// <summary>Lens materials of the second, alternating flash group.</summary>
+        /// <summary>Lens materials of the second, alternating flash group. They light while the first group is dark.</summary>
         internal string[] FlashGroupB { get; }
 
-        /// <summary>Lens materials lit steadily with the headlights.</summary>
+        /// <summary>Lens materials that burn steadily with the headlights (headlamps, fog lamps). Add a material to make it glow whenever the headlights are on.</summary>
         internal string[] SteadyLenses { get; }
     }
 }

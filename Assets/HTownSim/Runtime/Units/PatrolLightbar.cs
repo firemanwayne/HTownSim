@@ -14,24 +14,29 @@ namespace HTownSim.Runtime
 
         private const string BlueMaterial = "HPD_Flash_Blue";
 
-        /// <summary>Full red-then-blue cycles per second.</summary>
+        /// <summary>How many red-then-blue cycles per second the patrol lightbar runs. Raise it for a faster flash; lower it for a slower, calmer one.</summary>
         private const float CyclesPerSecond = 3f;
 
-        /// <summary>How bright a lit module is (HDR, so the bloom picks it up), the glow list written by AgentScripts/BuildHpdLensHalos.cs, and the look of the glows.</summary>
+        /// <summary>How bright a lit lightbar module is (HDR emission, so the bloom picks it up). Raise it for a stronger glow and bloom; lower it for a duller bar.</summary>
         private const float FlashEmission = 6f;
 
         private const string LensList = "HpdLenses";
 
         private const string WarningGroup = "Warning";
 
+        /// <summary>Glow halos are sized from the glow list: this many times the lens size. Raise it for bigger glows on the bar; lower it for tight ones.</summary>
         private const float HaloLensScale = 3.6f;
 
+        /// <summary>The smallest a lightbar glow may be (metres). Raise it so every module glows visibly; lower it for finer glows.</summary>
         private const float HaloMinSize = 0.3f;
 
+        /// <summary>The largest a lightbar glow may be (metres). Raise it to let the glows reach further; lower it to keep them small.</summary>
         private const float HaloMaxSize = 0.7f;
 
+        /// <summary>Opacity (0 to 1) of the lightbar glows. Raise it for a stronger glow; lower it for a faint one.</summary>
         private const float HaloAlpha = 0.8f;
 
+        /// <summary>How far (metres) in front of the lens, toward the camera, each glow sits. Raise it so the glow clears the bar's housing; lower it to seat the glow against the lens.</summary>
         private const float HaloLift = 0.1f;
 
         private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");

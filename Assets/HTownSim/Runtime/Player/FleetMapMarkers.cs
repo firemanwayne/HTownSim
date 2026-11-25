@@ -16,15 +16,19 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class FleetMapMarkers
     {
-        /// <summary>The marker sizes (HUD units) of a parked and of a responding unit, and the labels' size and offset from their square.</summary>
+        /// <summary>Size (HUD units) of the map marker of a parked unit. Raise it for bigger markers; lower it for smaller ones.</summary>
         private const float ParkedSize = 8f;
 
+        /// <summary>Size (HUD units) of the map marker of a unit out on a call. Raise it so responding units stand out more; lower it to keep them small.</summary>
         private const float OutSize = 13f;
 
+        /// <summary>Font size of a responding unit's map label (E16, A16, P2). Raise it for larger labels; lower it for smaller ones.</summary>
         private const float LabelSize = 11f;
 
+        /// <summary>How far (map pixels) a label sits to the right of its marker. Raise it to move the label away; lower it to tuck it in.</summary>
         private const float LabelOffset = 16f;
 
+        /// <summary>Opacity (0 to 1) of a parked unit's marker. Raise it so parked units show more strongly; lower it to fade them into the map.</summary>
         private const float ParkedAlpha = 0.45f;
 
         private static readonly Color Fire = new Color(1f, 0.22f, 0.18f, 1f);

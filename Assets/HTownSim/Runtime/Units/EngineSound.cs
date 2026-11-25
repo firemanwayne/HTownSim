@@ -15,21 +15,32 @@ namespace HTownSim.Runtime
         private const string LowResource = "EngineAudio/Rpm1000";
         private const string HighResource = "EngineAudio/Rpm2000";
 
-        /// <summary>Ground speed in metres per second at the top of each gear; the last entry is top speed.</summary>
+        /// <summary>Ground speed in metres per second at the top of each gear; the last entry is top speed (it should match the unit's top speed). Change an entry to move where the engine shifts: higher values keep a gear longer, lower values shift sooner. Adding or removing entries changes the number of gears.</summary>
         private static readonly float[] GearTop = { 4f, 7.5f, 12f, 17f, 22f };
 
+        /// <summary>The overall volume (0 to 1) of the engine's idle and rev loops. Raise it to make the engine louder in the cab view; lower it to make it quieter. It does not change the road noise, turbo, squeal, air brake or alarm, which have their own volumes.</summary>
         private const float MasterVolume = 0.5f;
+        /// <summary>The volume (0 to 1) of the road-noise bed at full road speed. Raise it for more tyre and wind noise at speed; lower it for a quieter ride.</summary>
         private const float RoadVolume = 0.3f;
+        /// <summary>The ground speed (metres per second) at which the road noise reaches full volume and pitch. Raise it so the road noise builds more slowly with speed; lower it so it is full volume at lower speeds.</summary>
         private const float RoadFullSpeed = 20f;
+        /// <summary>Engine speed (0 to 1) at idle. Raise it for a higher, busier idle; lower it for a slow, lumpy idle.</summary>
         private const float IdleRpm = 0.08f;
-        /// <summary>Engine speed (0-1) and load while the aerial hydraulics are working (outriggers or ladder moving).</summary>
+        /// <summary>Engine speed (0 to 1) while the aerial hydraulics work (outriggers or ladder moving). Raise it for a louder, higher-revving pump; lower it for a quieter one.</summary>
         private const float HydraulicRpm = 0.5f;
+        /// <summary>How loaded (0 to 1) the engine sounds while the aerial hydraulics work. Raise it for a strained, heavier sound; lower it for a lighter one.</summary>
         private const float HydraulicLoad = 0.6f;
+        /// <summary>How fast the revs climb when the throttle asks for more. Raise it for an eager, snappy engine; lower it for a heavy one that winds up slowly.</summary>
         private const float RpmRiseRate = 3.4f;
+        /// <summary>How fast the revs fall when the throttle is lifted. Raise it so the revs drop quickly; lower it for revs that hang on.</summary>
         private const float RpmFallRate = 1.3f;
+        /// <summary>How fast the revs fall while braking. Raise it so the engine settles at once when braking; lower it so the revs trail off.</summary>
         private const float BrakeFallRate = 3.2f;
+        /// <summary>How much the revs rise with the throttle (0 to 1 of the rev range; doubled when standing still). Raise it for a bigger rev when you press the pedal; lower it for a more restrained one.</summary>
         private const float ThrottleBlip = 0.26f;
+        /// <summary>How quickly the engine's load (the low-rev versus high-rev mix) follows the throttle. Raise it for a quick change of tone; lower it for a slow one.</summary>
         private const float LoadEase = 5f;
+        /// <summary>A pitch multiplier on all the engine loops (1 is the recording's own pitch). Lower it for a deeper, heavier truck; raise it toward 1 or above for a lighter, higher engine.</summary>
         private const float HeavyPitch = 0.88f;
 
         private HTownSim.Runtime.Contracts.VehicleStateBase _response = null!;
@@ -51,44 +62,49 @@ namespace HTownSim.Runtime
         private bool _wasBraking;
         private float _peakSpeed;
 
-        /// <summary>Peak turbo volume. It was 0.22 with a shrill 1.4/2.8 kHz tone that swept with every gear change.</summary>
+        /// <summary>Peak volume (0 to 1) of the turbo whistle, heard while accelerating. Raise it for a more obvious turbo; lower it to make it fainter or inaudible.</summary>
         private const float TurboVolume = 0.07f;
 
-        /// <summary>Turbo pitch at idle and at full revs: it climbs with the RPM like a real turbo (820 Hz clip, so about
-        /// 620 Hz to 1.1 kHz, down from 1.75-2.8 kHz before).</summary>
+        /// <summary>Turbo pitch at idle (1 is the clip's own pitch). Raise it for a higher turbo whine at low revs; lower it for a deeper one.</summary>
         private const float TurboPitchMin = 0.75f;
 
+        /// <summary>Turbo pitch at full revs. Raise it for a shriller turbo at the top end; lower it to keep it low and rounded.</summary>
         private const float TurboPitchMax = 1.35f;
 
-        /// <summary>How fast the turbo follows the revs (per second): quick enough to track RPM and upshift drops,
-        /// smooth enough to avoid zipper noise.</summary>
+        /// <summary>How fast the turbo pitch follows the revs, per second. Raise it to track the revs tightly; lower it for a lazier, smoother glide.</summary>
         private const float TurboFollowRate = 6f;
 
-        /// <summary>Acceleration (m/s²) above which the truck counts as accelerating, so the turbo is heard.</summary>
+        /// <summary>The acceleration (metres per second squared) above which the truck counts as accelerating and the turbo is heard. Raise it so only hard acceleration spools the turbo; lower it so even a gentle push does.</summary>
         private const float BoostAcceleration = 0.4f;
 
-        /// <summary>Fade rates (per second) of the turbo as acceleration starts and stops.</summary>
+        /// <summary>How fast the turbo fades in when acceleration starts, per second. Raise it for an instant whistle; lower it for a gradual one.</summary>
         private const float BoostAttack = 6f;
 
+        /// <summary>How fast the turbo fades out when acceleration stops, per second. Raise it for a quick cut-off; lower it for a whistle that trails.</summary>
         private const float BoostRelease = 8f;
 
-        /// <summary>A gear drops back only below this fraction of the lower gear's top speed, so it cannot hunt.</summary>
+        /// <summary>A gear drops back only below this fraction of the lower gear's top speed, so the engine does not hunt between gears. Raise it toward 1 for quicker downshifts; lower it for later ones.</summary>
         private const float DownshiftFraction = 0.85f;
-        /// <summary>Peak squeal volume (was 0.26 for the whole stop from any speed, a shrill 2.2 kHz beating tone).</summary>
+        /// <summary>Peak volume (0 to 1) of the brake squeal at the end of a hard stop. Raise it for a louder squeal; lower it to quieten or remove it.</summary>
         private const float SquealVolume = 0.09f;
 
-        /// <summary>The squeal is heard only in the last part of a stop, below this speed (m/s), loudest around
-        /// <see cref="SquealPeakSpeed"/> and gone as the truck stops; and only after a stop from at least
-        /// <see cref="SquealMinPeak"/> (a real stop, not a tap of the brake).</summary>
+        /// <summary>The speed (metres per second) below which the brake squeal can be heard. Raise it to start the squeal earlier in a stop; lower it to squeal only at the very end.</summary>
         private const float SquealStartSpeed = 5f;
 
+        /// <summary>The speed (metres per second) at which the squeal is loudest. Raise it to move the loudest part earlier in the stop; lower it to move it toward the end.</summary>
         private const float SquealPeakSpeed = 2.5f;
 
+        /// <summary>The speed (metres per second) a stop must start from to squeal at all, so a tap of the brake stays silent. Raise it so only hard stops from higher speed squeal; lower it to squeal on gentler stops.</summary>
         private const float SquealMinPeak = 8f;
+        /// <summary>Volume (0 to 1) of the air-brake hiss when the truck stops. Raise it for a louder hiss; lower it to quieten it. It is scaled by how fast the truck was going.</summary>
         private const float AirBrakeVolume = 0.7f;
+        /// <summary>Volume (0 to 1) of the reversing alarm. Raise it for a louder beep; lower it to quieten it.</summary>
         private const float AlarmVolume = 0.9f;
+        /// <summary>Distance (metres) within which the reversing alarm is at full volume. Raise it so the alarm stays loud further away; lower it so it fades sooner.</summary>
         private const float AlarmMinDistance = 6f;
+        /// <summary>Distance (metres) beyond which the reversing alarm cannot be heard. Raise it so it carries further; lower it to keep it local.</summary>
         private const float AlarmMaxDistance = 90f;
+        /// <summary>How far the revs drop at each gear change (0 to 1 of the rev range). Raise it for a bigger drop and a more obvious shift; lower it for smooth, hardly noticed shifts.</summary>
         private const float ShiftDrop = 0.16f;
 
         /// <summary>Creates the four looping sources and starts them silent.</summary>

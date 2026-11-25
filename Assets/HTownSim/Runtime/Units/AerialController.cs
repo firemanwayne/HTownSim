@@ -25,44 +25,55 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class AerialController : MonoBehaviour
     {
-        /// <summary>Rig values (from the Blender drivers): outrigger reach and drop, stowed beam width, fly travel, tip reach.</summary>
+        /// <summary>How far (metres) the outriggers extend sideways from the truck. This comes from the Blender model's rig: change it only with the model, or the outriggers will not meet their housings.</summary>
         private const float OutriggerReach = 1.15f;
 
+        /// <summary>How far (metres) the outrigger jacks drop to the ground. From the model's rig: change it only with the model.</summary>
         private const float OutriggerDrop = 0.2475f;
 
+        /// <summary>The width (metres) of the stowed outrigger beam. From the model's rig: change it only with the model.</summary>
         private const float BeamRestWidth = 0.24f;
 
+        /// <summary>How far (metres) the ladder's fly sections slide out at full extension. From the model's rig; raise it only if the model's sections can slide further.</summary>
         private const float FlyTravel = 7.5f;
 
+        /// <summary>Distance (metres) from the end of the top ladder section to the nozzle tip. It sets where the master stream and tip position are measured from; change it only with the model.</summary>
         private const float TipReach = 10.355f;
 
-        /// <summary>Hydraulic ram piston: length is the base-to-anchor distance less the barrel's share, never below the minimum.</summary>
+        /// <summary>The share (metres) of a hydraulic ram taken by its barrel, so the piston length is the base-to-anchor distance less this. Rig detail: change it only with the model.</summary>
         private const float RamBarrel = 0.35f;
 
+        /// <summary>The shortest a hydraulic ram piston is drawn (metres), so it never vanishes. Rig detail.</summary>
         private const float RamMinimum = 0.05f;
 
-        /// <summary>Operating speeds: seconds for a full outrigger extension and jack stroke, degrees and fraction per second.</summary>
+        /// <summary>Seconds for the outriggers to extend or retract fully. Raise it for slower, more deliberate setup; lower it for quicker setup.</summary>
         private const float OutriggerSeconds = 3f;
 
+        /// <summary>Seconds for the jacks to lower or raise fully. Raise it for a slower jack stroke; lower it for a quicker one.</summary>
         private const float JackSeconds = 2f;
 
+        /// <summary>How fast the ladder raises and lowers, in degrees per second. Raise it for a quicker ladder; lower it for a slower, heavier one.</summary>
         private const float ElevationSpeed = 9f;
 
+        /// <summary>How fast the turntable rotates, in degrees per second. Raise it to swing the ladder round quicker; lower it for slower rotation.</summary>
         private const float SlewSpeed = 18f;
 
+        /// <summary>How fast the ladder extends and retracts, as a fraction of full extension per second. Raise it for quicker extension; lower it for a slower one.</summary>
         private const float ExtensionRate = 0.12f;
 
+        /// <summary>The highest the ladder can be raised, in degrees. Raise it to let the ladder go steeper; lower it to cap how high it can point.</summary>
         private const float MaximumElevation = 80f;
 
-        /// <summary>The ladder may not raise until the outriggers are at least this far out and down.</summary>
+        /// <summary>The ladder may not raise until the outriggers are at least this far (0 to 1) out and down. Raise it toward 1 to demand fully set outriggers; lower it to allow raising before they are fully set.</summary>
         internal const float OutriggerInterlock = 0.75f;
 
-        /// <summary>Below this angle the ladder is over the cab: no rotating or extending, and it beds only when home.</summary>
+        /// <summary>Below this angle (degrees) the ladder is over the cab: no rotating or extending, and it beds only when home. Raise it to keep the ladder clear of the cab at higher angles; lower it to allow rotation at lower angles.</summary>
         private const float CabClearance = 12f;
 
-        /// <summary>How close to straight ahead the turntable must be to lower the ladder into its bed.</summary>
+        /// <summary>How close to straight ahead (degrees) the turntable must be to lower the ladder into its bed. Raise it for an easier bedding; lower it to demand a precise alignment.</summary>
         private const float HomeTolerance = 1f;
 
+        /// <summary>How close (as a fraction) a moving part must be to its target to count as arrived. Raise it to settle sooner; lower it for exact positions.</summary>
         private const float Settled = 0.001f;
 
         /// <summary>
@@ -72,13 +83,16 @@ namespace HTownSim.Runtime
         /// </summary>
         private const string OutriggerBeepResource = "AerialAudio/OutriggerErch";
 
+        /// <summary>Volume (0 to 1) of the aerial's warning beep. Raise it for a louder beep; lower it to quieten it.</summary>
         private const float BeepVolume = 0.45f;
 
+        /// <summary>Distance (metres) within which the aerial beep is at full volume. Raise it to keep it loud further out; lower it so it fades sooner.</summary>
         private const float BeepMinDistance = 4f;
 
+        /// <summary>Distance (metres) beyond which the aerial beep cannot be heard. Raise it so it carries further; lower it to keep it close.</summary>
         private const float BeepMaxDistance = 50f;
 
-        /// <summary>Low-pass cutoff (Hz) that slightly muffles the beep; lower is more muffled.</summary>
+        /// <summary>Low-pass cutoff (Hz) that slightly muffles the beep; lower is more muffled. Raise it for a sharper, brighter beep; lower it for a duller one.</summary>
         private const float BeepMuffleCutoff = 2500f;
 
         private readonly List<AudioSource> _beeps = new();

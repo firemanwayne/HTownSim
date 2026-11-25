@@ -23,19 +23,24 @@ namespace HTownSim.Runtime
         /// <summary>Independent gain controls, shared by every source in each category.</summary>
         [SerializeField, Range(0, 1)] private float _ambientVolume = 0.55f;
         [SerializeField, Range(0, 1)] private float _engineVolume = 0.6f;
-        /// <summary>Transition and rainfall budgets.</summary>
+        /// <summary>Seconds a change of weather (clear to rain, and back) takes to blend in. Raise it for a slow, gradual change; lower it for a quick one.</summary>
         private const float TransitionSeconds = 5f;
+        /// <summary>How many raindrops per second fall. Raise it for heavier rain (costs frame rate); lower it for a light drizzle.</summary>
         private const float RainRate = 950f;
+        /// <summary>Radius (metres) of the area around the player that rain falls in. Raise it for rain over a wider area (more drops needed); lower it to keep it close.</summary>
         private const float RainRadius = 20f;
+        /// <summary>Height (metres) above the player that rain starts to fall from. Raise it for longer fall; lower it so drops appear lower.</summary>
         private const float RainHeight = 13f;
+        /// <summary>How fast (metres per second) raindrops fall. Raise it for fast, streaky rain; lower it for slow drops.</summary>
         private const float RainSpeed = 18f;
+        /// <summary>How high (metres) a roof above the player must be to count as shelter that stops rain and dampens the ambience. Raise it so only high roofs shelter; lower it so low canopies do.</summary>
         private const float ShelterHeight = 4f;
         /// <summary>Runtime state owned by this component.</summary>
         private WeatherPreset _preset;
         private float _cloud;
         private float _rainAmount;
         private float _emissionRemainder;
-        /// <summary>The inspector default for the ambient volume, used to normalise the gain handed to other sound layers.</summary>
+        /// <summary>The inspector default for the ambient volume, used to normalise the gain handed to other sound layers. Change it only if the ambient volume default changes.</summary>
         private const float DefaultAmbientVolume = 0.55f;
         private bool _ambientMuted;
         private bool _sheltered;

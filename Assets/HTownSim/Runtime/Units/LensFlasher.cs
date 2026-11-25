@@ -12,13 +12,16 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class LensFlasher : MonoBehaviour
     {
+        /// <summary>Flash rate of the lens-mesh warning lights (Ladder 07, ambulances, chiefs, supervisors, patrol), in cycles per second. Raise it for faster flashing; lower it for slower.</summary>
         private const float FlashHertz = 1.6f;
 
-        /// <summary>Within each half of the cycle a group double-pulses, like LED warning lights.</summary>
+        /// <summary>Within each half of the cycle a group double-pulses, like LED warning lights: this is the fraction of that half spent lit. Raise it for longer pulses; lower it for shorter, sharper ones.</summary>
         private const float PulseDuty = 0.32f;
 
+        /// <summary>How bright a flashing lens glows (HDR emission, so the bloom picks it up). Raise it for a stronger glow and bloom; lower it for a duller flash.</summary>
         private const float FlashEmission = 6f;
 
+        /// <summary>How bright the steady lenses (headlamps, fog lamps) glow with the headlights on. Raise it for brighter headlamps; lower it for dimmer ones.</summary>
         private const float SteadyEmission = 2.5f;
 
         private HTownSim.Runtime.Contracts.VehicleStateBase _response = null!;
@@ -36,16 +39,19 @@ namespace HTownSim.Runtime
 
         private Texture2D? _haloTexture;
 
-        /// <summary>Halos are sized from their lens (this many times its longest side) and kept between these limits: the ambulance's lenses are small, so its glows are too.</summary>
+        /// <summary>Glow halos are sized from their lens: this many times its longest side. Raise it for bigger glows; lower it for tighter ones.</summary>
         private const float HaloLensScale = 3.6f;
 
+        /// <summary>The smallest a lens glow may be (metres). Raise it so small lenses glow visibly; lower it for finer glows.</summary>
         private const float HaloMinSize = 0.3f;
 
+        /// <summary>The largest a lens glow may be (metres). Raise it to let large lenses bloom more; lower it to keep glows small.</summary>
         private const float HaloMaxSize = 0.7f;
 
+        /// <summary>Opacity (0 to 1) of the lens glows. Raise it for a stronger glow; lower it for a faint one.</summary>
         private const float HaloAlpha = 0.8f;
 
-        /// <summary>How far in front of the lens (towards the camera) a halo sits.</summary>
+        /// <summary>How far (metres) in front of the lens, toward the camera, each glow sits. Raise it to clear the lens housing; lower it to seat the glow against the lens.</summary>
         private const float HaloLift = 0.1f;
 
         /// <summary>Lens groups that get a glow when steady (the headlights, fog lights and brake lights); the small marker lights do not.</summary>

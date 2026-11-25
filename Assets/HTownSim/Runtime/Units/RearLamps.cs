@@ -9,33 +9,46 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class RearLamps : MonoBehaviour
     {
-        /// <summary>Rear face of the body in the engine's local space, and the panel centres (across, up) on each side.</summary>
+        /// <summary>Where the rear face of the body is, in the engine's local space (metres, negative is behind the centre). Change it if the lamp panels float off the back or sink into it.</summary>
         private const float RearZ = -4.49f;
 
+        /// <summary>How far (metres) each lamp panel sits to the side of the centre line. Raise it to move the panels apart; lower it to bring them together.</summary>
         private const float PanelX = 0.84f;
 
+        /// <summary>The height (metres) of the brake lamp panels. Raise it to move them up the body; lower it to move them down.</summary>
         private const float BrakeY = 0.98f;
 
+        /// <summary>The height (metres) of the reverse lamp panels. Raise it to move them up the body; lower it to move them down.</summary>
         private const float ReverseY = 1.31f;
 
+        /// <summary>The width (metres) of each lamp panel. Raise it for wider panels; lower it for narrower ones.</summary>
         private const float PanelWidth = 0.2f;
 
+        /// <summary>The height (metres) of each lamp panel. Raise it for taller panels; lower it for shorter ones.</summary>
         private const float PanelHeight = 0.2f;
 
+        /// <summary>How many columns of LED dots each lamp panel has. Raise it for a denser panel; lower it for a coarser one.</summary>
         private const int Columns = 4;
 
+        /// <summary>How many rows of LED dots each lamp panel has. Raise it for a denser panel; lower it for a coarser one.</summary>
         private const int Rows = 3;
 
+        /// <summary>The size (metres) of each LED dot. Raise it for bigger dots; lower it for pinpoints.</summary>
         private const float DotSize = 0.034f;
 
+        /// <summary>How bright (HDR emission, above the bloom threshold) a lit LED glows. Raise it for a stronger glow and bloom; lower it for dull lamps.</summary>
         private const float EmissionStrength = 7f;
 
+        /// <summary>The size (metres) of the glow drawn around a lit panel. Raise it for a bigger bloom; lower it for a tight glow.</summary>
         private const float HaloSize = 0.55f;
 
+        /// <summary>Opacity (0 to 1) of the glow around a lit panel. Raise it for a stronger glow; lower it to fade it out.</summary>
         private const float HaloAlpha = 0.5f;
 
+        /// <summary>How bright the white light the reverse lamps cast on the ground is. Raise it for a stronger wash behind the truck; lower it for a weaker one.</summary>
         private const float ReverseLightIntensity = 45f;
 
+        /// <summary>How far (metres) the reverse lamps' light reaches. Raise it to light further behind the truck; lower it to a short pool.</summary>
         private const float ReverseLightRange = 16f;
 
         private HTownSim.Runtime.Contracts.VehicleStateBase _response = null!;

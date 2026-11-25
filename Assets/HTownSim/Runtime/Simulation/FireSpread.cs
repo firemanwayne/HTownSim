@@ -7,42 +7,59 @@ namespace HTownSim.Runtime
     /// <summary>Grows the incident fire over time, ignites neighbouring bays along the facade and thickens the smoke. Owned by <see cref="FireResponse"/>.</summary>
     internal sealed class FireSpread : MonoBehaviour
     {
-        /// <summary>Growth tuning: size multiplier at full burn and seconds to reach it from ignition.</summary>
+        /// <summary>The size multiplier at full burn. Raise it for fires that grow bigger if left alone (more flames and spread); lower it to cap how big a fire gets.</summary>
         private const float MaxGrowth = 3f;
+        /// <summary>Seconds for an untended fire to reach full growth from ignition. Raise it for slow-growing fires and more time to respond; lower it for fires that blow up quickly.</summary>
         private const float SecondsToFullGrowth = 75f;
-        /// <summary>Flame emission in particles per second for the main seat of the fire and each satellite at full heat.</summary>
+        /// <summary>Flame particles per second from the main seat of the fire at full heat (built-in flames, used when no authored fire is set). Raise it for denser flames; lower it for sparse ones.</summary>
         private const float MainFlameRate = 65f;
+        /// <summary>Flame particles per second from each satellite fire at full heat (built-in flames). Raise it for fuller spreading fires; lower it for weaker ones.</summary>
         private const float SatelliteFlameRate = 45f;
+        /// <summary>Smoke particles per second from the built-in smoke at ignition. Raise it for thicker smoke; lower it for thinner.</summary>
         private const float SmokeRate = 15f;
-        /// <summary>Particle caps sized for the intensified fire and smoke.</summary>
+        /// <summary>The most built-in flame particles alive at once. Raise it so large fires are not cut short (costs frame rate); lower it to save frame rate.</summary>
         private const int FlameParticleCap = 500;
 
-        /// <summary>Crackle is full volume within this distance and fades out smoothly to silence at the maximum, so a fire can be heard from blocks away.</summary>
+        /// <summary>Distance (metres) within which the fire's crackle is full volume. Raise it so the crackle stays loud further out; lower it so it fades sooner.</summary>
         private const float FireAudioMinDistance = 25f;
 
+        /// <summary>Distance (metres) beyond which the fire's crackle cannot be heard. Raise it so fires can be heard from blocks away; lower it to keep them local.</summary>
         private const float FireAudioMaxDistance = 500f;
+        /// <summary>The most built-in smoke particles alive at once. Raise it so heavy smoke is not cut short (costs frame rate); lower it to save frame rate.</summary>
         private const int SmokeParticleCap = 900;
         /// <summary>Lateral offsets of the satellite fires from the main seat, in metres; each ignites at the matching growth threshold.</summary>
         private static readonly float[] SatelliteOffsets = { 4f, -4f, 8f, -8f };
         private static readonly Color DenseSmoke = new Color(0.04f, 0.045f, 0.05f, 1f);
 
-        /// <summary>Scale of the Vefects fire at ignition and at full growth, and how little of it remains as the heat falls to zero.</summary>
+        /// <summary>Size of the fire at ignition, as a multiple of the authored fire. Raise it for bigger flames from the start; lower it for a small fire that has to grow.</summary>
         private const float VfxMinScale = 1.1f;
+        /// <summary>Size of the fire at full growth, as a multiple of the authored fire. Raise it for a bigger, more dramatic blaze when left alone; lower it to keep fires modest.</summary>
         private const float VfxMaxScale = 2.6f;
+        /// <summary>How much of the fire remains (as a fraction of its size) when the heat has been knocked down to zero: the embers. Raise it so a knocked-down fire still looks big; lower it so it shrinks to almost nothing.</summary>
         private const float VfxEmbersScale = 0.35f;
+        /// <summary>The most smoke particles alive at once for the authored fire. Raise it so heavy smoke is not cut short (costs frame rate); lower it to save frame rate.</summary>
         private const float VfxSmokeCap = 9000;
-        /// <summary>How the smoke climbs and spreads: lifetime, rise speed and widening multipliers at ignition and at full growth, plus the steady wind that carries it downwind.</summary>
+        /// <summary>How long smoke particles live (a multiplier) at ignition. Raise it so smoke hangs longer and climbs higher; lower it for short-lived smoke.</summary>
         private const float SmokeLifeMin = 2.2f;
+        /// <summary>How long smoke particles live (a multiplier) at full growth. Raise it for a taller, longer plume; lower it for a shorter one.</summary>
         private const float SmokeLifeMax = 3.6f;
+        /// <summary>How fast smoke climbs (a multiplier) at ignition. Raise it for quicker rising smoke; lower it for lazier smoke.</summary>
         private const float SmokeRiseMin = 1.3f;
+        /// <summary>How fast smoke climbs (a multiplier) at full growth. Raise it for a faster, taller column; lower it for a slow one.</summary>
         private const float SmokeRiseMax = 2.1f;
+        /// <summary>How much the smoke spreads out as it rises (a multiplier) at ignition. Raise it for a wider plume; lower it for a narrow one.</summary>
         private const float SmokeWidenMin = 1.4f;
+        /// <summary>How much the smoke spreads out as it rises (a multiplier) at full growth. Raise it for a broad cloud; lower it for a tight column.</summary>
         private const float SmokeWidenMax = 2.6f;
+        /// <summary>Steady sideways push (metres per second) that carries the smoke downwind. Raise it to lean the plume over more; lower it (or 0) for smoke that rises straight up.</summary>
         private const float SmokeWind = 1.8f;
-        /// <summary>Smoke emission multipliers at ignition and at full growth; the smoke is deliberately heavy.</summary>
+        /// <summary>Smoke emission multiplier at ignition. Raise it for heavier smoke from the start; lower it for lighter smoke early on.</summary>
         private const float VfxSmokeBoostMin = 3.2f;
+        /// <summary>Smoke emission multiplier at full growth. Raise it for a thick black column; lower it for thinner smoke.</summary>
         private const float VfxSmokeBoostMax = 8.5f;
+        /// <summary>Flame emission multiplier at ignition. Raise it for fuller flames early; lower it for sparse ones.</summary>
         private const float VfxFlameBoostMin = 0.9f;
+        /// <summary>Flame emission multiplier at full growth. Raise it for denser flames; lower it for thinner ones.</summary>
         private const float VfxFlameBoostMax = 1.7f;
         private static readonly string[] SmokeNames = { "Smoke", "Burning", "Dark" };
 

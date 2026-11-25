@@ -10,17 +10,22 @@ namespace HTownSim.Runtime
     /// </summary>
     public sealed class GapSignalCycle : MonoBehaviour
     {
-        /// <summary>The cycle length and the moments the phases change, seconds.</summary>
+        /// <summary>Length (seconds) of the whole signal cycle of the gap streets' traffic lights. Raise it for longer waits; lower it for faster changes. The moments below are inside this cycle, so keep them below it.</summary>
         private const float Cycle = 48f;
 
+        /// <summary>The second of the cycle at which the first phase's green ends. Raise it for a longer green for the first phase (and a shorter wait for the second).</summary>
         private const float GreenEnd = 20f;
 
+        /// <summary>The second at which the first phase's amber ends and it turns red. Raise it for a longer amber.</summary>
         private const float AmberEnd = 23f;
 
+        /// <summary>The second at which the second phase turns green. Keep it a little after AmberEnd for a clear gap with everything red; raise it for a longer all-red gap.</summary>
         private const float SecondStart = 24f;
 
+        /// <summary>The second at which the second phase's green ends. Raise it for a longer green for the second phase.</summary>
         private const float SecondGreenEnd = 44f;
 
+        /// <summary>The second at which the second phase's amber ends and it turns red. Raise it for a longer amber. Keep it below Cycle.</summary>
         private const float SecondAmberEnd = 47f;
 
         [SerializeField] private Renderer _phaseA = null!;

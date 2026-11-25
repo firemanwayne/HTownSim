@@ -10,41 +10,55 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class LiveFireVfx
     {
-        /// <summary>Size of the fire at ignition and at full growth, and how little of it remains when the heat is gone.</summary>
+        /// <summary>Size of the fire at ignition, as a multiple of the authored fire. Raise it for bigger flames from the start; lower it for a small fire that has to grow.</summary>
         private const float MinScale = 1.1f;
 
+        /// <summary>Size of the fire at full growth, as a multiple of the authored fire. Raise it for a bigger, more dramatic blaze when left alone; lower it to keep fires modest.</summary>
         private const float MaxScale = 2.6f;
 
+        /// <summary>How much of the fire remains (as a fraction of its size) when the heat has been knocked down to zero: the embers. Raise it so a knocked-down fire still looks big; lower it so it shrinks to almost nothing.</summary>
         private const float EmbersScale = 0.35f;
 
-        /// <summary>Smoke is heavy: its emission multiplier at ignition and at full growth; the flames get a milder one.</summary>
+        /// <summary>Smoke emission multiplier at ignition. Raise it for heavier smoke from the start; lower it for lighter smoke early on.</summary>
         private const float SmokeBoostMin = 3.2f;
 
+        /// <summary>Smoke emission multiplier at full growth. Raise it for a thick black column; lower it for thinner smoke.</summary>
         private const float SmokeBoostMax = 8.5f;
 
+        /// <summary>Flame emission multiplier at ignition. Raise it for fuller flames early; lower it for sparse ones.</summary>
         private const float FlameBoostMin = 0.9f;
 
+        /// <summary>Flame emission multiplier at full growth. Raise it for denser flames; lower it for thinner ones.</summary>
         private const float FlameBoostMax = 1.7f;
 
+        /// <summary>How long smoke particles live (a multiplier) at ignition. Raise it so smoke hangs longer and climbs higher; lower it for short-lived smoke.</summary>
         private const float SmokeLifeMin = 2.2f;
 
+        /// <summary>How long smoke particles live (a multiplier) at full growth. Raise it for a taller, longer plume; lower it for a shorter one.</summary>
         private const float SmokeLifeMax = 3.6f;
 
+        /// <summary>How fast smoke climbs (a multiplier) at ignition. Raise it for quicker rising smoke; lower it for lazier smoke.</summary>
         private const float SmokeRiseMin = 1.3f;
 
+        /// <summary>How fast smoke climbs (a multiplier) at full growth. Raise it for a faster, taller column; lower it for a slow one.</summary>
         private const float SmokeRiseMax = 2.1f;
 
+        /// <summary>How much the smoke spreads out as it rises (a multiplier) at ignition. Raise it for a wider plume; lower it for a narrow one.</summary>
         private const float SmokeWidenMin = 1.4f;
 
+        /// <summary>How much the smoke spreads out as it rises (a multiplier) at full growth. Raise it for a broad cloud; lower it for a tight column.</summary>
         private const float SmokeWidenMax = 2.6f;
 
+        /// <summary>Steady sideways push (metres per second) that carries the smoke downwind. Raise it to lean the plume over more; lower it (or 0) for smoke that rises straight up.</summary>
         private const float SmokeWind = 1.8f;
 
+        /// <summary>The most smoke particles alive at once. Raise it so heavy smoke is not cut short (costs frame rate); lower it to save frame rate.</summary>
         private const int SmokeParticleCap = 9000;
 
-        /// <summary>The crackle is full volume within this distance and silent past the maximum (metres).</summary>
+        /// <summary>Distance (metres) within which the fire's crackle is full volume. Raise it so the crackle stays loud further out; lower it so it fades sooner.</summary>
         private const float AudioMinDistance = 25f;
 
+        /// <summary>Distance (metres) beyond which the fire's crackle cannot be heard. Raise it so fires can be heard from blocks away; lower it to keep them local.</summary>
         private const float AudioMaxDistance = 500f;
 
         private static readonly string[] SmokeNames = { "Smoke", "Burning", "Dark" };

@@ -13,17 +13,19 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class LiveIncidentFires : MonoBehaviour
     {
-        /// <summary>At most this many fires burn at once (each is a particle system with smoke).</summary>
+        /// <summary>The most computer-handled fires burning at once (each is a particle system with smoke). Raise it to show more fires (costs frame rate); lower it to save frame rate.</summary>
         private const int MaximumFires = 4;
 
-        /// <summary>Seconds for an untended fire to reach full growth, and for one unit on scene to put out a full fire.</summary>
+        /// <summary>Seconds for a fire nobody is working to reach full growth. Raise it for a fire that grows slowly; lower it for one that blows up quickly.</summary>
         private const float GrowthSeconds = 75f;
 
+        /// <summary>Seconds for one unit on scene to put out a full fire (more units on scene work faster). Raise it for longer fires; lower it for quick knock-downs.</summary>
         private const float KnockdownSeconds = 90f;
 
-        /// <summary>How long a fire that is out stays (its smoke thins) before it is removed, seconds; and the delay after the incident clears.</summary>
+        /// <summary>How long (seconds) a fire that is out stays (its smoke thins) before it is removed. Raise it to leave smoke and embers longer; lower it to clear the scene sooner.</summary>
         private const float LingerSeconds = 25f;
 
+        /// <summary>How long (seconds) a fire stays after its incident is cleared. Raise it to keep the scene visible longer; lower it to remove it at once.</summary>
         private const float ClearedLingerSeconds = 6f;
 
         /// <summary>The ground probe for the fire's height: from this far above, this far down (metres).</summary>

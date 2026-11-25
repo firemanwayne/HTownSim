@@ -15,10 +15,10 @@ namespace HTownSim.Runtime.Incidents.Managers
     /// </summary>
     internal static class FleetDispatcher
     {
-        /// <summary>The most units one incident gets.</summary>
+        /// <summary>The most units one fire or EMS incident gets, however many the City lists. Raise it to send big responses in full; lower it to cap them.</summary>
         internal const int MaximumUnits = 8;
 
-        /// <summary>The most officers (patrol units) one police incident gets.</summary>
+        /// <summary>The most patrol units (officers) one police incident gets, as many as the City lists up to this number. Raise it for bigger police responses; lower it for fewer officers per call.</summary>
         internal const int MaximumOfficers = 4;
 
         /// <summary>The game units named by the incident's listed unit codes that are free, in the order listed.</summary>

@@ -14,19 +14,19 @@ namespace HTownSim.Runtime.Fleet
     /// </summary>
     internal sealed class RoadGraph
     {
-        /// <summary>A street end this close to another street is a T junction (metres).</summary>
+        /// <summary>A street end this close (metres) to another street is joined to it as a T junction. Raise it to connect streets with small gaps; lower it to join only streets that really touch. Wrong values can leave routes cut off or join streets that should not meet.</summary>
         private const float EndSnap = 3.5f;
 
-        /// <summary>Points closer than this are the same junction (metres, as a grid step).</summary>
+        /// <summary>Points closer than this (metres, as a grid step) are the same junction. Raise it to merge nearby points; lower it to keep them apart.</summary>
         private const float NodeStep = 0.5f;
 
-        /// <summary>The cell size of the search grids (metres).</summary>
+        /// <summary>The size (metres) of the cells of the search grids. It only affects speed: raise it for fewer, bigger cells; lower it for many small ones.</summary>
         private const float CellSize = 60f;
 
-        /// <summary>A part of the network smaller than this many nodes is not used for routing (a stub cut off from the rest).</summary>
+        /// <summary>A part of the street network smaller than this many junctions is not used for routing (a stub cut off from the rest). Raise it to ignore more small fragments; lower it to allow small isolated roads.</summary>
         private const int MainComponentNodes = 300;
 
-        /// <summary>The furthest a point may be from the network and still be routed from (metres).</summary>
+        /// <summary>The furthest (metres) a start or end point may be from the street network and still be routed from. Raise it so far-off points still get routes (a long drive across country); lower it to refuse routes from points not near a street.</summary>
         private const float MaximumSnap = 400f;
 
         private readonly List<Vector2> _nodes = new List<Vector2>();

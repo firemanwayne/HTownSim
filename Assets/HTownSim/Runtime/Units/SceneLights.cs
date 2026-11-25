@@ -15,19 +15,25 @@ namespace HTownSim.Runtime
         /// <summary>Name of the model part holding both scene light lens faces.</summary>
         private const string LensObjectName = "Engine07_SceneLenses";
 
-        /// <summary>Aim: tipped down onto the road and splayed outward, like a flood pattern.</summary>
+        /// <summary>How far (degrees) the scene lights are tipped down onto the road. Raise it to light the ground nearer the truck; lower it to throw the light further out.</summary>
         private const float AimDownDegrees = 16f;
 
+        /// <summary>How far (degrees) the scene lights are splayed outward, like a flood pattern. Raise it for a wider spread to the sides; lower it for straight ahead.</summary>
         private const float AimOutDegrees = 18f;
 
+        /// <summary>The outer cone angle (degrees) of each scene light. Raise it for a wider pool of light; lower it for a narrower beam.</summary>
         private const float SpotAngle = 100f;
 
+        /// <summary>The angle (degrees) of the fully lit centre of each scene light. Raise it for a larger bright centre and a sharper edge; lower it for a softer fall-off.</summary>
         private const float InnerSpotAngle = 60f;
 
+        /// <summary>How far (metres) the scene lights reach. Raise it to light the scene from further away; lower it to light only what is near the truck.</summary>
         private const float LightRange = 32f;
 
+        /// <summary>How bright the scene lights are. Raise it for a stronger floodlight (more glare and bloom); lower it for a dimmer one.</summary>
         private const float LightIntensity = 70f;
 
+        /// <summary>How bright (HDR emission, above the bloom threshold) the scene light lenses glow. Raise it for a stronger glow on the lamp heads; lower it for dull lenses.</summary>
         private const float EmissionStrength = 9f;
 
         private static readonly Color FloodColour = new(1f, 0.98f, 0.93f);

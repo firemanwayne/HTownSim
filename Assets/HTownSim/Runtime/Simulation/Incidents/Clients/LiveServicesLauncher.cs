@@ -21,6 +21,7 @@ namespace HTownSim.Runtime.Incidents.Clients
         /// <summary>Where the incident service listens (the same address the game's client and the harvester use).</summary>
         private const string ServiceHost = "127.0.0.1";
 
+        /// <summary>The port the incident service listens on. It must match the service's own setting and the game's client address, or the game will not find the service.</summary>
         private const int ServicePort = 5870;
 
         private const string ServiceUrl = "http://127.0.0.1:5870";
