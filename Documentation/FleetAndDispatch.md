@@ -106,6 +106,28 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   traffic and signal lenses, window lights on buildings, and the map's brightness. Open choices: real clock or an accelerated day,
   a manual toggle, and how dark it should get. Noted only; no change made yet.
 
+## Direction: future development should be multiplayer oriented
+
+Owner's direction: build new things so they can work with several people in the same city. Nothing is implemented; this is a design
+constraint for every later change. It agrees with the "join the map" note (a player joins a running city, and the incident service
+and AI fleet already exist outside any one player). What it means for design, to apply as things are built:
+
+- **One city, many players.** The city, its incidents and its computer-driven units are shared state; a player is a client that
+  takes control of one unit (or spectates). Avoid anything that assumes exactly one player (`GameObject.FindGameObjectWithTag("Player")`,
+  a single `FireResponse`, one saved start pick in PlayerPrefs, the static `StartingTruckChoice`, the one-player `LiveIncidentFeed`).
+- **Authority.** Decide who owns the incident ledger and the dispatch (the incident service is the natural home, and it already owns
+  created / assigned / handled / cleared), and who simulates the computer-driven units (one host, not every client).
+- **Dispatch is by unit, not by "the player".** `FleetDispatcher` already matches units by name; keep candidates as units that are
+  either person-driven or computer-driven, so any number of people can hold units.
+- **Units are claimed, not assumed.** Two people cannot drive the same unit; a unit nobody holds is computer-driven; a person who
+  leaves hands their unit back to the computer. Changing unit should be release one, claim another.
+- **Keep per-player state per player:** camera, HUD, map, siren, scene lights, the current call. Keep world state shared: units,
+  fires, patients, incidents, traffic (decide whether traffic is simulated on the host and replicated, or seeded identically).
+- **Deterministic or replicated.** Pick for each system (fire growth, AI routes, traffic): either deterministic from a shared seed and
+  clock, or simulated on the host and sent to clients. Routing already works from fixed data (`RoadGraph`).
+- **Time.** A shared clock (also what night time and "incidents close to the current time" need).
+- **Network choice and hosting** (Unity Netcode for GameObjects, dedicated server, or peer-hosted) are not decided.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
