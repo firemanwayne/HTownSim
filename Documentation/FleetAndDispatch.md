@@ -54,6 +54,11 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   emergency (siren) controls (`Runtime/Player/EmergencyHud.cs`, laid out by `HudLayout.cs`) instead of sharing or overlapping their
   place. Noted only; no change made yet.
 
+- **Vehicle collision boundaries.** Vehicles clip into each other, so their physical boundaries (colliders) need to be extended.
+  Places to look: the player's `CharacterController` (`Runtime/Player/FireResponse.cs`), the parked and computer-driven units'
+  BoxColliders (`AiUnit`, `AiFleet`; computer-driven units move as plain bodies and ignore physics), and the traffic cars' colliders
+  (`Runtime/World/TrafficSystem.cs`). Noted only; no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
