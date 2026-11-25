@@ -79,6 +79,12 @@ internal static class HarvesterLauncher
             WorkingDirectory = project,
         };
 
+        // With the incident service available the harvester posts each poll to it instead of writing feed files.
+        if (IncidentServiceLauncher.Available)
+        {
+            start.Environment["Incidents__ServiceUrl"] = IncidentServiceLauncher.Address;
+        }
+
         try
         {
             var process = Process.Start(start);

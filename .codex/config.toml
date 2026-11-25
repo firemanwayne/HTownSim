@@ -7,7 +7,7 @@ args = [
 ]
 
 [mcp_servers.google-maps.env]
-GOOGLE_MAPS_API_KEY = ""
+GOOGLE_MAPS_API_KEY = "AIzaSyCDclyHhPopfc66qog-9VbZnORkEkNFCU0"
 
 [mcp_servers.arcgis-houston]
 url = "https://gateway.pipeworx.io/arcgis-houston/mcp"

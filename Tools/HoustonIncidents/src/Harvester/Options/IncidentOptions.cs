@@ -35,4 +35,16 @@ internal sealed class IncidentOptions
     /// Empty turns the game feed off.
     /// </summary>
     public string GameInboxDirectory { get; set; } = @"%USERPROFILE%\AppData\LocalLow\DefaultCompany\HTownSim\Incidents\Live";
+
+    /// <summary>
+    /// Gets or sets the incident service (Tools/IncidentService) address. When set, each poll is posted there and the game reads
+    /// incidents from the service; when empty, feed files go to <see cref="GameInboxDirectory"/> as before.
+    /// </summary>
+    public string ServiceUrl { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets how many times a post to the service is tried.</summary>
+    public int ServiceRetries { get; set; } = 3;
+
+    /// <summary>Gets or sets the seconds between tries.</summary>
+    public int ServiceRetryDelaySeconds { get; set; } = 2;
 }

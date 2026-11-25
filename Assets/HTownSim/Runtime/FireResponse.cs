@@ -226,6 +226,9 @@ namespace HTownSim.Runtime
         /// <summary>Remaining normalized fire intensity.</summary>
         internal float Heat => _heat;
 
+        /// <summary>True while a call is in progress: a fire still burning, or any other call (medical, accident, ...) not yet cleared or failed. The city map marks the scene while this is true.</summary>
+        internal bool IncidentActive => _activeIncident is not null ? !_outcomeReported : _heat > 0f;
+
         /// <summary>True while the engine can be driven: not paused, and either time remains or the fire is out (free roam).</summary>
         internal bool CanDrive => !_paused && (_remaining > 0f || _heat <= 0f);
 
@@ -386,6 +389,9 @@ namespace HTownSim.Runtime
             _liveFeed = gameObject.AddComponent<LiveIncidentFeed>();
 
             _liveFeed.Initialize(new LiveFeedSetup(_incidents, transform, PlayableArea(), inbox));
+
+            // Other units' EMS calls on the board get a patient lying at the scene too.
+            gameObject.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
 
             // No start-up call: the unit starts in service and waits for a dispatch (the live feed, or a fallback call after the roam delay).
             GoInService();
@@ -620,7 +626,8 @@ namespace HTownSim.Runtime
             foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(true))
             {
                 // The title bar names the unit being driven ("H T O W N   /   LADDER 07").
-                if (text.text.StartsWith(TitlePrefix))
+                // The map panel has its own "H T O W N   /   CITY MAP" header, which keeps its text.
+                if (text.text.StartsWith(TitlePrefix) && text.transform.parent.name != MapPanelName)
                 {
                     text.text = TitlePrefix + _profile.UnitName.ToUpperInvariant();
                 }

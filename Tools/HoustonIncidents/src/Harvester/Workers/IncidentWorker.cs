@@ -244,7 +244,9 @@ internal sealed partial class IncidentWorker(
     /// <returns>A task that completes when the file is written.</returns>
     private async Task ExportAsync(LiveFeed feed, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(options.Value.GameInboxDirectory) || (feed.Incidents.Count == 0 && feed.Closed.Count == 0))
+        var exportOff = string.IsNullOrWhiteSpace(options.Value.GameInboxDirectory) && string.IsNullOrWhiteSpace(options.Value.ServiceUrl);
+
+        if (exportOff || (feed.Incidents.Count == 0 && feed.Closed.Count == 0))
         {
             return;
         }
