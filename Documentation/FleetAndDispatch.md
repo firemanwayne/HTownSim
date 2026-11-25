@@ -89,6 +89,15 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
   with the pitch shift of a passing vehicle) and echo or reverb (stronger between buildings), instead of the plain linear fade now used.
   Noted only; no change made yet.
 
+- **Incidents at start should be close to the current time.** When the game starts, the incidents that are loaded should be recent:
+  close to the current time, not the stale ones the City page still lists (the incident board shows calls opened hours earlier, for
+  example 21:22 and 00:23 on a morning start). Where to look: the harvester (`Tools/HoustonIncidents`, which posts each poll to the
+  incident service), the service's ledger (`%LOCALAPPDATA%\HTownSim\IncidentService\ledger.json`, which persists between runs and can hold
+  old incidents), and the feed queue (`Runtime/Simulation/Incidents/Managers/LiveIncidentQueue.cs`, which releases waiting incidents in
+  random order, using `callTimeOpened` only for display). Open choices: how recent counts as close (a window such as the last hour),
+  whether to drop older incidents or just release the recent ones first, and how to treat the persisted ledger on start. Noted only;
+  no change made yet.
+
 ## Open items / ideas
 
 - Test the player being matched together with computer-driven units (mixed incident), including the player finishing first.
