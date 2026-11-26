@@ -243,6 +243,9 @@ namespace HTownSim.Runtime
         /// <summary>True while a call is in progress: a fire still burning, or any other call (medical, accident, ...) not yet cleared or failed. The city map marks the scene while this is true.</summary>
         internal bool IncidentActive => _activeIncident is not null ? !_outcomeReported : _heat > 0f;
 
+        /// <summary>The in-world marker for the current dispatch, if one is active.</summary>
+        internal Vector3? ActiveDispatchPosition => IncidentActive && _incident != null ? _incident.position : null;
+
         /// <summary>True while the engine can be driven: not paused, and either time remains or the fire is out (free roam).</summary>
         internal bool CanDrive => !_paused && (_remaining > 0f || _heat <= 0f);
 

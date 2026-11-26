@@ -36,11 +36,8 @@ namespace HTownSim.Runtime
 
         private const string HospitalPrefix = "ER_Bay_";
 
-        /// <summary>The units a test response sends (key F9), so the sirens and driving can be watched without waiting for a real call. Add a name to send more units; remove one to send fewer.</summary>
+        /// <summary>The units available for a test response to the active dispatch (key F9).</summary>
         private static readonly string[] TestUnits = { "Engine 07", "Ladder 07", "Engine 08", "Engine 16", "Ambulance 16" };
-
-        /// <summary>How far (metres) from the player the test fire is, along each ground axis. Raise it for a longer drive and fainter sirens at first; lower it to have the units arrive sooner and stop closer.</summary>
-        private const float TestDistance = 350f;
 
         private const string TestIncidentId = "TEST-RESPONSE";
 
@@ -217,19 +214,17 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>
-        /// Sends the free test units to a made-up fire a little way from the listener (key F9): the lights and sirens come on and they drive
-        /// the street route, work the scene and go home, so the sound and driving can be checked on demand.
+        /// Sends available test units to the player's active dispatch marker (key F9).
         /// </summary>
         internal void SendTestResponse()
         {
-            var listener = FindAnyObjectByType<AudioListener>();
-
-            if (listener == null)
+            if (GetComponent<FireResponse>()?.ActiveDispatchPosition is not Vector3 destination)
             {
+                Debug.Log("AI fleet: no active dispatch to respond to.");
                 return;
             }
 
-            var scene = new Vector2(listener.transform.position.x + TestDistance, listener.transform.position.z + TestDistance);
+            var scene = new Vector2(destination.x, destination.z);
 
             var slot = 0;
 
@@ -244,10 +239,17 @@ namespace HTownSim.Runtime
 
                 unit.Dispatch(TestIncidentId, scene, AiUnit.Call.Fire, slot);
 
-                slot++;
+                if (unit.Sent)
+                {
+                    slot++;
+                }
+                else
+                {
+                    Debug.LogWarning("AI fleet: no route to the active dispatch for " + name);
+                }
             }
 
-            Debug.Log("AI fleet: test response sent (" + slot + " units)");
+            Debug.Log("AI fleet: " + slot + " test units responding to the active dispatch at " + scene);
         }
 
         /// <summary>How many units are stopped at the scene of an incident now.</summary>
