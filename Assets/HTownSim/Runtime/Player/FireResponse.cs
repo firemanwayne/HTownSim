@@ -145,6 +145,7 @@ namespace HTownSim.Runtime
             new[] { "R", "RETURN TO STATION" },
             new[] { "U", "CHANGE UNIT" },
             new[] { "F9", "TEST RESPONSE (SIRENS)" },
+            new[] { "F10", "TAKE OR RETURN ENGINE 07" },
             new[] { "M", "MAP" },
             new[] { "I", "INCIDENT PANEL" },
         };
@@ -246,6 +247,49 @@ namespace HTownSim.Runtime
         /// <summary>The in-world marker for the current dispatch, if one is active.</summary>
         internal Vector3? ActiveDispatchPosition => IncidentActive && _incident != null ? _incident.position : null;
 
+        internal AiFleet? Fleet => _liveFeed?.Fleet;
+
+        private AiUnit? _controlledEngine;
+
+        private CinemachineCamera? _handoffCamera;
+
+        private Transform? _originalFollow;
+
+        internal bool ToggleEngineDriverControl()
+        {
+            if (_controlledEngine != null)
+            {
+                if (!_controlledEngine.TryReturnDriverControl())
+                {
+                    Debug.LogWarning("Engine 07: no route from here. Drive back to a connected street and retry F10.");
+                    return false;
+                }
+
+                if (_handoffCamera != null)
+                {
+                    _handoffCamera.Follow = _originalFollow;
+                }
+
+                _controlledEngine = null;
+                return true;
+            }
+
+            var engine = Fleet?.Find("Engine 07");
+            var camera = _follow.GetComponent<CinemachineCamera>();
+            if (engine == null || camera == null || !engine.TryTakeDriverControl())
+            {
+                Debug.Log("Engine 07 handoff is available while the AI engine is responding.");
+                return false;
+            }
+
+            _controlledEngine = engine;
+            _handoffCamera = camera;
+            _originalFollow = camera.Follow;
+            camera.Follow = engine.transform;
+            _speed = 0f;
+            return true;
+        }
+
         /// <summary>True while the engine can be driven: not paused, and either time remains or the fire is out (free roam).</summary>
         internal bool CanDrive => !_paused && (_remaining > 0f || _heat <= 0f);
 
@@ -300,7 +344,7 @@ namespace HTownSim.Runtime
             _controller = GetComponent<CharacterController>();
 
             // Fit the apparatus picked on the start screen before anything reads the profile or the bay position.
-            var picked = StartingTruckChoice.Saved;
+            var picked = StartingTruckChoice.BootstrapChoice;
 
             if (picked is not null)
             {
@@ -399,26 +443,30 @@ namespace HTownSim.Runtime
 
             _firstSiteIndex = PickFirstSite();
 
-            _incidents = gameObject.AddComponent<IncidentManager>();
+            var cityFleet = new GameObject("City Fleet");
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(cityFleet, gameObject.scene);
+
+            _incidents = cityFleet.AddComponent<IncidentManager>();
 
             var inbox = System.IO.Path.Combine(Application.persistentDataPath, "Incidents");
 
             _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), inbox));
 
-            _liveFeed = gameObject.AddComponent<LiveIncidentFeed>();
+            _liveFeed = cityFleet.AddComponent<LiveIncidentFeed>();
 
             _liveFeed.Initialize(new LiveFeedSetup(_incidents, transform, PlayableArea(), inbox));
 
             // Other units' EMS calls on the board get a patient lying at the scene too.
-            gameObject.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
+            cityFleet.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
 
             if (_fireVfxMain != null)
             {
-                gameObject.AddComponent<LiveIncidentFires>().Initialize(_liveFeed, _fireVfxMain);
+                cityFleet.AddComponent<LiveIncidentFires>().Initialize(_liveFeed, _fireVfxMain);
             }
 
             // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
-            gameObject.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
+            cityFleet.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
 
             // No start-up call: the unit starts in service and waits for a dispatch (the live feed, or a fallback call after the roam delay).
             GoInService();
@@ -903,9 +951,27 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            if (keyboard.f10Key.wasPressedThisFrame)
+            {
+                ToggleEngineDriverControl();
+            }
+
+            if (_controlledEngine != null)
+            {
+                var throttle = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
+                var steering = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
+                _controlledEngine.DriveWithPlayerInput(throttle, steering, Time.deltaTime);
+                return;
+            }
+
             if (keyboard.rKey.wasPressedThisFrame)
             {
                 Restart();
+            }
+
+            if (keyboard.f9Key.wasPressedThisFrame)
+            {
+                Fleet?.SendTestResponse(ActiveDispatchPosition);
             }
 
             if (keyboard.escapeKey.wasPressedThisFrame)

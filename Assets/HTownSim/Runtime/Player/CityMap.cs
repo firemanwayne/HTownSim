@@ -338,7 +338,7 @@ namespace HTownSim.Runtime
 
             if (_fleetMarkers == null)
             {
-                var fleet = _player.GetComponent<AiFleet>();
+                var fleet = _response != null ? _response.Fleet : null;
 
                 if (fleet != null && fleet.Units.Count > 0 && _stationMarker.sprite != null)
                 {

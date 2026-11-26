@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using HTownSim.Runtime.Fleet;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace HTownSim.Runtime
 {
@@ -203,22 +202,12 @@ namespace HTownSim.Runtime
             return !Physics.CheckBox(ground + (Vector3.up * (PatrolHalfSize.y + 0.2f)), PatrolHalfSize, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
         }
 
-        private void Update()
-        {
-            var keyboard = Keyboard.current;
-
-            if (keyboard != null && keyboard.f9Key.wasPressedThisFrame)
-            {
-                SendTestResponse();
-            }
-        }
-
         /// <summary>
         /// Sends available test units to the player's active dispatch marker (key F9).
         /// </summary>
-        internal void SendTestResponse()
+        internal void SendTestResponse(Vector3? dispatchPosition)
         {
-            if (GetComponent<FireResponse>()?.ActiveDispatchPosition is not Vector3 destination)
+            if (dispatchPosition is not Vector3 destination)
             {
                 Debug.Log("AI fleet: no active dispatch to respond to.");
                 return;

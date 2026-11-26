@@ -114,6 +114,10 @@ namespace HTownSim.Runtime
 
         private float _speed;
 
+        private bool _playerDriving;
+
+        private const float ManualSpeed = 8f;
+
         private float _cruise;
 
         private float _timer;
@@ -207,8 +211,64 @@ namespace HTownSim.Runtime
         /// <summary>True when the unit was sent (a route was found).</summary>
         internal bool Sent => Busy;
 
+        internal bool TryTakeDriverControl()
+        {
+            if (_playerDriving || Current != Phase.Responding || _route.Count < 2)
+            {
+                return false;
+            }
+
+            _speed = 0f;
+            _playerDriving = true;
+            return true;
+        }
+
+        internal void DriveWithPlayerInput(float throttle, float steering, float deltaTime)
+        {
+            if (!_playerDriving || deltaTime <= 0f)
+            {
+                return;
+            }
+
+            var wanted = Mathf.Clamp(throttle, -1f, 1f) * ManualSpeed;
+            _speed = Mathf.MoveTowards(_speed, wanted, Acceleration * deltaTime);
+            if (Mathf.Abs(_speed) < 0.01f)
+            {
+                return;
+            }
+
+            transform.Rotate(0f, steering * Mathf.Sign(_speed) * TurnDegreesPerSecond * deltaTime, 0f);
+            var next = transform.position + transform.forward * (_speed * deltaTime);
+            var ground = new Vector2(next.x, next.z);
+            transform.position = new Vector3(next.x, GroundHeight(ground), next.z);
+        }
+
+        internal bool TryReturnDriverControl()
+        {
+            if (!_playerDriving)
+            {
+                return false;
+            }
+
+            var route = _graph.Route(Position, _route[_route.Count - 1]);
+            if (route == null)
+            {
+                return false;
+            }
+
+            _playerDriving = false;
+            _speed = 0f;
+            Begin(Current, route, _cruise);
+            return true;
+        }
+
         private void Update()
         {
+            if (_playerDriving)
+            {
+                return;
+            }
+
             switch (Current)
             {
                 case Phase.Responding:

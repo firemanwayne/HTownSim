@@ -22,7 +22,12 @@ namespace HTownSim.Runtime
         internal static readonly StartingAgency[] Agencies = { StartingAgency.Hfd, StartingAgency.Hpd, StartingAgency.Citizen };
 
         /// <summary>True once the player has dealt with the start screen this session, so it is not shown again after the reload.</summary>
-        internal static bool Decided { get; set; }
+        internal static bool Decided => _sessionChoice.HasValue;
+
+        private static StartingTruck? _sessionChoice;
+
+        /// <summary>The selection for this run, falling back to the saved preference when opening the city directly.</summary>
+        internal static StartingTruck? BootstrapChoice => _sessionChoice ?? Saved;
 
         /// <summary>The last apparatus the player picked, or null when none was ever picked (the scene's own truck is used).</summary>
         internal static StartingTruck? Saved
@@ -41,8 +46,10 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>Stores the pick for the next scene load and for later sessions.</summary>
-        internal static void Save(StartingTruck truck)
+        internal static void Select(StartingTruck truck)
         {
+            _sessionChoice = truck;
+
             PlayerPrefs.SetInt(PrefKey, (int)truck);
 
             PlayerPrefs.Save();
@@ -211,7 +218,7 @@ namespace HTownSim.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetSession()
         {
-            Decided = false;
+            _sessionChoice = null;
         }
     }
 }

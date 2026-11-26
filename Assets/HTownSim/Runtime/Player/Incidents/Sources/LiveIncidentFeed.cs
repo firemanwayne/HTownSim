@@ -64,6 +64,9 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>The queue and board (read by the HUD).</summary>
         internal LiveIncidentQueue Queue => _queue;
 
+        /// <summary>The scene's computer-driven fleet.</summary>
+        internal AiFleet Fleet => _fleet;
+
         /// <summary>The settings in use.</summary>
         internal LiveFeedSettings Settings => _settings;
 

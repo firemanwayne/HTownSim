@@ -419,11 +419,9 @@ namespace HTownSim.Runtime
         /// <summary>Resumes with the fitted apparatus, or stores the pick and reloads the scene to fit another.</summary>
         private void Choose(StartingTruck truck)
         {
-            StartingTruckChoice.Decided = true;
-
             Debug.Log("StartingTruckMenu.Choose: " + truck + (_startMode ? " (start scene)" : " (city)"));
 
-            StartingTruckChoice.Save(truck);
+            StartingTruckChoice.Select(truck);
 
             if (!_startMode && truck == _current)
             {

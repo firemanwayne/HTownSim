@@ -49,6 +49,8 @@ namespace HTownSim.Runtime
         {
             _feed = feed;
 
+            _fleet = feed.Fleet;
+
             _prefab = prefab;
 
             feed.FireDispatched += OnFireDispatched;
@@ -83,11 +85,6 @@ namespace HTownSim.Runtime
 
         private void Update()
         {
-            if (_fleet == null)
-            {
-                _fleet = GetComponent<AiFleet>();
-            }
-
             var dt = Time.deltaTime;
 
             foreach (var id in _fires.Keys.ToList())
