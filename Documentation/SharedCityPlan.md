@@ -39,3 +39,12 @@ If dispatch spikes on the CPU, measure matching and route calculation individual
 ## Decisions to revisit
 
 Choose transport protocol, host placement and position update rates when testing two clients in the same city. Use reconnect behavior, movement quality and measured frame times to guide those choices. The first implementation target is a mixed player/AI call with one authoritative assignment per unit.
+
+## Claude implementation handoff
+
+**First assignment:** implement milestone 1 as a vertical slice from incident intake to host assignment to Unity. Use a feature branch based on the current AI fleet work. Review the repository instructions and the latest changes since the baseline before editing.
+
+- Trace one existing mixed-unit call through `LiveIncidentFeed`, `FleetDispatcher`, `AiFleet` and `AiUnit`. Find the actual external Incident Manager solution, its persistence and existing client contracts. Record the entry points and proposed changes for Wayne's implementation review. If the host source is missing, identify the checkout you need before introducing any host implementation.
+- Put reservation, claim and release in the existing host. Reuse its persistence and communication conventions. Make duplicate deliveries and retried commands safe. Have Unity consume the resulting assignment through the normal incident path so a single call cannot independently dispatch a second fleet. Preserve existing exact-match, substitution and police dispatch behavior.
+- Exercise a mixed player/AI response, competing claims, overlapping calls for a unit, duplicate incident delivery, disconnect and reconnect. Check the existing F9 response in Play Mode and capture the frame-time baseline where Unity and representative hardware are available.
+- Open a draft implementation PR per affected repository. Link related PRs and this plan. Include build and test commands, results, a short manual walkthrough and any Unity checks still needing a local run. Keep patient care and role clients for subsequent milestones.
