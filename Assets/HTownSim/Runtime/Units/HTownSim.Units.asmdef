@@ -1,0 +1,17 @@
+{
+    "name": "HTownSim.Units",
+    "rootNamespace": "HTownSim.Runtime",
+    "references": [
+        "HTownSim.Contracts",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

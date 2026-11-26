@@ -1,0 +1,23 @@
+{
+    "name": "HTownSim.Player",
+    "rootNamespace": "HTownSim.Runtime",
+    "references": [
+        "HTownSim.Contracts",
+        "HTownSim.Units",
+        "HTownSim.World",
+        "HTownSim.Simulation",
+        "Unity.InputSystem",
+        "Unity.Cinemachine",
+        "Unity.TextMeshPro",
+        "Unity.ugui"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
