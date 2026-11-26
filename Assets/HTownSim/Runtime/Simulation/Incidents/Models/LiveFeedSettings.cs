@@ -31,6 +31,13 @@ namespace HTownSim.Runtime.Incidents.Models
         [Tooltip("How many released incidents the board keeps.")]
         [SerializeField] private int _boardSize = 40;
 
+        /// <summary>
+        /// When on, a listed engine, ladder or medic unit the game does not have (E035, say) is covered by the closest free game unit of the same
+        /// type, so most live calls get a response. Turn it off to send only the exact units the City lists (most calls then get nobody).
+        /// </summary>
+        [Tooltip("Cover a listed engine, ladder or medic unit the game lacks with the closest free game unit of that type.")]
+        [SerializeField] private bool _substituteUnits = true;
+
         /// <summary>How many lines the active-incidents HUD shows. Raise it for a longer list on screen (a taller panel); lower it for a shorter one.</summary>
         [Tooltip("How many lines the active-incidents HUD shows.")]
         [SerializeField] private int _hudLines = 10;
@@ -66,6 +73,9 @@ namespace HTownSim.Runtime.Incidents.Models
 
         /// <summary>How many lines the HUD shows.</summary>
         internal int HudLines => _hudLines;
+
+        /// <summary>True when a missing listed engine, ladder or medic unit is covered by the closest free unit of that type.</summary>
+        internal bool SubstituteUnits => _substituteUnits;
 
         /// <summary>Seconds between inbox scans.</summary>
         internal float ScanSeconds => _scanSeconds;

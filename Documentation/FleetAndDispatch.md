@@ -76,6 +76,14 @@ every unit was computer-driven. The player-dispatched path (player matched) was 
 
 ## Done from the notes
 
+- **Same-type cover for missing units** (`FleetDispatcher.CoverFor`, setting `LiveFeedSettings._substituteUnits`, on by default): after
+  the owner found that about 1 live call in 38 listed a unit the game has, a listed engine (E), ladder (L) or medic (M) unit the game
+  does not have is covered by the closest free game unit of that type. This relaxes rule 1 for those three types only. Still nobody:
+  a listed unit the game has but that is busy, listed ambulances the game lacks (A007, A008) and chiefs. Turn it off in the settings
+  asset to get the strict exact-match behaviour. Checked with crafted calls: E035 sends Engine 08 (closest), E035+E036+E037 sends three
+  different engines, L040+M021+A007 sends Ladder 07 and Medic 08, busy E008 sends nobody, the scenarios from the notes are unchanged.
+  Not yet watched in the running game.
+
 - **AI siren sound** (`Runtime/Units/AiSiren.cs`, started by `AiEmergencyLights`): computer-driven units now play the player's recorded
   tones (wail, yelp, pier from `Resources/SirenAudio`), alternating every 8-15 s. Distance: logarithmic fade, a low-pass filter that
   closes from 22 kHz to 1.6 kHz with distance, and Doppler. Echo and reverb: an echo and reverb filter whose wet level rises with

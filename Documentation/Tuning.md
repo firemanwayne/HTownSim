@@ -49,6 +49,7 @@ When you add a new tunable number, give it the same kind of comment: what it is,
 | How long the player has per call | `DispatchSeconds`, `SceneSeconds` | `FireResponse.cs` |
 | How recent the calls on the board are | `_recentMinutes` (released first), `_maximumAgeMinutes` (older ones are not taken in) | `LiveFeedSettings.cs` |
 | Made-up calls: how severe | `MinSeverity`, `MaxSeverityExclusive`, `LadderSeverity` | `Runtime/Simulation/Incidents/Sources/FallbackIncidentSource.cs` |
+| Whether missing listed engines, ladders and medic units are covered by the closest free unit of that type | `_substituteUnits` | `LiveFeedSettings.cs` |
 | How many units a call gets | `MaximumUnits`, `MaximumOfficers` | `Runtime/Simulation/Incidents/Managers/FleetDispatcher.cs` |
 | Rules for which unit goes | the rules in `Documentation/FleetAndDispatch.md` | `FleetDispatcher.cs`, `LiveDispatchRule.cs` |
 

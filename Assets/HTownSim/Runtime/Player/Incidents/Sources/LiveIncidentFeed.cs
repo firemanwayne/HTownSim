@@ -283,7 +283,7 @@ namespace HTownSim.Runtime.Incidents.Sources
         {
             var candidates = Candidates();
 
-            return record.Agency == PoliceAgency ? FleetDispatcher.MatchPolice(record, target, candidates) : FleetDispatcher.Match(record, candidates);
+            return record.Agency == PoliceAgency ? FleetDispatcher.MatchPolice(record, target, candidates) : FleetDispatcher.Match(record, candidates, new MatchRequest(target, _settings.SubstituteUnits));
         }
 
         /// <summary>The page agency code of a police incident (fire and EMS incidents are FD).</summary>
