@@ -1,8 +1,14 @@
 # H-TownSim
 
-H-TownSim is a Unity-based Houston city and emergency services simulator. The long-term vision is an interconnected city where fire, EMS, police, hospitals, public works and civilians operate autonomously and provide distinct playable roles, with permitted real-world data informing simulated incidents and city conditions.
+H-TownSim is a multiplayer-first Unity-based Houston city and emergency services simulator. The long-term vision is an interconnected city where fire, EMS, police, hospitals, public works and civilians operate autonomously and provide distinct playable roles, with permitted real-world data informing simulated incidents and city conditions.
 
 **Development status:** Active prototype. The existing Houston response scene is the foundation for the broader simulation; planned capabilities are not necessarily implemented.
+
+## Multiplayer-first architecture
+
+Multiplayer is a core requirement from the beginning. The proposed architecture uses a server-authoritative Unity dedicated server for real-time simulation, with an ASP.NET Core backend and PostgreSQL/PostGIS for durable operational state. Multiple players can crew the same apparatus, with AI filling vacant positions. World state is isolated by world instance and recoverable after server restarts. Azure is the proposed initial hosting environment; networking framework, capacity targets and continuous-operation policy remain subject to evaluation.
+
+The current local prototype is not yet a production multiplayer implementation.
 
 ## Getting started
 
@@ -14,18 +20,20 @@ See [ROADMAP.md](ROADMAP.md) for the complete development plan, priorities, task
 
 | Phase | Focus |
 | --- | --- |
-| 1 | Autonomous city simulation and fleet authority |
-| 2 | Map loading and performance optimization |
-| 3 | Traffic AI, routing and fluid vehicle movement |
-| 4 | Dispatch and incident management |
-| 5 | Player characters and apparatus staffing |
-| 6 | Playable fire and EMS response operations |
-| 7 | External Houston data integration |
-| 8 | Police, hospital, public works, dispatcher and civilian gameplay |
-| 9 | Visual polish and actual gameplay promotional footage |
-| 10 | Alpha, demo, Steam Early Access and commercial release |
+| 1 | Multiplayer foundation and dedicated server |
+| 2 | Persistence and ASP.NET Core backend |
+| 3 | Autonomous city simulation and fleet authority |
+| 4 | Map loading and performance optimization |
+| 5 | Multiplayer traffic AI, routing and vehicle movement |
+| 6 | Dispatch and incident management |
+| 7 | Player characters and multi-occupant apparatus staffing |
+| 8 | Cooperative fire and EMS response operations |
+| 9 | External Houston data integration |
+| 10 | Police, hospital, public works, dispatcher and civilian gameplay |
+| 11 | Visual polish and actual gameplay promotional footage |
+| 12 | Multiplayer alpha, scalability testing, demo and Steam Early Access |
 
-The near-term goal is a complete playable fire/EMS incident from dispatch through return to service while the city continues operating autonomously.
+The immediate milestone is two independent clients sharing a server-authoritative Engine 07 as Engineer/Operator and Officer, with synchronized incident state, reconnect and restart recovery. The next major milestone is a complete cooperative fire/EMS incident while the city continues operating autonomously.
 
 ## Planned apparatus staffing
 
