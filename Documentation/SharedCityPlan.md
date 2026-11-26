@@ -68,3 +68,25 @@ Assume the host now owns unit claims and assignments. The reported baseline is a
 - Compare before/after timings on the same machine, verify first input actually moves the unit, and drive across a region boundary at speed while a call is active. Record the longest frame during streaming and check for gaps, missing collision and duplicate units. Set the cold-start target after the baseline capture. Async loading can improve responsiveness while the total work still needs to be reduced.
 
 **Claude handoff:** Start with a baseline trace and the in-place unit-switch PR. Include the scene-load count, switch latency and state-continuity checks. Use the startup trace to propose the smallest effective cold-start change in a separate PR before restructuring city assets.
+
+## Follow-up notes for future work
+
+Discussion items from November 26, 2026. The first Claude assignment remains fleet authority. These items are candidates for later work.
+
+### Map preparation and road diagnostics
+
+Houston GIS data is imported during city authoring. Starting the game loads the saved scene. The AI fleet separately builds a routing graph from packaged street files. Preserve that distinction when profiling startup. A future host can consume road and facility data exported from the same source as the Unity assets.
+
+Wayne has seen vehicles struggle in some areas and turn abruptly. The affected intersections and vehicle types still need a reproducible example. For a civilian car, draw its intended lane and crossing and display what it is waiting for. For an emergency unit, draw its route and the nodes selected at each end. Capture a failing intersection before changing the routing rules.
+
+### Smoother vehicle turns
+
+Prototype one left and one right turn near Station 7 with a sedan and Ladder 7. Join the incoming and outgoing lanes with a curve, advance the vehicle along it by distance traveled, and align its heading to the curve. Tune speed and turning radius for the longer apparatus. Watch from above and at curb height. Check that vehicles enter the intended lane smoothly and the ladder's rear wheels clear the curb. Preserve traffic signals, yielding and dispatch behavior.
+
+### Asset purchase criteria
+
+Evaluate purchases against one playable scene and include integration time. Try the turning prototype before evaluating a steering package. For crew AI, try a medic/stretcher scenario and look for time saved debugging interrupted or blocked actions. Consider paired stretcher animations at the patient-care milestone and reusable environment props when dressing city blocks. No purchase has been selected.
+
+### Gameplay promotion
+
+Explore a 30–45 second promo captured from actual gameplay. Start with an eight-second curbside shot of Engine 7 leaving Station 7 during an F9 test dispatch. Review how its turn looks before expanding the shoot. A proposed capture feature follows a selected AI unit independently of the player and toggles the HUD. A first cut could move from dispatch audio and the station drive-by to a rear-quarter follow shot, a street-level arrival, and a player operating the water monitor, ending on the HTownSim title. Separate takes are sufficient for the first cut.
