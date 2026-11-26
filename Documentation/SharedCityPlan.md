@@ -90,3 +90,11 @@ Evaluate purchases against one playable scene and include integration time. Try 
 ### Gameplay promotion
 
 Explore a 30–45 second promo captured from actual gameplay. Start with an eight-second curbside shot of Engine 7 leaving Station 7 during an F9 test dispatch. Review how its turn looks before expanding the shoot. A proposed capture feature follows a selected AI unit independently of the player and toggles the HUD. A first cut could move from dispatch audio and the station drive-by to a rear-quarter follow shot, a street-level arrival, and a player operating the water monitor, ending on the HTownSim title. Separate takes are sufficient for the first cut.
+
+## Future phase: playable characters
+
+The player joins the city as a character who can drive an apparatus, step out and work a call on foot. Build on the host's unit claims and Unity's in-place control switching. Track character identity, crew assignment and seat occupancy separately. Stepping out at a call should keep the character assigned to the crew and the apparatus parked on scene. Explicitly releasing the unit remains a separate action.
+
+**Proposed first playable milestone:** Drive Engine 7 to a call, park, exit at a clear spot beside the cab, walk around the engine, return to the driver's door and resume driving in the same city session. Transfer input, camera and HUD together. Verify that another client sees the firefighter outside, the truck stays parked, the incident continues and only one character can occupy the driver seat. If the exit is obstructed or the seat claim fails, preserve the player's current control state.
+
+Use this loop as the foundation for a later role interaction, such as a medic walking from the ambulance to a patient. Camera perspective, character appearance and the first on-foot job are open design choices.
