@@ -144,6 +144,7 @@ namespace HTownSim.Runtime
             new[] { "ESC", "PAUSE" },
             new[] { "R", "RETURN TO STATION" },
             new[] { "U", "CHANGE UNIT" },
+            new[] { "F9", "TEST RESPONSE (SIRENS)" },
             new[] { "M", "MAP" },
             new[] { "I", "INCIDENT PANEL" },
         };

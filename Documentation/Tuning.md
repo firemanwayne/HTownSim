@@ -59,6 +59,7 @@ When you add a new tunable number, give it the same kind of comment: what it is,
 |---|---|---|
 | Faster or slower responses | `ResponseSpeed`, `ReturnSpeed`, `Acceleration`, `Braking` | `Runtime/Player/AiUnit.cs` |
 | Longer or shorter time on scene | `FireSceneSeconds`, `SupportSceneSeconds`, `PatientSceneSeconds`, `HospitalSeconds` | `AiUnit.cs` |
+| Which units the F9 test response sends, and how far away the test fire is | `TestUnits`, `TestDistance` | `Runtime/Player/AiFleet.cs` |
 | More or fewer patrol officers | `PatrolCount` | `Runtime/Player/AiFleet.cs` |
 | Fires: growth, knock-down, how many | `GrowthSeconds`, `KnockdownSeconds`, `MaximumFires` | `Runtime/Player/LiveIncidentFires.cs` |
 | Fire look | `MinScale`, `MaxScale`, `SmokeBoostMax`, `SmokeWind` | `Runtime/Player/LiveFireVfx.cs` |

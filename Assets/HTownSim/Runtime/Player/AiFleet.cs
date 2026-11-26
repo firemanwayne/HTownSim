@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using HTownSim.Runtime.Fleet;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace HTownSim.Runtime
 {
@@ -34,6 +35,14 @@ namespace HTownSim.Runtime
         private static readonly string[] StreetFiles = { "CityStreets", "MedCenterStreets", "SouthRoads" };
 
         private const string HospitalPrefix = "ER_Bay_";
+
+        /// <summary>The units a test response sends (key F9), so the sirens and driving can be watched without waiting for a real call. Add a name to send more units; remove one to send fewer.</summary>
+        private static readonly string[] TestUnits = { "Engine 07", "Ladder 07", "Engine 08", "Engine 16", "Ambulance 16" };
+
+        /// <summary>How far (metres) from the player the test fire is, along each ground axis. Raise it for a longer drive and fainter sirens at first; lower it to have the units arrive sooner and stop closer.</summary>
+        private const float TestDistance = 350f;
+
+        private const string TestIncidentId = "TEST-RESPONSE";
 
         /// <summary>How many computer-driven patrol units (officers) the fleet has. Raise it for more police units (more can answer a call; the per-call maximum is FleetDispatcher.MaximumOfficers); lower it for fewer.</summary>
         private const int PatrolCount = 4;
@@ -195,6 +204,50 @@ namespace HTownSim.Runtime
         private static bool Free(Vector3 ground)
         {
             return !Physics.CheckBox(ground + (Vector3.up * (PatrolHalfSize.y + 0.2f)), PatrolHalfSize, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        private void Update()
+        {
+            var keyboard = Keyboard.current;
+
+            if (keyboard != null && keyboard.f9Key.wasPressedThisFrame)
+            {
+                SendTestResponse();
+            }
+        }
+
+        /// <summary>
+        /// Sends the free test units to a made-up fire a little way from the listener (key F9): the lights and sirens come on and they drive
+        /// the street route, work the scene and go home, so the sound and driving can be checked on demand.
+        /// </summary>
+        internal void SendTestResponse()
+        {
+            var listener = FindAnyObjectByType<AudioListener>();
+
+            if (listener == null)
+            {
+                return;
+            }
+
+            var scene = new Vector2(listener.transform.position.x + TestDistance, listener.transform.position.z + TestDistance);
+
+            var slot = 0;
+
+            foreach (var name in TestUnits)
+            {
+                var unit = Find(name);
+
+                if (unit == null || unit.Busy)
+                {
+                    continue;
+                }
+
+                unit.Dispatch(TestIncidentId, scene, AiUnit.Call.Fire, slot);
+
+                slot++;
+            }
+
+            Debug.Log("AI fleet: test response sent (" + slot + " units)");
         }
 
         /// <summary>How many units are stopped at the scene of an incident now.</summary>
