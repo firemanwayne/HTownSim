@@ -98,3 +98,19 @@ The player joins the city as a character who can drive an apparatus, step out an
 **Proposed first playable milestone:** Drive Engine 7 to a call, park, exit at a clear spot beside the cab, walk around the engine, return to the driver's door and resume driving in the same city session. Transfer input, camera and HUD together. Verify that another client sees the firefighter outside, the truck stays parked, the incident continues and only one character can occupy the driver seat. If the exit is obstructed or the seat claim fails, preserve the player's current control state.
 
 Use this loop as the foundation for a later role interaction, such as a medic walking from the ambulance to a patient. Camera perspective, character appearance and the first on-foot job are open design choices.
+
+### Apparatus crew and patient positions
+
+Wayne specified the following in-game rosters. Each role count is per vehicle.
+
+| Apparatus | Crew positions | Crew capacity | Patient positions |
+| --- | --- | ---: | ---: |
+| Engine | 1 EO, 1 Officer, 2 FFs | 4 | 0 |
+| Ladder | 1 EO, 1 Officer, 2 FFs | 4 | 0 |
+| Ambulance | 1 EO, 1 FF | 2 | 2 |
+| Medic | 1 EO, 1 FF | 2 | 2 |
+| District Chief (DC) | 1 EO, 1 Chief | 2 | 0 |
+| Ambulance Supervisor | 1 Officer | 1 | 0 |
+| PD patrol car | 2 Patrolmen | 2 | 0 |
+
+Track each position individually so two firefighters on one engine or two patrolmen in one car can hold the same role. Ambulance and Medic units can each carry two crew members and two patients at once. Track each patient space against its occupant's patient ID so loading or handing off one patient preserves the other patient's transport state.
