@@ -27,6 +27,9 @@ namespace HTownSim.Runtime
             ("Engine07Parked", "", "Engine 07"),
             ("Ladder07", "", "Ladder 07"),
             (DrivenObject, "", "Ambulance 07"),
+
+            // With a player driving something else, the driven object gives the ambulance model back to this prop and it wakes up in the ambulance bay.
+            ("Medic07", "", "Ambulance 07"),
             ("Engine08", "Station8Apparatus", "Engine 08"),
             ("Engine01", "Station8Apparatus", "Engine 01"),
             ("Medic08", "Station8Apparatus", "Medic 08"),
