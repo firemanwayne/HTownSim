@@ -127,7 +127,33 @@ namespace HTownSim.Runtime
 
             SpawnPatrols(graph);
 
+            RestoreCarryOver();
+
             Debug.Log("AI fleet: " + _units.Count + " units (" + string.Join(", ", _units.Select(unit => unit.UnitName)) + "), " + graph.NodeCount + " street nodes, " + _hospitals.Count + " hospital bays.");
+        }
+
+        /// <summary>
+        /// Takes back the units that were out on calls when the player switched unit (see <see cref="CityCarryOver"/>), and sends the unit
+        /// the player left on to the call it was on. A unit the player has now taken over is not in the fleet, so it is not restored.
+        /// </summary>
+        private void RestoreCarryOver()
+        {
+            if (!CityCarryOver.HasData)
+            {
+                return;
+            }
+
+            foreach (var state in CityCarryOver.Units)
+            {
+                Find(state.Name)?.Restore(state);
+            }
+
+            var left = CityCarryOver.Player;
+
+            if (left != null)
+            {
+                Find(left.Name)?.ContinueFromPlayer(left);
+            }
         }
 
         /// <summary>

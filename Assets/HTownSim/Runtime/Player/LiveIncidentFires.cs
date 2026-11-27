@@ -56,6 +56,29 @@ namespace HTownSim.Runtime
             feed.FireDispatched += OnFireDispatched;
 
             feed.Queue.Cleared += OnCleared;
+
+            RestoreCarryOver();
+        }
+
+        /// <summary>Lights the fires that were burning when the player switched unit (see <see cref="CityCarryOver"/>), as hot and as grown as they were.</summary>
+        private void RestoreCarryOver()
+        {
+            if (!CityCarryOver.HasData)
+            {
+                return;
+            }
+
+            foreach (var saved in CityCarryOver.Fires)
+            {
+                OnFireDispatched(saved.Id, saved.Position);
+
+                if (_fires.TryGetValue(saved.Id, out var fire))
+                {
+                    fire.Heat = saved.Heat;
+
+                    fire.Growth = saved.Growth;
+                }
+            }
         }
 
         private void OnFireDispatched(string incidentId, Vector3 world)

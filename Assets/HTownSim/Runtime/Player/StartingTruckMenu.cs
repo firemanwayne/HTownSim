@@ -507,6 +507,12 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            // Switching unit in the city reloads it: save the fleet, fires and incidents so the new scene carries on from here.
+            if (!_startMode)
+            {
+                CityCarryOver.Capture();
+            }
+
             // The game stays frozen under the loading message; the menu putting the time scale back as it is unloaded lets the new scene run.
             _loadRequested = true;
 

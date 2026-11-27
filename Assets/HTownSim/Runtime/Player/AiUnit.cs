@@ -286,6 +286,112 @@ namespace HTownSim.Runtime
         /// <summary>True when the unit was sent (a route was found).</summary>
         internal bool Sent => Busy;
 
+        /// <summary>The unit's state for a scene reload (see <see cref="CityCarryOver"/>), or null when it is parked or a player has taken it over.</summary>
+        internal CityCarryOver.UnitState? Capture()
+        {
+            if (!Busy || _playerDriving)
+            {
+                return null;
+            }
+
+            return new CityCarryOver.UnitState
+            {
+                Name = UnitName,
+                Position = transform.position,
+                Yaw = transform.eulerAngles.y,
+                Phase = Current,
+                IncidentId = IncidentId,
+                Call = _call,
+                HasPatient = _hasPatient,
+                Timer = _timer,
+                Cruise = _cruise,
+                DepartDelay = _departDelay,
+                Route = _route.ToArray(),
+                Next = _next,
+            };
+        }
+
+        /// <summary>Puts the unit back as it was when <see cref="Capture"/> saved it: where it was, on its route, lights and siren as they were.</summary>
+        internal void Restore(CityCarryOver.UnitState state)
+        {
+            IncidentId = state.IncidentId;
+
+            _call = state.Call;
+
+            _hasPatient = state.HasPatient;
+
+            _timer = state.Timer;
+
+            transform.SetPositionAndRotation(state.Position, Quaternion.Euler(0f, state.Yaw, 0f));
+
+            if (state.Phase == Phase.OnScene || state.Phase == Phase.AtHospital)
+            {
+                Current = state.Phase;
+
+                _speed = 0f;
+
+                EmergencyTraffic.Register(transform);
+
+                _lights?.Set(true, false);
+
+                return;
+            }
+
+            var route = new List<Vector2>(state.Route);
+
+            if (route.Count < 2)
+            {
+                GoHome();
+
+                return;
+            }
+
+            Begin(state.Phase, route, state.Cruise);
+
+            _next = Mathf.Clamp(state.Next, 1, route.Count);
+
+            _departDelay = state.DepartDelay;
+
+            _lights?.Set(state.Phase != Phase.Returning, state.Phase != Phase.Returning);
+        }
+
+        /// <summary>
+        /// The unit was the player's and carries on with the player's call as a computer-driven unit: it starts from where the player left it
+        /// and drives on to the scene. With no call it stays at its station.
+        /// </summary>
+        internal void ContinueFromPlayer(CityCarryOver.PlayerUnit player)
+        {
+            if (Busy || player.IncidentId.Length == 0)
+            {
+                return;
+            }
+
+            var route = _graph.Route(new Vector2(player.Position.x, player.Position.z), player.Target);
+
+            if (route == null)
+            {
+                return;
+            }
+
+            transform.SetPositionAndRotation(player.Position, Quaternion.Euler(0f, player.Yaw, 0f));
+
+            IncidentId = player.IncidentId;
+
+            _call = player.Call;
+
+            _hasPatient = player.Call == Call.Ems && _canTransport;
+
+            // The route ends at the street nearest the scene, as for any dispatched unit.
+            if (route.Count > 2)
+            {
+                route.RemoveAt(route.Count - 1);
+            }
+
+            Begin(Phase.Responding, route, _behavior.ResponseSpeed);
+
+            _lights?.Set(true, true);
+        }
+
         internal bool TryTakeDriverControl()
         {
             if (_playerDriving || Current != Phase.Responding || _route.Count < 2)

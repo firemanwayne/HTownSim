@@ -161,7 +161,63 @@ namespace HTownSim.Runtime.Incidents.Sources
 
             _manager.Completed += OnCompleted;
 
+            RestoreCarryOver();
+
             Debug.Log("Live incident feed: run the HoustonIncidents harvester; it writes to " + _folder);
+        }
+
+        /// <summary>Copies the record of which units are on which incident, for a scene reload (see <see cref="CityCarryOver"/>).</summary>
+        internal void SaveTo(Dictionary<string, string[]> assigned, Dictionary<string, int> pending, HashSet<string> matched)
+        {
+            foreach (var pair in _assigned)
+            {
+                assigned[pair.Key] = pair.Value;
+            }
+
+            foreach (var pair in _pending)
+            {
+                pending[pair.Key] = pair.Value;
+            }
+
+            foreach (var id in _matched)
+            {
+                matched.Add(id);
+            }
+        }
+
+        /// <summary>
+        /// Takes back the record saved before a unit switch, so incidents already matched are not matched again and are cleared when their
+        /// last unit finishes. A unit the player has taken over (it was out on a call, and is no longer computer-driven) counts as done with it.
+        /// </summary>
+        private void RestoreCarryOver()
+        {
+            if (!CityCarryOver.HasData)
+            {
+                return;
+            }
+
+            foreach (var pair in CityCarryOver.Assigned)
+            {
+                _assigned[pair.Key] = pair.Value;
+            }
+
+            foreach (var pair in CityCarryOver.Pending)
+            {
+                _pending[pair.Key] = pair.Value;
+            }
+
+            foreach (var id in CityCarryOver.Matched)
+            {
+                _matched.Add(id);
+            }
+
+            foreach (var state in CityCarryOver.Units)
+            {
+                if (_fleet.Find(state.Name) == null && state.IncidentId.Length > 0)
+                {
+                    FinishUnit(state.IncidentId, "cleared");
+                }
+            }
         }
 
         /// <summary>The incident service answered with what changed: handled like a feed file, so the board and scenes follow the ledger.</summary>
@@ -305,6 +361,12 @@ namespace HTownSim.Runtime.Incidents.Sources
 
         private void OnReleased(LiveBoardEntry entry)
         {
+            // An incident matched before a unit switch comes back from the service; its units are already out.
+            if (_matched.Contains(entry.Record.IncidentId))
+            {
+                return;
+            }
+
             Evaluate(entry);
         }
 

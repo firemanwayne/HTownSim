@@ -249,6 +249,26 @@ namespace HTownSim.Runtime
 
         internal AiFleet? Fleet => _liveFeed?.Fleet;
 
+        /// <summary>The player's unit as it stands, and the call it is on, for a unit switch: the unit carries on with the call as a computer-driven unit (see <see cref="CityCarryOver"/>).</summary>
+        internal CityCarryOver.PlayerUnit CarryOver()
+        {
+            var incident = _activeIncident;
+
+            var active = incident is not null && !_outcomeReported && _incident != null;
+
+            var call = incident is null ? AiUnit.Call.Fire : incident.Agency == IncidentAgency.Ems ? AiUnit.Call.Ems : incident.Agency == IncidentAgency.Hpd ? AiUnit.Call.Police : AiUnit.Call.Fire;
+
+            return new CityCarryOver.PlayerUnit
+            {
+                Name = _profile.UnitName,
+                Position = transform.position,
+                Yaw = transform.eulerAngles.y,
+                IncidentId = active ? incident!.Id : "",
+                Target = active ? new Vector2(_incident.position.x, _incident.position.z) : Vector2.zero,
+                Call = call,
+            };
+        }
+
         private AiUnit? _controlledEngine;
 
         private CinemachineCamera? _handoffCamera;
@@ -535,6 +555,9 @@ namespace HTownSim.Runtime
 
             // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
             cityFleet.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
+
+            // The fleet, feed and fires have taken back what a unit switch saved.
+            CityCarryOver.Clear();
 
             if (player == null)
             {
