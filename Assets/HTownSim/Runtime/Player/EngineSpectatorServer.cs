@@ -31,6 +31,17 @@ namespace HTownSim.Runtime
 
         private const int SendMilliseconds = 100;
 
+        /// <summary>The command that asks to see the city as a role (<c>ROLE Fire</c>), which may only narrow what the connection sees.</summary>
+        internal const string RoleCommand = "ROLE ";
+
+        /// <summary>One connection's permissions: what it is granted (a spectator is granted everything) and what it asked to see.</summary>
+        private sealed class Session
+        {
+            internal ViewerRole Granted { get; } = ViewerRole.Spectator;
+
+            internal volatile ViewerRole Role = ViewerRole.Spectator;
+        }
+
         private TcpListener? _listener;
         private TcpClient? _client;
         private CancellationTokenSource? _shutdown;
@@ -70,14 +81,17 @@ namespace HTownSim.Runtime
                     using var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = false };
                     using var reader = new StreamReader(stream, Encoding.UTF8);
                     await writer.WriteLineAsync(Header);
-                    var commands = ReadCommands(reader, writer, feed, shutdown);
+                    var session = new Session();
+                    var commands = ReadCommands(reader, writer, feed, session, shutdown);
                     var sentFires = new HashSet<string>();
 
                     while (!shutdown.IsCancellationRequested && fleet != null && !commands.IsCompleted)
                     {
+                        var role = session.Role;
                         foreach (var unit in fleet.Units)
                         {
-                            if (unit == null)
+                            // A location the connection's role may not see is never sent.
+                            if (unit == null || !role.CanSeeUnit(unit.UnitName))
                             {
                                 continue;
                             }
@@ -128,12 +142,31 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>Reads the spectator's commands until it disconnects. Runs on the main thread (Unity's context), so it can drive the fleet.</summary>
-        private static async Task ReadCommands(StreamReader reader, StreamWriter writer, LiveIncidentFeed feed, CancellationToken shutdown)
+        private static async Task ReadCommands(StreamReader reader, StreamWriter writer, LiveIncidentFeed feed, Session session, CancellationToken shutdown)
         {
             try
             {
                 while (!shutdown.IsCancellationRequested && await reader.ReadLineAsync() is { } line)
                 {
+                    if (line.StartsWith(RoleCommand, StringComparison.Ordinal))
+                    {
+                        // A connection may ask to see less than it is granted (a spectator may view as fire), never more.
+                        var requested = ViewerRole.Parse(line.Substring(RoleCommand.Length));
+                        if (requested != null && requested.IsWithin(session.Granted))
+                        {
+                            session.Role = requested;
+                            await writer.WriteLineAsync("M\tViewing as " + requested.Name);
+                        }
+                        else
+                        {
+                            await writer.WriteLineAsync("M\tThat view is not allowed for this connection");
+                        }
+
+                        await writer.FlushAsync();
+
+                        continue;
+                    }
+
                     if (line != "TEST")
                     {
                         continue;

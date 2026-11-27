@@ -132,10 +132,10 @@ namespace HTownSim.Runtime
 
         /// <summary>
         /// Moves the markers. <paramref name="hudMap"/> is the HUD map's image rectangle, whose station squares and labels are copied
-        /// across the first time; <paramref name="units"/> are the units to draw (null until they exist), of which a viewer who
-        /// <paramref name="seesPolice"/> sees all and any other sees only fire and EMS.
+        /// across the first time; <paramref name="units"/> are the units to draw (null until they exist), of which the
+        /// <paramref name="viewer"/> sees only those its role allows.
         /// </summary>
-        internal void Update(Transform focus, bool callActive, Vector3 callPosition, Vector3 stationPosition, IReadOnlyList<MapUnit>? units, bool seesPolice, RectTransform hudMap)
+        internal void Update(Transform focus, bool callActive, Vector3 callPosition, Vector3 stationPosition, IReadOnlyList<MapUnit>? units, ViewerRole viewer, RectTransform hudMap)
         {
             if (_map.rect.width <= 0f)
             {
@@ -158,7 +158,7 @@ namespace HTownSim.Runtime
 
             if (_fleet == null && units != null && units.Count > 0 && _square != null)
             {
-                _fleet = new FleetMapMarkers(_map, _square, seesPolice);
+                _fleet = new FleetMapMarkers(_map, _square, viewer);
             }
 
             if (units != null)

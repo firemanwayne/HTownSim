@@ -224,7 +224,7 @@ namespace HTownSim.Runtime
             // A spectator has no unit of its own: the arrow is the free camera.
             var focus = StartingTruckMenu.CitySpectatorRequested && Camera.main != null ? Camera.main.transform : _player;
 
-            _full.Update(focus, _response.IncidentActive, _incident.position, _stationPosition, MapUnits(), ViewerSeesPolice(), _mapRect);
+            _full.Update(focus, _response.IncidentActive, _incident.position, _stationPosition, MapUnits(), Viewer(), _mapRect);
         }
 
         /// <summary>True while the third-person follow camera is the live camera.</summary>
@@ -388,7 +388,7 @@ namespace HTownSim.Runtime
 
             if (_fleetMarkers == null && units != null && units.Count > 0 && _stationMarker.sprite != null)
             {
-                _fleetMarkers = new FleetMapMarkers(_mapRect, _stationMarker.sprite, ViewerSeesPolice());
+                _fleetMarkers = new FleetMapMarkers(_mapRect, _stationMarker.sprite, Viewer());
             }
 
             if (units != null)
@@ -412,10 +412,20 @@ namespace HTownSim.Runtime
             return fleet?.MapUnits;
         }
 
-        /// <summary>A spectator and the police see every unit on the map; fire and EMS see only fire and EMS units.</summary>
-        private bool ViewerSeesPolice()
+        /// <summary>
+        /// What the viewer may see of other units: a spectator's role (everything unless it asked for less), or that of the unit being driven
+        /// (the police see everything; fire and EMS see only fire and EMS units).
+        /// </summary>
+        private ViewerRole Viewer()
         {
-            return FleetMapMarkers.SeesPolice(StartingTruckMenu.CitySpectatorRequested ? null : ApparatusProfile.For(_player.gameObject).UnitName);
+            if (StartingTruckMenu.CitySpectatorRequested)
+            {
+                _spectator ??= FindAnyObjectByType<EngineSpectatorClient>();
+
+                return _spectator != null ? _spectator.Role : ViewerRole.Spectator;
+            }
+
+            return ViewerRole.ForUnit(ApparatusProfile.For(_player.gameObject).UnitName);
         }
 
         /// <summary>Converts a world position to a position inside the map rect.</summary>

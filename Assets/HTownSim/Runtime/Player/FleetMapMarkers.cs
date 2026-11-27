@@ -64,26 +64,19 @@ namespace HTownSim.Runtime
 
         private readonly Sprite _square;
 
-        private readonly bool _seesPolice;
+        private readonly ViewerRole _viewer;
 
         /// <summary>
         /// Makes the markers inside <paramref name="parent"/>, the rectangle the map's markers are placed in. A marker is made the first
-        /// time its unit is seen in <see cref="Update"/>. <paramref name="seesPolice"/> is whether the viewer may see police units: a
-        /// spectator and the police see every unit; fire and EMS see only fire and EMS units.
+        /// time its unit is seen in <see cref="Update"/>, and only for a unit the <paramref name="viewer"/> may see (see <see cref="ViewerRole"/>).
         /// </summary>
-        internal FleetMapMarkers(RectTransform parent, Sprite square, bool seesPolice)
+        internal FleetMapMarkers(RectTransform parent, Sprite square, ViewerRole viewer)
         {
             _parent = parent;
 
             _square = square;
 
-            _seesPolice = seesPolice;
-        }
-
-        /// <summary>True when a viewer of this kind of unit (or a spectator, with no unit) may see every unit on the map.</summary>
-        internal static bool SeesPolice(string? viewerUnitName)
-        {
-            return viewerUnitName == null || LiveDispatchRule.KindOf(viewerUnitName) == LiveUnitKind.Police;
+            _viewer = viewer;
         }
 
         private Marker Create(MapUnit unit)
@@ -131,7 +124,7 @@ namespace HTownSim.Runtime
 
             image.rectTransform.SetAsFirstSibling();
 
-            return new Marker(unit, image, label, ColourOf(unit.Name), _seesPolice || LiveDispatchRule.KindOf(unit.Name) != LiveUnitKind.Police);
+            return new Marker(unit, image, label, ColourOf(unit.Name), _viewer.CanSeeUnit(unit.Name));
         }
 
         /// <summary>Moves every marker to its unit (making the ones it has not seen yet); <paramref name="toMap"/> turns a world position into a map position.</summary>
@@ -230,7 +223,7 @@ namespace HTownSim.Runtime
 
             internal MapUnit Unit { get; }
 
-            /// <summary>False for a unit this viewer may not see (a police unit, for fire and EMS).</summary>
+            /// <summary>False for a unit this viewer's role may not see.</summary>
             internal bool Visible { get; }
 
             internal Image Image { get; }

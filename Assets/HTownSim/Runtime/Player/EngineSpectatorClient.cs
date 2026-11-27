@@ -102,8 +102,27 @@ namespace HTownSim.Runtime
         private bool _menuWasOpen;
         private bool _hasPose;
 
+        /// <summary>What this spectator may see of other units' locations: everything, or less when started with <c>-city-view-as Fire</c> (or Ems, Police); the server enforces it.</summary>
+        internal ViewerRole Role { get; private set; } = ViewerRole.Spectator;
+
+        private static ViewerRole RequestedRole()
+        {
+            var args = Environment.GetCommandLineArgs();
+
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-city-view-as", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ViewerRole.Parse(args[i + 1]) ?? ViewerRole.Spectator;
+                }
+            }
+
+            return ViewerRole.Spectator;
+        }
+
         internal async void Begin(Transform engine, GameObject? firePrefab)
         {
+            Role = RequestedRole();
             _firePrefab = firePrefab;
             _roots = engine.gameObject.scene.GetRootGameObjects();
             _beforeConnectionSeconds = CityJoinMenu.ElapsedSeconds;
@@ -124,6 +143,12 @@ namespace HTownSim.Runtime
                 {
                     _status = "City server protocol mismatch.";
                     return;
+                }
+
+                // Ask the server to send only what this view may see; the map filters the same way.
+                if (Role != ViewerRole.Spectator)
+                {
+                    await _writer.WriteLineAsync(EngineSpectatorServer.RoleCommand + Role.Name);
                 }
 
                 while (await reader.ReadLineAsync() is { } line)

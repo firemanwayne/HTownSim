@@ -17,6 +17,9 @@ namespace HTownSim.Runtime
         /// <summary>The kind of vehicle (Engine, Ladder, Ambulance, Chief, Supervisor or Patrol), for logs.</summary>
         internal string Kind { get; private set; } = "";
 
+        /// <summary>The service the kind belongs to, which decides who may see where its units are (see <see cref="ViewerRole"/>).</summary>
+        internal UnitAgency Agency { get; private set; } = UnitAgency.Fire;
+
         /// <summary>Flash cycles per second of the warning lights. Raise it for faster flashing; lower it for slower.</summary>
         internal float FlashHertz { get; private set; } = 1.6f;
 
@@ -95,6 +98,7 @@ namespace HTownSim.Runtime
         internal static readonly UnitBehavior Ambulance = new UnitBehavior
         {
             Kind = "Ambulance",
+            Agency = UnitAgency.Ems,
             TopSpeed = 24f,
             ReverseSpeed = 6.5f,
             Acceleration = 9.5f,
@@ -123,6 +127,7 @@ namespace HTownSim.Runtime
         internal static readonly UnitBehavior Patrol = new UnitBehavior
         {
             Kind = "Patrol",
+            Agency = UnitAgency.Police,
             FlashHertz = 3f,
             TopSpeed = 28f,
             ReverseSpeed = 8f,
