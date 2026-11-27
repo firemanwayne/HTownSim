@@ -71,7 +71,7 @@ namespace HTownSim.Runtime
         internal event Action<string>? PatientLoaded;
 
         /// <summary>Finds the parked units (all but <paramref name="playerUnit"/>) and builds the street network.</summary>
-        internal void Initialize(string playerUnit)
+        internal void Initialize(string? playerUnit)
         {
             var texts = StreetFiles.Select(name => Resources.Load<TextAsset>(name)).Where(asset => asset != null).Select(asset => asset.text);
 

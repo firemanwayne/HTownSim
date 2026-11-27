@@ -343,6 +343,11 @@ namespace HTownSim.Runtime
         {
             _controller = GetComponent<CharacterController>();
 
+            if (StartingTruckMenu.CityServerRequested)
+            {
+                return;
+            }
+
             // Fit the apparatus picked on the start screen before anything reads the profile or the bay position.
             var picked = StartingTruckChoice.BootstrapChoice;
 
@@ -439,9 +444,24 @@ namespace HTownSim.Runtime
         /// <summary>Sounds the first dispatch shortly after the scene starts.</summary>
         private void Start()
         {
+            if (StartingTruckMenu.CityServerRequested)
+            {
+                StartCity(null);
+                gameObject.SetActive(false);
+                return;
+            }
+
             _hospitals = FindHospitals();
 
             _firstSiteIndex = PickFirstSite();
+
+            StartCity(transform);
+
+            StartPlayerPresentation();
+        }
+
+        private void StartCity(Transform? player)
+        {
 
             var cityFleet = new GameObject("City Fleet");
 
@@ -455,10 +475,10 @@ namespace HTownSim.Runtime
 
             _liveFeed = cityFleet.AddComponent<LiveIncidentFeed>();
 
-            _liveFeed.Initialize(new LiveFeedSetup(_incidents, transform, PlayableArea(), inbox));
+            _liveFeed.Initialize(new LiveFeedSetup(_incidents, player, PlayableArea(), inbox));
 
             // Other units' EMS calls on the board get a patient lying at the scene too.
-            cityFleet.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, _controller);
+            cityFleet.AddComponent<LiveIncidentPatients>().Initialize(_liveFeed, player != null ? _controller : null);
 
             if (_fireVfxMain != null)
             {
@@ -467,7 +487,10 @@ namespace HTownSim.Runtime
 
             // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
             cityFleet.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
+        }
 
+        private void StartPlayerPresentation()
+        {
             // No start-up call: the unit starts in service and waits for a dispatch (the live feed, or a fallback call after the roam delay).
             GoInService();
 

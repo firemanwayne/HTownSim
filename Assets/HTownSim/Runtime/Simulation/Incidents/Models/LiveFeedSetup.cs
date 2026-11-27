@@ -8,7 +8,7 @@ namespace HTownSim.Runtime.Incidents.Models
     internal readonly struct LiveFeedSetup
     {
         /// <summary>Creates a setup.</summary>
-        internal LiveFeedSetup(IncidentManager manager, Transform player, Rect? playableArea, string inboxDirectory)
+        internal LiveFeedSetup(IncidentManager manager, Transform? player, Rect? playableArea, string inboxDirectory)
         {
             Manager = manager;
 
@@ -22,8 +22,8 @@ namespace HTownSim.Runtime.Incidents.Models
         /// <summary>The incident manager live dispatches are submitted to.</summary>
         internal IncidentManager Manager { get; }
 
-        /// <summary>The driven apparatus.</summary>
-        internal Transform Player { get; }
+        /// <summary>The locally driven apparatus, if this city has a local driver.</summary>
+        internal Transform? Player { get; }
 
         /// <summary>The drivable map in scene x, z, or null for no limit.</summary>
         internal Rect? PlayableArea { get; }

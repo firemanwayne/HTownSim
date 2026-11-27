@@ -45,7 +45,7 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>Incidents already matched to units.</summary>
         private readonly HashSet<string> _matched = new HashSet<string>();
 
-        private Transform _player = null!;
+        private Transform? _player;
 
         private Rect? _playableArea;
 
@@ -109,7 +109,7 @@ namespace HTownSim.Runtime.Incidents.Sources
             // The computer-driven units: every apparatus parked at the stations except the one the player is in.
             _fleet = gameObject.AddComponent<AiFleet>();
 
-            _fleet.Initialize(ApparatusProfile.For(_player.gameObject).UnitName);
+            _fleet.Initialize(_player != null ? ApparatusProfile.For(_player.gameObject).UnitName : null);
 
             _fleet.UnitFinished += OnAiUnitFinished;
 
@@ -138,6 +138,11 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>A call the game accepted (the player's unit is on it): the service records the assignment.</summary>
         private void OnAccepted(Incident incident)
         {
+            if (_player == null)
+            {
+                return;
+            }
+
             var unitName = ApparatusProfile.For(_player.gameObject).UnitName;
 
             // On a matched incident the service is told every unit on it, not only the player's.
@@ -314,11 +319,12 @@ namespace HTownSim.Runtime.Incidents.Sources
         {
             var candidates = new List<FleetCandidate>();
 
-            var name = ApparatusProfile.For(_player.gameObject).UnitName;
-
-            var response = _player.GetComponent<FireResponse>();
-
-            candidates.Add(new FleetCandidate(name, LiveDispatchRule.KindOf(name), new Vector2(_player.position.x, _player.position.z), response != null && response.IncidentActive, true));
+            if (_player != null)
+            {
+                var name = ApparatusProfile.For(_player.gameObject).UnitName;
+                var response = _player.GetComponent<FireResponse>();
+                candidates.Add(new FleetCandidate(name, LiveDispatchRule.KindOf(name), new Vector2(_player.position.x, _player.position.z), response != null && response.IncidentActive, true));
+            }
 
             foreach (var unit in _fleet.Units)
             {

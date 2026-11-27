@@ -32,6 +32,10 @@ namespace HTownSim.Runtime
         /// <summary>The command-line switch that skips the screen and starts with the last pick.</summary>
         private const string AutoStartArgument = "-autostart";
 
+        /// <summary>Starts a city without a local player or apparatus selection.</summary>
+        internal static bool CityServerRequested { get; } = System.Array.Exists(System.Environment.GetCommandLineArgs(),
+            argument => string.Equals(argument, "-city-server", System.StringComparison.OrdinalIgnoreCase));
+
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
 
@@ -135,6 +139,16 @@ namespace HTownSim.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Show()
         {
+            if (CityServerRequested)
+            {
+                if (SceneManager.GetActiveScene().name == StartScene)
+                {
+                    SceneManager.LoadSceneAsync(CityScene);
+                }
+
+                return;
+            }
+
             Debug.Log("StartingTruckMenu.Show: scene " + SceneManager.GetActiveScene().name + ", decided " + StartingTruckChoice.Decided);
 
             if (StartingTruckChoice.Decided)
