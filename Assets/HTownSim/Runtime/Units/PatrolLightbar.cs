@@ -15,7 +15,7 @@ namespace HTownSim.Runtime
         private const string BlueMaterial = "HPD_Flash_Blue";
 
         /// <summary>How many red-then-blue cycles per second the patrol lightbar runs. Raise it for a faster flash; lower it for a slower, calmer one.</summary>
-        private const float CyclesPerSecond = 3f;
+        private static float CyclesPerSecond => UnitBehavior.Patrol.FlashHertz;
 
         /// <summary>How bright a lit lightbar module is (HDR emission, so the bloom picks it up). Raise it for a stronger glow and bloom; lower it for a duller bar.</summary>
         private const float FlashEmission = 6f;

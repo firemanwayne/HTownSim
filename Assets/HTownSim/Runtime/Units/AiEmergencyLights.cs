@@ -44,6 +44,11 @@ namespace HTownSim.Runtime
         {
             foreach (var renderer in GetComponentsInChildren<Renderer>(true))
             {
+                if (TryAddBarLens(renderer))
+                {
+                    continue;
+                }
+
                 var materials = renderer.materials;
 
                 foreach (var material in materials)
@@ -95,6 +100,11 @@ namespace HTownSim.Runtime
                 Apply(_groupA, _colourA, false);
 
                 Apply(_groupB, _colourB, false);
+
+                foreach (var lens in _bar)
+                {
+                    lens.Material.SetColor(EmissionColor, Color.black);
+                }
             }
 
             if (_siren != null)
@@ -120,6 +130,107 @@ namespace HTownSim.Runtime
             Apply(_groupA, _colourA, phase < 0.5f && pulse);
 
             Apply(_groupB, _colourB, phase >= 0.5f && pulse);
+
+            UpdateBar();
+        }
+
+        /// <summary>One lens of the roof light bar: its column, whether it is a red column's lower lens (which trails the upper one), and its own material.</summary>
+        private readonly struct BarLens
+        {
+            internal BarLens(Material material, Color lit, int column, float delay)
+            {
+                Material = material;
+
+                Lit = lit;
+
+                Column = column;
+
+                Delay = delay;
+            }
+
+            internal Material Material { get; }
+
+            internal Color Lit { get; }
+
+            internal int Column { get; }
+
+            internal float Delay { get; }
+        }
+
+        private readonly List<BarLens> _bar = new List<BarLens>();
+
+        /// <summary>The same bar layout the player's engine uses (see <c>ApparatusLights</c>): 48 lenses named EmergencyLighting_Lens0..47, 12 columns of 4.</summary>
+        private const string BarMeshPrefix = "EmergencyLighting_Lens";
+
+        private const int BarLenses = 48;
+
+        private const int BarColumns = 12;
+
+        private const int LensesPerColumn = 4;
+
+        /// <summary>The fraction of a cycle each column starts after the previous one, the lower lens of a red column's trail, the lit share of a cycle and the spread of the columns' own rates: the player's values.</summary>
+        private const float ColumnStagger = 0.173f;
+
+        private const float RollDelay = 0.13f;
+
+        private const float BarDuty = 0.45f;
+
+        private const float BarSpread = 0.07f;
+
+        private const float SpreadStep = 0.6180339f;
+
+        /// <summary>If the renderer is a roof-bar lens, gives it its own red or white lens material and joins it to the bar. Returns true when it was one.</summary>
+        private bool TryAddBarLens(Renderer renderer)
+        {
+            var filter = renderer.GetComponent<MeshFilter>();
+
+            if (filter == null || filter.sharedMesh == null)
+            {
+                return false;
+            }
+
+            var meshName = filter.sharedMesh.name;
+
+            if (!meshName.StartsWith(BarMeshPrefix) || !int.TryParse(meshName.Substring(BarMeshPrefix.Length), out var number) || number < 0 || number >= BarLenses)
+            {
+                return false;
+            }
+
+            var column = number / LensesPerColumn;
+
+            var upper = number % LensesPerColumn >= 2;
+
+            var red = Mathf.Min(column, BarColumns - 1 - column) % 2 == 0;
+
+            var colour = red ? new Color(1f, 0.08f, 0.05f) : new Color(0.9f, 0.95f, 1f);
+
+            var material = renderer.material;
+
+            material.EnableKeyword("_EMISSION");
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", colour * 0.35f);
+            }
+
+            material.SetColor(EmissionColor, Color.black);
+
+            _bar.Add(new BarLens(material, colour * FlashEmission, column, red && !upper ? RollDelay : 0f));
+
+            return true;
+        }
+
+        /// <summary>Flashes the bar's columns each at their own phase and rate, as the player's bar does.</summary>
+        private void UpdateBar()
+        {
+            foreach (var lens in _bar)
+            {
+                var hertz = _behavior.FrontRearHertz * (1f + (BarSpread * ((Mathf.Repeat(lens.Column * SpreadStep, 1f) * 2f) - 1f)));
+
+                var phase = Mathf.Repeat((Time.time * hertz) + (lens.Column * ColumnStagger) + _offset - lens.Delay, 1f);
+
+                lens.Material.SetColor(EmissionColor, phase < BarDuty ? lens.Lit : Color.black);
+            }
         }
 
         private static void Apply(List<Material> materials, List<Color> colours, bool lit)
@@ -158,6 +269,11 @@ namespace HTownSim.Runtime
             foreach (var material in _groupB)
             {
                 Destroy(material);
+            }
+
+            foreach (var lens in _bar)
+            {
+                Destroy(lens.Material);
             }
         }
     }

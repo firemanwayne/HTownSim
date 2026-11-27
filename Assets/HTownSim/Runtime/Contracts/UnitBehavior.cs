@@ -123,6 +123,7 @@ namespace HTownSim.Runtime
         internal static readonly UnitBehavior Patrol = new UnitBehavior
         {
             Kind = "Patrol",
+            FlashHertz = 3f,
             TopSpeed = 28f,
             ReverseSpeed = 8f,
             Acceleration = 11.5f,
