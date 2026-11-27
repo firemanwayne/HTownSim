@@ -41,7 +41,10 @@ namespace HTownSim.Runtime
             argument => string.Equals(argument, "-city-spectator", System.StringComparison.OrdinalIgnoreCase));
 
         /// <summary>True when the player joins the city server's city with a unit of their own: the "-city-player" switch. The unit is picked on the start screen as usual.</summary>
-        internal static bool CityPlayerRequested { get; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
+        internal static bool CityPlayerRequested { get; private set; } = CityPlayerFromArguments;
+
+        /// <summary>True when the "-city-player" switch was given; the Online card on the start screen sets <see cref="CityPlayerRequested"/> for one pick, and this is what it goes back to.</summary>
+        private static bool CityPlayerFromArguments => !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
             argument => string.Equals(argument, "-city-player", System.StringComparison.OrdinalIgnoreCase));
 
         /// <summary>True while the start screen is on screen, so a spectator does not fly under it.</summary>
@@ -383,7 +386,8 @@ namespace HTownSim.Runtime
                 0 => keyboard.digit1Key,
                 1 => keyboard.digit2Key,
                 2 => keyboard.digit3Key,
-                _ => keyboard.digit4Key,
+                3 => keyboard.digit4Key,
+                _ => keyboard.digit5Key,
             };
         }
 
@@ -412,6 +416,15 @@ namespace HTownSim.Runtime
                     "Fly a free camera over the city and watch Engine 07 live from the city server.",
                     "NEEDS A RUNNING CITY SERVER",
                     true));
+
+                _cards.Add(new MenuCard(
+                    "ONLINE",
+                    "Take an engine, ladder or medic unit in the city server's city and answer its calls beside other players.",
+                    "NEEDS A RUNNING CITY SERVER",
+                    true));
+
+                // Coming back to this step cancels an Online pick that was not finished.
+                CityPlayerRequested = CityPlayerFromArguments;
 
                 _highlight = System.Array.IndexOf(StartingTruckChoice.Agencies, StartingTruckChoice.AgencyOf(_current));
 
@@ -467,6 +480,18 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            if (_step == Step.Agency && index == StartingTruckChoice.Agencies.Length + 1)
+            {
+                // Online play is the fire department's: pick a station and a unit as usual, and the city that loads is the server's.
+                _agency = StartingAgency.Hfd;
+
+                ShowStep(Step.Station);
+
+                CityPlayerRequested = true;
+
+                return;
+            }
+
             if (_step == Step.Agency)
             {
                 _agency = StartingTruckChoice.Agencies[index];
@@ -497,7 +522,12 @@ namespace HTownSim.Runtime
         /// <summary>Resumes with the fitted apparatus, or stores the pick and reloads the scene to fit another.</summary>
         private void Choose(StartingTruck truck)
         {
-            // Picking a unit always leaves the spectator view.
+            // Picking a unit always leaves the spectator view; a spectator who picks one takes it in the server's city.
+            if (_fromSpectator)
+            {
+                CityPlayerRequested = true;
+            }
+
             CitySpectatorRequested = false;
 
             Debug.Log("StartingTruckMenu.Choose: " + truck + (_startMode ? " (start scene)" : " (city)"));
@@ -619,7 +649,7 @@ namespace HTownSim.Runtime
             }
 
             var hint = _step != Step.Apparatus
-                ? (_step == Step.Agency ? "Press 1, 2, 3 or 4, or use the arrow keys and Enter" : "Press 1, 2 or 3, or use the arrow keys and Enter") + (_step == Step.Station ? ".   Backspace: change service" : string.Empty) + (_fromSpectator ? ".   U: back to spectating" : string.Empty)
+                ? (_step == Step.Agency ? "Press 1 to 5, or use the arrow keys and Enter" : "Press 1, 2 or 3, or use the arrow keys and Enter") + (_step == Step.Station ? ".   Backspace: change service" : string.Empty) + (_fromSpectator ? ".   U: back to spectating" : string.Empty)
                 : "Press a number, or use the arrow keys and Enter.   Backspace: " + (_agency == StartingAgency.Hfd ? "change station" : "change service");
 
             GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), hint, _hint);

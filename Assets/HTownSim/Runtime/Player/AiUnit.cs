@@ -307,12 +307,22 @@ namespace HTownSim.Runtime
         /// <summary>A player takes the unit. Only a parked unit can be taken; the computer then stops driving it and it is not sent to calls (the player is).</summary>
         internal bool Seat()
         {
-            if (Seated || Busy)
+            // A unit driving home has no call to keep, so a player may take it where it is; one still out on a call may not.
+            if (Seated || (Busy && Current != Phase.Returning))
             {
                 return false;
             }
 
             Seated = true;
+
+            if (Current == Phase.Returning)
+            {
+                Current = Phase.Parked;
+
+                _speed = 0f;
+
+                EmergencyTraffic.Unregister(transform);
+            }
 
             _seatFlags = 0;
 

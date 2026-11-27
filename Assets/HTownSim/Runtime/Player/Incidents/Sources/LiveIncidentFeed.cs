@@ -419,6 +419,12 @@ namespace HTownSim.Runtime.Incidents.Sources
             return entry.InMap ? ground : (Vector2?)null;
         }
 
+        /// <summary>True when the unit is on the incident's list of units sent (a player's unit is told by the server, so it asks).</summary>
+        internal bool IsAssigned(string incidentId, string unitName)
+        {
+            return _assigned.TryGetValue(incidentId, out var units) && units.Contains(unitName, StringComparer.OrdinalIgnoreCase);
+        }
+
         /// <summary>The units that could be sent now: the player's unit and the computer-driven ones.</summary>
         private List<FleetCandidate> Candidates()
         {

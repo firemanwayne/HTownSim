@@ -79,6 +79,9 @@ namespace HTownSim.Runtime
         /// <summary>True when the city is the server's: calls come from it (through <see cref="EngineSpectatorClient"/>), and there is no local fleet, feed or made-up call.</summary>
         private bool _remoteCity;
 
+        /// <summary>The incident board the city server streams to this player (null in a city of one's own).</summary>
+        private RemoteIncidentBoard? _remoteBoard;
+
         /// <summary>The live City of Houston incident feed (harvester files to the board and to dispatches).</summary>
         private LiveIncidentFeed? _liveFeed;
         /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
@@ -555,7 +558,11 @@ namespace HTownSim.Runtime
 
             _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), System.IO.Path.Combine(Application.persistentDataPath, "Incidents")));
 
-            link.AddComponent<EngineSpectatorClient>().BeginAsPlayer(this, _incidents, _fireVfxMain);
+            var client = link.AddComponent<EngineSpectatorClient>();
+
+            _remoteBoard = client.Board;
+
+            client.BeginAsPlayer(this, _incidents, _fireVfxMain);
         }
 
         private void StartCity(Transform? player)
@@ -613,6 +620,10 @@ namespace HTownSim.Runtime
             if (_liveFeed != null && boardCanvas != null)
             {
                 new GameObject("ActiveIncidentsHud").AddComponent<ActiveIncidentsHud>().Initialize(_liveFeed, boardCanvas);
+            }
+            else if (_remoteBoard != null && boardCanvas != null)
+            {
+                new GameObject("ActiveIncidentsHud").AddComponent<ActiveIncidentsHud>().Initialize(_remoteBoard, boardCanvas);
             }
 
             gameObject.AddComponent<EngineSound>().Initialize(this);

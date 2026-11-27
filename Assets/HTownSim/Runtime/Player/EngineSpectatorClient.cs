@@ -118,6 +118,12 @@ namespace HTownSim.Runtime
         /// <summary>The unit the server has seated this client in (empty when none).</summary>
         private string _seat = "";
 
+        /// <summary>The incident board the server streams to this client (shown by the HUD of a player).</summary>
+        internal RemoteIncidentBoard Board { get; } = new RemoteIncidentBoard();
+
+        /// <summary>The incident the player's own unit was sent to: the truck has its own fire for it, so the server's is not drawn a second time.</summary>
+        private string _myIncident = "";
+
         /// <summary>The server's address: the <c>-city-host</c> argument, else this machine.</summary>
         private static string Host()
         {
@@ -273,6 +279,8 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            _myIncident = record.IncidentId;
+            RemoveFire(_myIncident);
             var name = _player.Profile.UnitName;
             var payload = LivePayloadBuilder.Build(record, LiveIncidentFeed.RequiredUnit(name, LiveDispatchRule.KindOf(name)));
             _incidents.Submit(JsonUtility.ToJson(payload), LivePayloadBuilder.SourceName);
@@ -344,6 +352,31 @@ namespace HTownSim.Runtime
                 return true;
             }
 
+            if (fields.Length == 3 && fields[0] == "BS")
+            {
+                Board.Begin(int.TryParse(fields[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var waiting) ? waiting : 0, fields[2] == "1");
+
+                return true;
+            }
+
+            if (fields.Length == 4 && fields[0] == "B")
+            {
+                var record = JsonUtility.FromJson<LiveIncidentRecord>(fields[3]);
+                if (record != null)
+                {
+                    Board.Add(record, fields[1] == "1", fields[2]);
+                }
+
+                return true;
+            }
+
+            if (fields.Length == 1 && fields[0] == "BE")
+            {
+                Board.End();
+
+                return true;
+            }
+
             if (fields.Length == 2 && fields[0] == "S")
             {
                 _seat = fields[1];
@@ -403,7 +436,7 @@ namespace HTownSim.Runtime
         /// <summary>Shows or updates a fire the server reports: made the first time it is seen, then set to the server's heat and growth.</summary>
         private void ShowFire(string id, Vector3 position, float heat, float growth, bool isOut)
         {
-            if (_firePrefab == null)
+            if (_firePrefab == null || id == _myIncident)
             {
                 return;
             }

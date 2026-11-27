@@ -3,11 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using HTownSim.Runtime.Incidents.Managers;
 using HTownSim.Runtime.Incidents.Sources;
 using UnityEngine;
 
@@ -37,6 +39,9 @@ namespace HTownSim.Runtime
         internal const string LegacyHeader = "HTOWNSIM ENGINE07 1";
 
         private const int SendMilliseconds = 100;
+
+        /// <summary>How often (seconds) a connection is sent the incident board. Lower it for a board that follows the feed closely; raise it to send less.</summary>
+        private const float BoardSeconds = 1f;
 
         /// <summary>The command that asks to see the city as a role (<c>ROLE Fire</c>), which may only narrow what the connection sees.</summary>
         internal const string RoleCommand = "ROLE ";
@@ -171,6 +176,7 @@ namespace HTownSim.Runtime
                 await session.SendAsync(Header, true);
                 var commands = ReadCommands(reader, session, fleet, feed, shutdown);
                 var sentFires = new HashSet<string>();
+                var nextBoard = 0f;
 
                 while (!shutdown.IsCancellationRequested && fleet != null && !commands.IsCompleted)
                 {
@@ -219,6 +225,12 @@ namespace HTownSim.Runtime
                     }
 
                     sentFires.UnionWith(burning);
+                    if (Time.unscaledTime >= nextBoard)
+                    {
+                        nextBoard = Time.unscaledTime + BoardSeconds;
+                        await SendBoard(session, feed, own);
+                    }
+
                     await session.FlushAsync();
                     await Task.Delay(SendMilliseconds, shutdown);
                 }
@@ -234,6 +246,36 @@ namespace HTownSim.Runtime
                 _clients.Remove(client);
                 client.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Sends the incident board as one snapshot: <c>BS</c>, how many incidents wait and 1 when the feed is live; a <c>B</c> line for each
+        /// incident on the board (1 when it is on the drivable map, why it was sent to this connection's unit or empty, the record as JSON);
+        /// then <c>BE</c>.
+        /// </summary>
+        private static async Task SendBoard(Session session, LiveIncidentFeed feed, AiUnit? own)
+        {
+            var queue = feed.Queue;
+            await session.SendAsync(FormattableString.Invariant($"BS\t{queue.Waiting}\t{(feed.IsLive ? 1 : 0)}"), false);
+            var shown = 0;
+            foreach (var entry in queue.Board)
+            {
+                if (shown++ >= feed.Settings.HudLines)
+                {
+                    break;
+                }
+
+                var reason = "";
+                if (own != null && feed.IsAssigned(entry.Record.IncidentId, own.UnitName))
+                {
+                    var codes = LiveDispatchRule.UnitCodes(own.UnitName);
+                    reason = entry.Record.Units.Any(code => codes.Contains(code, StringComparer.OrdinalIgnoreCase)) ? LiveDispatchRule.UnitReason : LiveDispatchRule.FirstDueReason;
+                }
+
+                await session.SendAsync("B\t" + (entry.InMap ? "1" : "0") + "\t" + reason + "\t" + JsonUtility.ToJson(entry.Record), false);
+            }
+
+            await session.SendAsync("BE", false);
         }
 
         /// <summary>Reads one connection's commands until it disconnects. Runs on the main thread (Unity's context), so it can drive the fleet.</summary>
