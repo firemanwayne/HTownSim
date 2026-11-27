@@ -11,13 +11,7 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class AiSiren : MonoBehaviour
     {
-        /// <summary>The tones, as the player's siren names them (Resources/SirenAudio): the first two alternate, the third is rarer.</summary>
-        private static readonly string[] ToneResources = { "Wail", "Yelp", "Phaser" };
-
         private const string SirenFolder = "SirenAudio/";
-
-        /// <summary>Volume (0 to 1) of the siren at its source. Raise it to make responding units louder everywhere; lower it to quieten them.</summary>
-        private const float Volume = 0.8f;
 
         /// <summary>Distance (metres) within which the siren is at full volume. Raise it to keep it loud further out; lower it so it starts to fade sooner.</summary>
         private const float MinimumDistance = 15f;
@@ -89,7 +83,8 @@ namespace HTownSim.Runtime
         /// <summary>The chance (0 to 1) that a change of tone picks the pier tone instead of wail or yelp. Raise it for more pier; lower it (or 0) for none.</summary>
         private const float PierChance = 0.15f;
 
-        private readonly AudioClip?[] _clips = new AudioClip?[ToneResources.Length];
+        /// <summary>The recorded tones of the unit's kind (see UnitBehavior.SirenTones): the first two alternate, a third is the rarer pier tone.</summary>
+        private AudioClip?[] _clips = new AudioClip?[0];
 
         private AudioSource _source = null!;
 
@@ -115,10 +110,7 @@ namespace HTownSim.Runtime
 
         private void Awake()
         {
-            for (var i = 0; i < ToneResources.Length; i++)
-            {
-                _clips[i] = Resources.Load<AudioClip>(SirenFolder + ToneResources[i]);
-            }
+            LoadTones(UnitBehavior.Engine.SirenTones);
 
             _source = gameObject.AddComponent<AudioSource>();
 
@@ -126,7 +118,7 @@ namespace HTownSim.Runtime
 
             _source.loop = true;
 
-            _source.volume = Volume;
+            _source.volume = UnitBehavior.Engine.AiSirenVolume;
 
             _source.spatialBlend = 1f;
 
@@ -168,6 +160,24 @@ namespace HTownSim.Runtime
             _tone = Random.Range(0, 2);
         }
 
+        /// <summary>Gives the siren the tones and volume of the unit's kind.</summary>
+        internal void Configure(UnitBehavior behavior)
+        {
+            LoadTones(behavior.SirenTones);
+
+            _source.volume = behavior.AiSirenVolume;
+        }
+
+        private void LoadTones(string[] tones)
+        {
+            _clips = new AudioClip?[tones.Length];
+
+            for (var i = 0; i < tones.Length; i++)
+            {
+                _clips[i] = Resources.Load<AudioClip>(SirenFolder + tones[i]);
+            }
+        }
+
         /// <summary>Starts or stops the siren.</summary>
         internal void SetPlaying(bool on)
         {
@@ -201,7 +211,7 @@ namespace HTownSim.Runtime
             {
                 _nextSwitch = Time.time + Random.Range(SwitchMinimumSeconds, SwitchMaximumSeconds);
 
-                _tone = Random.value < PierChance ? 2 : (_tone == 0 ? 1 : 0);
+                _tone = _clips.Length > 2 && Random.value < PierChance ? 2 : (_tone == 0 ? 1 : 0);
 
                 PlayTone();
             }
@@ -220,7 +230,7 @@ namespace HTownSim.Runtime
 
         private void PlayTone()
         {
-            var clip = _clips[_tone];
+            var clip = _tone < _clips.Length ? _clips[_tone] : null;
 
             if (clip == null)
             {

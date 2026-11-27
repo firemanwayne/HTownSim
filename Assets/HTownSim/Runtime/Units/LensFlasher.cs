@@ -12,11 +12,8 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class LensFlasher : MonoBehaviour
     {
-        /// <summary>Flash rate of the lens-mesh warning lights (Ladder 07, ambulances, chiefs, supervisors, patrol), in cycles per second. Raise it for faster flashing; lower it for slower.</summary>
-        private const float FlashHertz = 1.6f;
-
-        /// <summary>Within each half of the cycle a group double-pulses, like LED warning lights: this is the fraction of that half spent lit. Raise it for longer pulses; lower it for shorter, sharper ones.</summary>
-        private const float PulseDuty = 0.32f;
+        /// <summary>How the unit's kind flashes (rate, pulses per half, pulse length): defined once per kind in <see cref="UnitBehavior"/>, and set from the profile when the flasher starts.</summary>
+        private UnitBehavior _behavior = UnitBehavior.Ladder;
 
         /// <summary>How bright a flashing lens glows (HDR emission, so the bloom picks it up). Raise it for a stronger glow and bloom; lower it for a duller flash.</summary>
         private const float FlashEmission = 6f;
@@ -72,6 +69,8 @@ namespace HTownSim.Runtime
         internal void Initialize(HTownSim.Runtime.Contracts.VehicleStateBase response, ApparatusProfileValues profile)
         {
             _response = response;
+
+            _behavior = profile.Behavior;
 
             var copies = new Dictionary<Material, Material>();
 
@@ -280,11 +279,11 @@ namespace HTownSim.Runtime
         {
             var active = _response.LightsActive;
 
-            _phase = Mathf.Repeat(_phase + FlashHertz * Time.deltaTime, 1f);
+            _phase = Mathf.Repeat(_phase + _behavior.FlashHertz * Time.deltaTime, 1f);
 
             var half = _phase < 0.5f ? _phase * 2f : (_phase - 0.5f) * 2f;
 
-            var pulse = half < PulseDuty || (half > 0.5f && half < 0.5f + PulseDuty);
+            var pulse = FlashPattern.IsLit(half, _behavior.FlashPulses, _behavior.FlashPulseDuty);
 
             var aLit = active && _phase < 0.5f && pulse;
 

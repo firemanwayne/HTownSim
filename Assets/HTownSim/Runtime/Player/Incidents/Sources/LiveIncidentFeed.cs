@@ -76,6 +76,46 @@ namespace HTownSim.Runtime.Incidents.Sources
         /// <summary>The folder the harvester writes to.</summary>
         internal string Folder => _folder;
 
+        /// <summary>How far north of Station 7 (degrees of latitude) a test fire is made, about 330 m. Raise it for a longer drive; lower it for a shorter one.</summary>
+        private const double TestFireLatitudeOffset = 0.003d;
+
+        /// <summary>How far east of Station 7 (degrees of longitude) a test fire is made, about 140 m.</summary>
+        private const double TestFireLongitudeOffset = 0.0015d;
+
+        /// <summary>Station 7's geocode, the scene origin.</summary>
+        private const double Station7Latitude = 29.73948387d;
+
+        private const double Station7Longitude = -95.3734589d;
+
+        private int _testFires;
+
+        /// <summary>
+        /// Starts a made-up structure fire near Station 7 and sends the units the dispatcher picks for it, as a call from the City's feed
+        /// would (a spectator's test). Returns the incident id, where it is and the units sent, or null when no unit could be sent.
+        /// </summary>
+        internal (string Id, Vector3 World, IReadOnlyList<string> Units)? SubmitTestFire()
+        {
+            _testFires++;
+
+            var id = "TEST-FIRE-" + _testFires + "-" + DateTime.UtcNow.ToString("HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+
+            var json = "{\"incidentId\":\"" + id + "\",\"agency\":\"FD\",\"incidentType\":\"STRUCTURE FIRE\",\"address\":\"TEST FIRE\",\"alarmLevel\":\"1\","
+                + "\"units\":[\"E007\",\"L007\",\"E008\",\"E016\",\"A007\",\"A016\"],"
+                + "\"lat\":" + (Station7Latitude + TestFireLatitudeOffset).ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+                + ",\"lon\":" + (Station7Longitude + TestFireLongitudeOffset).ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "}";
+
+            var record = JsonUtility.FromJson<LiveIncidentRecord>(json);
+
+            Evaluate(new LiveBoardEntry(record, 0d));
+
+            if (!_assigned.TryGetValue(id, out var units))
+            {
+                return null;
+            }
+
+            return (id, GeoProjection.ToWorld(record.Geo), units);
+        }
+
         /// <summary>Sets the feed up; called once by FireResponse after the incident manager.</summary>
         internal void Initialize(LiveFeedSetup setup)
         {

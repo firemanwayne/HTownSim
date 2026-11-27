@@ -119,6 +119,14 @@ namespace HTownSim.Runtime.Fleet
             return route;
         }
 
+        /// <summary>True when a point is a junction of the street network: a node where three or more streets meet.</summary>
+        internal bool IsJunction(Vector2 point)
+        {
+            var node = NearestNode(point);
+
+            return node >= 0 && (_nodes[node] - point).sqrMagnitude < 4f && _edges[node].Count >= 3;
+        }
+
         /// <summary>The usable node nearest a point, or -1.</summary>
         internal int NearestNode(Vector2 point)
         {

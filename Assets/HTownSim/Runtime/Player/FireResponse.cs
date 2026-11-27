@@ -197,7 +197,7 @@ namespace HTownSim.Runtime
         private AudioSource _siren = null!;
         private AudioClip _sirenClip = null!;
         private AudioSource _horn = null!;
-        private readonly AudioClip?[] _toneClips = new AudioClip?[ToneNames.Length];
+        private AudioClip?[] _toneClips = new AudioClip?[0];
         private AudioClip? _hornClip;
         private int _tone;
         private GameObject? _incidentGroup;
@@ -331,12 +331,6 @@ namespace HTownSim.Runtime
         /// <summary>The synthesized air horn's start and hold-loop clips (ArtSource/Audio/make_air_horn.py).</summary>
         private const string AirHornStartResource = "AirHornStart";
         private const string AirHornLoopResource = "AirHornLoop";        private AirHorn? _airHorn;
-        /// <summary>The volume (0 to 1) of the siren tones (wail, yelp, pier). Raise it to make sirens louder; lower it to make them quieter.</summary>
-        private const float SirenVolume = 0.55f;
-        /// <summary>The volume (0 to 1) of the horn and air horn. Raise it to make the horn louder; lower it to make it quieter.</summary>
-        private const float HornVolume = 0.7f;
-        private static readonly string[] ToneNames = { "WAIL", "YELP", "PHASER" };
-        private static readonly string[] ToneResources = { "Wail", "Yelp", "Phaser" };
 
         /// <summary>Initializes the vehicle and a synthesized placeholder siren.</summary>
         private void Awake()
@@ -451,21 +445,25 @@ namespace HTownSim.Runtime
                 if (engine != null)
                 {
                     var spectator = new GameObject("Engine 07 Spectator").AddComponent<EngineSpectatorClient>();
-                    spectator.Begin(engine.transform, FindAnyObjectByType<CinemachineCamera>());
+                    spectator.Begin(engine.transform, _fireVfxMain);
                 }
                 else
                 {
                     Debug.LogError("The spectator scene is missing Engine07Parked.");
                 }
 
-                gameObject.SetActive(false);
+                // The driven object carries Ambulance 07 in the saved scene, so it stays active (its model stays in the bay); only this component stops.
+                HideAssignmentHud();
+                enabled = false;
                 return;
             }
 
             if (StartingTruckMenu.CityServerRequested)
             {
                 StartCity(null);
-                gameObject.SetActive(false);
+
+                // The driven object stays active: with no player it is Ambulance 07, a fleet unit like the others.
+                enabled = false;
                 return;
             }
 
@@ -476,6 +474,38 @@ namespace HTownSim.Runtime
             StartCity(transform);
 
             StartPlayerPresentation();
+        }
+
+        /// <summary>Hides the baked unit title, dispatch panel, status, telemetry and key list. A spectator has no assignment; the map stays.</summary>
+        private void HideAssignmentHud()
+        {
+            var canvas = _status != null ? _status.transform.parent as RectTransform : null;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            foreach (var text in canvas.GetComponentsInChildren<TMP_Text>(true))
+            {
+                var inMap = text.transform.parent != null && text.transform.parent.name == MapPanelName;
+                var isTitle = text.text.StartsWith(TitlePrefix);
+                if (!inMap && (isTitle || text.text.Contains(ControlsHintMarker)))
+                {
+                    text.gameObject.SetActive(false);
+                }
+            }
+
+            foreach (var name in new[] { DispatchPanelName, HeaderName })
+            {
+                var part = canvas.Find(name);
+                if (part != null)
+                {
+                    part.gameObject.SetActive(false);
+                }
+            }
+
+            _status.gameObject.SetActive(false);
+            _telemetry.gameObject.SetActive(false);
         }
 
         private void StartCity(Transform? player)
@@ -509,10 +539,9 @@ namespace HTownSim.Runtime
             if (player == null)
             {
                 cityFleet.AddComponent<CityReadinessListener>();
-                var engine = _liveFeed.Fleet.Find("Engine 07");
-                if (engine != null)
+                if (_liveFeed.Fleet != null)
                 {
-                    cityFleet.AddComponent<EngineSpectatorServer>().Begin(engine);
+                    cityFleet.AddComponent<EngineSpectatorServer>().Begin(_liveFeed.Fleet, _liveFeed, cityFleet.GetComponent<LiveIncidentFires>());
                 }
             }
         }
@@ -595,9 +624,14 @@ namespace HTownSim.Runtime
         /// <summary>Loads the recorded wail, yelp, phaser and horn clips; any missing tone falls back to the synthesized wail.</summary>
         private void LoadSirenTones()
         {
-            for (var i = 0; i < ToneResources.Length; i++)
+            // The tones are the unit kind's own (UnitBehavior.SirenTones), the same set a computer-driven unit of the kind plays.
+            var tones = _profile.Behavior.SirenTones;
+
+            _toneClips = new AudioClip?[tones.Length];
+
+            for (var i = 0; i < tones.Length; i++)
             {
-                _toneClips[i] = Resources.Load<AudioClip>(SirenFolder + ToneResources[i]);
+                _toneClips[i] = Resources.Load<AudioClip>(SirenFolder + tones[i]);
             }
 
             _hornClip = Resources.Load<AudioClip>(SirenFolder + HornResource);
@@ -612,7 +646,7 @@ namespace HTownSim.Runtime
 
             _horn.spatialBlend = 0f;
 
-            _horn.volume = HornVolume;
+            _horn.volume = _profile.Behavior.HornVolume;
 
             // The synthesized air horn (start + seamless loop + release), when its clips are present.
             var airStart = Resources.Load<AudioClip>(SirenFolder + AirHornStartResource);
@@ -624,7 +658,7 @@ namespace HTownSim.Runtime
             {
                 _airHorn = gameObject.AddComponent<AirHorn>();
 
-                _airHorn.Initialize(airStart, airLoop, HornVolume);
+                _airHorn.Initialize(airStart, airLoop, _profile.Behavior.HornVolume);
             }
 
             ApplyTone();
@@ -637,7 +671,7 @@ namespace HTownSim.Runtime
 
             _siren.clip = clip != null ? clip : _sirenClip;
 
-            _siren.volume = clip != null ? SirenVolume : 0.2f;
+            _siren.volume = clip != null ? _profile.Behavior.SirenVolume : 0.2f;
 
             _siren.loop = true;
 
@@ -674,7 +708,7 @@ namespace HTownSim.Runtime
         internal int Tone => _tone;
 
         /// <summary>Display name of the selected tone.</summary>
-        internal string ToneName => ToneNames[_tone];
+        internal string ToneName => _profile.Behavior.SirenTones[_tone].ToUpperInvariant();
 
         /// <summary>True while the electric horn is sounding.</summary>
         internal bool HornSounding => _airHorn != null ? _airHorn.Held : _horn != null && _horn.isPlaying;
@@ -1086,7 +1120,7 @@ namespace HTownSim.Runtime
 
             if (keyboard.tKey.wasPressedThisFrame)
             {
-                SelectTone((_tone + 1) % ToneNames.Length, false);
+                SelectTone((_tone + 1) % _profile.Behavior.SirenTones.Length, false);
             }
 
             if (keyboard.digit1Key.wasPressedThisFrame)
@@ -1701,11 +1735,11 @@ namespace HTownSim.Runtime
 
             _vehicleBrakeInput = braking;
 
-            var target = braking ? 0f : input.y * (input.y >= 0f ? TopSpeed : ReverseSpeed);
+            var target = braking ? 0f : input.y * (input.y >= 0f ? _profile.Behavior.TopSpeed : _profile.Behavior.ReverseSpeed);
 
             var accelerating = !braking && Mathf.Abs(target) > Mathf.Abs(_speed) && Mathf.Sign(target) == Mathf.Sign(_speed == 0f ? target : _speed);
 
-            _speed = Mathf.MoveTowards(_speed, target, (braking ? 22f : accelerating ? Acceleration : 9f) * Time.deltaTime);
+            _speed = Mathf.MoveTowards(_speed, target, (braking ? 22f : accelerating ? _profile.Behavior.Acceleration : 9f) * Time.deltaTime);
 
             // The throttle opposing the direction of travel acts as a brake; the rear lights and brake sounds follow it.
             _vehicleBrakeLightsOn = braking ? Mathf.Abs(_speed) > 0.2f : (input.y < -0.1f && _speed > 0.5f) || (input.y > 0.1f && _speed < -0.5f);
@@ -1755,15 +1789,6 @@ namespace HTownSim.Runtime
 
         /// <summary>Backing state for ThrottleInput.</summary>
         private float _vehicleThrottleInput;
-
-        /// <summary>The fastest the unit drives forward, in metres per second (22 is about 49 mph). Raise it to make every unit faster; lower it to make them slower. It also changes how quickly the unit reaches calls.</summary>
-        private const float TopSpeed = 22f;
-
-        /// <summary>The fastest the unit drives in reverse, in metres per second. Raise it for a quicker backing; lower it for a slower, more careful one.</summary>
-        private const float ReverseSpeed = 6f;
-
-        /// <summary>How fast the unit picks up speed, in metres per second every second. Raise it for a quicker getaway; lower it for a heavier, slower build-up. Braking and coasting have their own, fixed rates in Drive.</summary>
-        private const float Acceleration = 8.5f;
 
         /// <summary>The speed (metres per second) above which steering starts to ease off. Raise it so the unit keeps sharp steering at higher speed; lower it so steering softens earlier.</summary>
         private const float SteerEaseSpeed = 10f;
@@ -1865,7 +1890,7 @@ namespace HTownSim.Runtime
         {
             return _hospitals.Length > 0
                 && _patient != null
-                && LiveDispatchRule.CanTransport(_profile.UnitName)
+                && _profile.CanTransport
                 && _activeIncident is not null
                 && (_activeIncident.Agency == IncidentAgency.Ems || _activeIncident.CallType == IncidentCallType.Medical);
         }

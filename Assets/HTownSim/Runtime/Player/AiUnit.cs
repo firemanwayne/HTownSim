@@ -50,18 +50,6 @@ namespace HTownSim.Runtime
             Police,
         }
 
-        /// <summary>The top speed (metres per second) of a computer-driven unit responding with lights and siren (17 is about 38 mph). Raise it so units reach calls sooner; lower it for slower responses. Units slow for corners and for the end of the route regardless.</summary>
-        private const float ResponseSpeed = 17f;
-
-        /// <summary>The speed (metres per second) of a computer-driven unit driving back to its station. Raise it so units are back in service sooner (free again for the next call); lower it to keep them out longer.</summary>
-        private const float ReturnSpeed = 11f;
-
-        /// <summary>How fast a computer-driven unit picks up speed, in metres per second every second. Raise it for a quicker getaway; lower it for a heavier, slower build-up.</summary>
-        private const float Acceleration = 4.5f;
-
-        /// <summary>How hard a computer-driven unit slows for corners and for the end of its route, in metres per second every second. Raise it so units brake later and harder; lower it so they start slowing earlier.</summary>
-        private const float Braking = 9f;
-
         /// <summary>The turn angle (degrees) at which a unit slows to its slowest corner speed; gentler bends slow it proportionally less. Raise it so only very sharp turns slow it fully; lower it so even moderate bends do.</summary>
         private const float SharpCornerDegrees = 110f;
 
@@ -70,9 +58,6 @@ namespace HTownSim.Runtime
 
         /// <summary>How far (metres) before a corner a unit starts slowing for it. Raise it for earlier, gentler slowing; lower it for late braking.</summary>
         private const float CornerLookAhead = 16f;
-
-        /// <summary>How fast (degrees per second) a computer-driven unit turns to face the way it is going. Raise it for sharper, snappier turning; lower it for a slow swing round a corner (a wider turning circle).</summary>
-        private const float TurnDegreesPerSecond = 160f;
 
         /// <summary>How close (metres) a unit must get to a route point to count it as reached and aim for the next. Raise it to cut corners; lower it to follow the route line closely.</summary>
         private const float ReachDistance = 1.5f;
@@ -90,13 +75,42 @@ namespace HTownSim.Runtime
         private const float HospitalSeconds = 25f;
 
         /// <summary>How far apart (metres) the units at one scene stop along the street, each one this much further back than the one before. Raise it to spread units out more; lower it to bunch them (too low and they overlap).</summary>
-        private const float SlotMetres = 11f;
+        private const float SlotMetres = 20f;
 
         /// <summary>How far above the unit (metres) the ground check for its height starts. Raise it for roads that rise steeply; lower it to avoid hitting roofs.</summary>
         private const float ProbeUp = 40f;
 
         /// <summary>How far down (metres) the ground check for the unit's height reaches. Raise it for deep drops; lower it to ignore far-below surfaces.</summary>
         private const float ProbeDown = 80f;
+
+        /// <summary>Seconds each unit after the first waits before it pulls out, so units leaving one station do not drive into each other. Raise it for a longer gap between departures; lower it to leave together.</summary>
+        private const float DepartStaggerSeconds = 3f;
+
+        /// <summary>How close (metres) another unit ahead may be before this one slows for it. Raise it to keep a longer following gap; lower it to follow closer.</summary>
+        private const float FollowDistance = 45f;
+
+        /// <summary>The distance (metres, centre to centre) at which a unit stops for the one ahead. A ladder is about 12 m long, so 20 leaves a clear gap of several metres between bumpers. Raise it for more space; lower it to close up.</summary>
+        private const float StopGap = 20f;
+
+        /// <summary>How long (seconds) a unit waits behind another before it drives on regardless, so two units can never lock each other in place. Raise it to wait longer; lower it to push through sooner.</summary>
+        private const float BlockedPatienceSeconds = 4f;
+
+        /// <summary>How long (seconds) a unit that lost patience ignores the one ahead, to get past it.</summary>
+        private const float PushThroughSeconds = 3f;
+
+        /// <summary>How far (metres) straight out of its bay a unit drives before it joins the street route (and the point it comes back in through). The stations' aprons are open for at least 34 m. Raise it to clear a deeper station front; lower it for a shorter run.</summary>
+        private const float BayApronMetres = 16f;
+
+        /// <summary>The way the unit faces in its bay (ground x, z): out of the station door.</summary>
+        private Vector2 _homeForward = Vector2.up;
+
+        private static readonly List<AiUnit> AllUnits = new List<AiUnit>();
+
+        private float _departDelay;
+
+        private float _blockedSeconds;
+
+        private float _ignoreUntil;
 
         private readonly RaycastHit[] _hits = new RaycastHit[12];
 
@@ -107,6 +121,42 @@ namespace HTownSim.Runtime
         private Quaternion _homeRotation;
 
         private AiEmergencyLights? _lights;
+
+        /// <summary>How this kind of unit flashes, sounds and drives: the same values the player's truck of this kind uses.</summary>
+        private UnitBehavior _behavior = UnitBehavior.Engine;
+
+        /// <summary>True when the unit's kind takes patients to a hospital (from its profile).</summary>
+        private bool _canTransport;
+
+        /// <summary>The unit's horn, blown at intersections and at vehicles in its way.</summary>
+        private AiHorn? _horn;
+
+        /// <summary>Which points of the route are junctions of the street network (index for index), and the last one the horn was blown for.</summary>
+        private bool[] _junction = new bool[0];
+
+        private int _honkedJunction = -1;
+
+        /// <summary>Seconds before the horn may be blown again.</summary>
+        private float _hornCooldown;
+
+        /// <summary>True while another unit ahead has slowed this one (set by the following-distance check).</summary>
+        private bool _blockedAhead;
+
+        /// <summary>How far (metres) ahead along its route a unit looks for an intersection to blow the horn for. Raise it to honk earlier; lower it to honk closer to the junction.</summary>
+        private const float HornApproachMetres = 45f;
+
+        /// <summary>How far (metres) ahead a traffic car counts as in the unit's way, and how far to either side of its line.</summary>
+        private const float HornBlockedMetres = 24f;
+
+        private const float HornBlockedHalfWidth = 2.6f;
+
+        /// <summary>Seconds between horn blasts: a unit does not honk again sooner than this. Raise it for a quieter unit; lower it for a more insistent one.</summary>
+        private const float HornCooldownSeconds = 4f;
+
+        /// <summary>Blasts at an intersection (a warning to cross traffic) and at a vehicle in the way.</summary>
+        private const int IntersectionBlasts = 2;
+
+        private const int BlockedBlasts = 1;
 
         private List<Vector2> _route = new List<Vector2>();
 
@@ -140,6 +190,9 @@ namespace HTownSim.Runtime
         /// <summary>True when the unit is on a call (it is not sent again until it is back at its station).</summary>
         internal bool Busy => Current != Phase.Parked;
 
+        /// <summary>Lights, siren and horn as flags for a spectator: 1 when the lights flash, 2 when the siren sounds, 4 when the horn sounds.</summary>
+        internal int LightFlags => (_lights == null ? 0 : (_lights.IsOn ? 1 : 0) | (_lights.SirenOn ? 2 : 0)) | (_horn != null && _horn.Sounding ? 4 : 0);
+
         /// <summary>Where the unit is now (ground x, z).</summary>
         internal Vector2 Position => new Vector2(transform.position.x, transform.position.z);
 
@@ -162,7 +215,23 @@ namespace HTownSim.Runtime
 
             _homeRotation = transform.rotation;
 
+            var facing = _homeRotation * Vector3.forward;
+
+            _homeForward = new Vector2(facing.x, facing.z).normalized;
+
+            _behavior = UnitBehavior.For(unitName);
+
+            var profile = ApparatusLoadout.ProfileFor(unitName);
+
+            _canTransport = profile.CanTransport;
+
             _lights = gameObject.AddComponent<AiEmergencyLights>();
+
+            _lights.Configure(_behavior);
+
+            _horn = gameObject.AddComponent<AiHorn>();
+
+            _horn.Configure(profile.AirHorn, _behavior.HornVolume);
 
             gameObject.AddComponent<AiWheelSpin>();
         }
@@ -183,7 +252,7 @@ namespace HTownSim.Runtime
 
             _call = call;
 
-            _hasPatient = call == Call.Ems && LiveDispatchRule.CanTransport(UnitName);
+            _hasPatient = call == Call.Ems && _canTransport;
 
             var route = _graph.Route(Position, scene);
 
@@ -203,7 +272,13 @@ namespace HTownSim.Runtime
 
             Trim(route, slot * SlotMetres);
 
-            Begin(Phase.Responding, route, ResponseSpeed);
+            // Pull straight out of the bay before joining the route: a straight line from the bay to the nearest street cuts through the station's walls and its neighbours.
+            route.Insert(1, ApronPoint());
+
+            Begin(Phase.Responding, route, _behavior.ResponseSpeed);
+
+            // Each unit after the first waits a little longer, lights on, before it pulls out.
+            _departDelay = slot * DepartStaggerSeconds;
 
             _lights?.Set(true, true);
         }
@@ -231,13 +306,13 @@ namespace HTownSim.Runtime
             }
 
             var wanted = Mathf.Clamp(throttle, -1f, 1f) * ManualSpeed;
-            _speed = Mathf.MoveTowards(_speed, wanted, Acceleration * deltaTime);
+            _speed = Mathf.MoveTowards(_speed, wanted, _behavior.AiAcceleration * deltaTime);
             if (Mathf.Abs(_speed) < 0.01f)
             {
                 return;
             }
 
-            transform.Rotate(0f, steering * Mathf.Sign(_speed) * TurnDegreesPerSecond * deltaTime, 0f);
+            transform.Rotate(0f, steering * Mathf.Sign(_speed) * _behavior.TurnDegreesPerSecond * deltaTime, 0f);
             var next = transform.position + transform.forward * (_speed * deltaTime);
             var ground = new Vector2(next.x, next.z);
             transform.position = new Vector3(next.x, GroundHeight(ground), next.z);
@@ -326,6 +401,22 @@ namespace HTownSim.Runtime
 
             _cruise = cruise;
 
+            _departDelay = 0f;
+
+            _blockedSeconds = 0f;
+
+            // Mark the junctions on the route now, so the horn can be blown on the approach to each one.
+            _junction = new bool[route.Count];
+
+            for (var i = 1; i < route.Count - 1; i++)
+            {
+                _junction[i] = _graph.IsJunction(route[i]);
+            }
+
+            _honkedJunction = -1;
+
+            _hornCooldown = 0f;
+
             if (phase != Phase.Returning)
             {
                 EmergencyTraffic.Register(transform);
@@ -338,6 +429,13 @@ namespace HTownSim.Runtime
             if (_next >= _route.Count)
             {
                 Arrive();
+
+                return;
+            }
+
+            if (_departDelay > 0f)
+            {
+                _departDelay -= Time.deltaTime;
 
                 return;
             }
@@ -361,7 +459,11 @@ namespace HTownSim.Runtime
 
             var wanted = Mathf.Min(_cruise, CornerLimit(position));
 
-            _speed = Mathf.MoveTowards(_speed, wanted, (wanted < _speed ? Braking : Acceleration) * Time.deltaTime);
+            wanted = Mathf.Min(wanted, FollowLimit(position, heading));
+
+            UpdateHorn(position, heading);
+
+            _speed = Mathf.MoveTowards(_speed, wanted, (wanted < _speed ? _behavior.Braking : _behavior.AiAcceleration) * Time.deltaTime);
 
             var step = Mathf.Min(distance, _speed * Time.deltaTime);
 
@@ -369,9 +471,128 @@ namespace HTownSim.Runtime
 
             var rotation = Quaternion.LookRotation(new Vector3(heading.x, 0f, heading.y), Vector3.up);
 
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, rotation, TurnDegreesPerSecond * Time.deltaTime);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, rotation, _behavior.TurnDegreesPerSecond * Time.deltaTime);
 
             transform.position = new Vector3(moved.x, GroundHeight(moved), moved.y);
+        }
+
+        /// <summary>
+        /// The speed the unit may keep given the unit in front of it: it eases off inside <see cref="FollowDistance"/> and stops at
+        /// <see cref="StopGap"/>. A unit that has waited too long drives on regardless for a moment, so two units never lock up. Parked
+        /// units do not count (they stand in their bays).
+        /// </summary>
+        private float FollowLimit(Vector2 position, Vector2 heading)
+        {
+            if (Time.time < _ignoreUntil)
+            {
+                _blockedAhead = false;
+
+                return _cruise;
+            }
+
+            var limit = _cruise;
+
+            foreach (var other in AllUnits)
+            {
+                if (other == this || other.Current == Phase.Parked)
+                {
+                    continue;
+                }
+
+                var delta = other.Position - position;
+
+                var gap = delta.magnitude;
+
+                if (gap > FollowDistance || gap < 0.01f || Vector2.Dot(delta / gap, heading) < 0.5f)
+                {
+                    continue;
+                }
+
+                limit = Mathf.Min(limit, _cruise * Mathf.Clamp01((gap - StopGap) / (FollowDistance - StopGap)));
+            }
+
+            _blockedAhead = limit < _cruise * 0.6f;
+
+            if (limit < 0.5f)
+            {
+                _blockedSeconds += Time.deltaTime;
+
+                if (_blockedSeconds > BlockedPatienceSeconds)
+                {
+                    _blockedSeconds = 0f;
+
+                    _ignoreUntil = Time.time + PushThroughSeconds;
+                }
+            }
+            else
+            {
+                _blockedSeconds = 0f;
+            }
+
+            return limit;
+        }
+
+        /// <summary>
+        /// Blows the horn like a crew driving with lights and siren: two blasts on the approach to an intersection, one at a vehicle in
+        /// the way (another unit that has slowed this one, or a traffic car close ahead). Not while driving home without a call.
+        /// </summary>
+        private void UpdateHorn(Vector2 position, Vector2 heading)
+        {
+            if (_horn == null || Current == Phase.Returning)
+            {
+                return;
+            }
+
+            _hornCooldown -= Time.deltaTime;
+
+            if (_hornCooldown > 0f)
+            {
+                return;
+            }
+
+            var travelled = 0f;
+
+            var from = position;
+
+            for (var i = _next; i < _route.Count - 1 && i < _junction.Length; i++)
+            {
+                travelled += Vector2.Distance(from, _route[i]);
+
+                from = _route[i];
+
+                if (travelled > HornApproachMetres)
+                {
+                    break;
+                }
+
+                if (_junction[i] && i != _honkedJunction)
+                {
+                    _honkedJunction = i;
+
+                    _hornCooldown = HornCooldownSeconds;
+
+                    _horn.Honk(IntersectionBlasts);
+
+                    return;
+                }
+            }
+
+            if (_blockedAhead || TrafficSystem.CarAhead(transform.position, new Vector3(heading.x, 0f, heading.y), HornBlockedMetres, HornBlockedHalfWidth))
+            {
+                _hornCooldown = HornCooldownSeconds;
+
+                _horn.Honk(BlockedBlasts);
+            }
+        }
+
+        private void OnEnable()
+        {
+            AllUnits.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            AllUnits.Remove(this);
         }
 
         /// <summary>The speed the unit may keep given the corner ahead and the end of the route.</summary>
@@ -397,7 +618,7 @@ namespace HTownSim.Runtime
             else
             {
                 // The last point: come to a stop at it.
-                limit = Mathf.Min(limit, Mathf.Sqrt(2f * Braking * Mathf.Max(0f, remaining - 1f)) + 0.5f);
+                limit = Mathf.Min(limit, Mathf.Sqrt(2f * _behavior.Braking * Mathf.Max(0f, remaining - 1f)) + 0.5f);
             }
 
             return Mathf.Max(limit, 2f);
@@ -446,7 +667,7 @@ namespace HTownSim.Runtime
                 {
                     PatientLoaded?.Invoke(IncidentId);
 
-                    Begin(Phase.ToHospital, route, ResponseSpeed);
+                    Begin(Phase.ToHospital, route, _behavior.ResponseSpeed);
 
                     _lights?.Set(true, true);
 
@@ -485,7 +706,16 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            Begin(Phase.Returning, route, ReturnSpeed);
+            // Come back in through the front of the bay, not across the station's walls.
+            route.Insert(route.Count - 1, ApronPoint());
+
+            Begin(Phase.Returning, route, _behavior.ReturnSpeed);
+        }
+
+        /// <summary>The point straight out of the unit's bay (the way it faces when parked), where it joins or leaves the street route.</summary>
+        private Vector2 ApronPoint()
+        {
+            return new Vector2(_homePosition.x, _homePosition.z) + (_homeForward * BayApronMetres);
         }
 
         private void Park()

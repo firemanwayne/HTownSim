@@ -36,8 +36,12 @@ namespace HTownSim.Runtime
         internal static bool CityServerRequested { get; } = System.Array.Exists(System.Environment.GetCommandLineArgs(),
             argument => string.Equals(argument, "-city-server", System.StringComparison.OrdinalIgnoreCase));
 
-        internal static bool CitySpectatorRequested { get; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
+        /// <summary>True when the city runs as a spectator of the city server: the "-city-spectator" switch, or the Spectator card on the start screen.</summary>
+        internal static bool CitySpectatorRequested { get; private set; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
             argument => string.Equals(argument, "-city-spectator", System.StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>True while the start screen is on screen, so a spectator does not fly under it.</summary>
+        internal static bool IsOpen { get; private set; }
 
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
@@ -71,6 +75,9 @@ namespace HTownSim.Runtime
 
         /// <summary>True when the screen runs in the start scene, before the city is loaded.</summary>
         private bool _startMode;
+
+        /// <summary>True when a spectator opened the screen (U): every unit can be picked, and U closes it to carry on spectating.</summary>
+        private bool _fromSpectator;
 
         /// <summary>
         /// True from the pick until the scene is gone. The load is not started for a few frames, so the loading message is on screen first:
@@ -142,11 +149,21 @@ namespace HTownSim.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Show()
         {
-            if (CityServerRequested || CitySpectatorRequested)
+            if (CityServerRequested)
             {
                 if (SceneManager.GetActiveScene().name == StartScene)
                 {
                     SceneManager.LoadSceneAsync(CityScene);
+                }
+
+                return;
+            }
+
+            if (CitySpectatorRequested)
+            {
+                if (SceneManager.GetActiveScene().name == StartScene)
+                {
+                    new GameObject(nameof(CityJoinMenu)).AddComponent<CityJoinMenu>();
                 }
 
                 return;
@@ -214,6 +231,33 @@ namespace HTownSim.Runtime
         /// <summary>The start scene's screen: everything the city scene offers is taken as ready, and the last pick is the one shown as current.</summary>
         private static void ShowInStartScene()
         {
+            var menu = CreateStartModeMenu();
+
+            // "-autostart" on the command line takes the last pick without asking, for quick starts and for testing a build unattended.
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), AutoStartArgument) >= 0)
+            {
+                menu.Choose(menu._current);
+            }
+        }
+
+        /// <summary>Opens the screen from the spectator view (the U key): picking a unit leaves the spectator and loads the city with that unit.</summary>
+        internal static void OpenFromSpectator()
+        {
+            if (IsOpen)
+            {
+                return;
+            }
+
+            var menu = CreateStartModeMenu();
+
+            menu._fromSpectator = true;
+
+            menu._openedFrame = Time.frameCount;
+        }
+
+        /// <summary>A screen that takes everything the city scene offers as ready and loads the city by name, as the start scene does.</summary>
+        private static StartingTruckMenu CreateStartModeMenu()
+        {
             var menu = new GameObject(nameof(StartingTruckMenu)).AddComponent<StartingTruckMenu>();
 
             menu._startMode = true;
@@ -234,16 +278,14 @@ namespace HTownSim.Runtime
 
             menu.ShowStep(Step.Agency);
 
-            // "-autostart" on the command line takes the last pick without asking, for quick starts and for testing a build unattended.
-            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), AutoStartArgument) >= 0)
-            {
-                menu.Choose(menu._current);
-            }
+            return menu;
         }
 
         /// <summary>Freezes the game under the menu and frees the mouse.</summary>
         private void OnEnable()
         {
+            IsOpen = true;
+
             _previousTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
 
             Time.timeScale = 0f;
@@ -256,6 +298,8 @@ namespace HTownSim.Runtime
         /// <summary>Puts the time scale back if the menu is removed some other way.</summary>
         private void OnDestroy()
         {
+            IsOpen = false;
+
             if (Time.timeScale == 0f)
             {
                 Time.timeScale = _previousTimeScale;
@@ -287,7 +331,7 @@ namespace HTownSim.Runtime
             }
 
             // The key that opened the screen in the city also closes it, carrying on with the unit already driven.
-            if (!_startMode && Time.frameCount > _openedFrame && keyboard.uKey.wasPressedThisFrame)
+            if ((!_startMode || _fromSpectator) && Time.frameCount > _openedFrame && keyboard.uKey.wasPressedThisFrame)
             {
                 Destroy(gameObject);
 
@@ -359,6 +403,12 @@ namespace HTownSim.Runtime
                         available));
                 }
 
+                _cards.Add(new MenuCard(
+                    "SPECTATOR",
+                    "Fly a free camera over the city and watch Engine 07 live from the city server.",
+                    "NEEDS A RUNNING CITY SERVER",
+                    true));
+
                 _highlight = System.Array.IndexOf(StartingTruckChoice.Agencies, StartingTruckChoice.AgencyOf(_current));
 
                 return;
@@ -406,6 +456,13 @@ namespace HTownSim.Runtime
                 return;
             }
 
+            if (_step == Step.Agency && index == StartingTruckChoice.Agencies.Length)
+            {
+                BeginSpectating();
+
+                return;
+            }
+
             if (_step == Step.Agency)
             {
                 _agency = StartingTruckChoice.Agencies[index];
@@ -436,6 +493,9 @@ namespace HTownSim.Runtime
         /// <summary>Resumes with the fitted apparatus, or stores the pick and reloads the scene to fit another.</summary>
         private void Choose(StartingTruck truck)
         {
+            // Picking a unit always leaves the spectator view.
+            CitySpectatorRequested = false;
+
             Debug.Log("StartingTruckMenu.Choose: " + truck + (_startMode ? " (start scene)" : " (city)"));
 
             StartingTruckChoice.Select(truck);
@@ -448,6 +508,22 @@ namespace HTownSim.Runtime
             }
 
             // The game stays frozen under the loading message; the menu putting the time scale back as it is unloaded lets the new scene run.
+            _loadRequested = true;
+
+            _loadStartFrame = Time.frameCount + LoadDelayFrames;
+
+            _startLoad = _startMode ? () => SceneManager.LoadSceneAsync(CityScene) : Reload;
+        }
+
+        /// <summary>Loads the city as a spectator of the city server, with a free camera and no unit of its own.</summary>
+        private void BeginSpectating()
+        {
+            Debug.Log("StartingTruckMenu.BeginSpectating" + (_startMode ? " (start scene)" : " (city)"));
+
+            CitySpectatorRequested = true;
+
+            CityJoinMenu.StartTiming();
+
             _loadRequested = true;
 
             _loadStartFrame = Time.frameCount + LoadDelayFrames;
@@ -533,7 +609,7 @@ namespace HTownSim.Runtime
             }
 
             var hint = _step != Step.Apparatus
-                ? "Press 1, 2 or 3, or use the arrow keys and Enter" + (_step == Step.Station ? ".   Backspace: change service" : string.Empty)
+                ? (_step == Step.Agency ? "Press 1, 2, 3 or 4, or use the arrow keys and Enter" : "Press 1, 2 or 3, or use the arrow keys and Enter") + (_step == Step.Station ? ".   Backspace: change service" : string.Empty) + (_fromSpectator ? ".   U: back to spectating" : string.Empty)
                 : "Press a number, or use the arrow keys and Enter.   Backspace: " + (_agency == StartingAgency.Hfd ? "change station" : "change service");
 
             GUI.Label(new Rect(0f, top + CardHeight + 56f, width, 32f), hint, _hint);

@@ -15,11 +15,18 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class AiFleet : MonoBehaviour
     {
+        /// <summary>
+        /// The object a player drives, which the saved scene fits as Ambulance 07 and parks in the third bay at Station 7. With no player
+        /// (the city server) it is a fleet unit like the others; with a player it is the player's own truck and the fleet leaves it alone.
+        /// </summary>
+        private const string DrivenObject = "Engine07";
+
         /// <summary>The parked apparatus: scene object, the group object it is in (empty for a root object), and the unit name.</summary>
         private static readonly (string Object, string Group, string Name)[] Parked =
         {
             ("Engine07Parked", "", "Engine 07"),
             ("Ladder07", "", "Ladder 07"),
+            (DrivenObject, "", "Ambulance 07"),
             ("Engine08", "Station8Apparatus", "Engine 08"),
             ("Engine01", "Station8Apparatus", "Engine 01"),
             ("Medic08", "Station8Apparatus", "Medic 08"),
@@ -90,6 +97,12 @@ namespace HTownSim.Runtime
             foreach (var (objectName, group, name) in Parked)
             {
                 if (string.Equals(name, playerUnit, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // With a player, the driven object is theirs, whatever unit they picked.
+                if (objectName == DrivenObject && playerUnit != null)
                 {
                     continue;
                 }
@@ -205,12 +218,12 @@ namespace HTownSim.Runtime
         /// <summary>
         /// Sends available test units to the player's active dispatch marker (key F9).
         /// </summary>
-        internal void SendTestResponse(Vector3? dispatchPosition)
+        internal int SendTestResponse(Vector3? dispatchPosition)
         {
             if (dispatchPosition is not Vector3 destination)
             {
                 Debug.Log("AI fleet: no active dispatch to respond to.");
-                return;
+                return 0;
             }
 
             var scene = new Vector2(destination.x, destination.z);
@@ -239,6 +252,22 @@ namespace HTownSim.Runtime
             }
 
             Debug.Log("AI fleet: " + slot + " test units responding to the active dispatch at " + scene);
+
+            return slot;
+        }
+
+        /// <summary>The scene object for a parked unit's name (as the fleet finds it), or null; a spectator uses it to pose the unit it sees streamed.</summary>
+        internal static Transform? FindParkedObject(GameObject[] roots, string unitName)
+        {
+            foreach (var (objectName, group, name) in Parked)
+            {
+                if (string.Equals(name, unitName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Find(roots, objectName, group);
+                }
+            }
+
+            return null;
         }
 
         /// <summary>How many units are stopped at the scene of an incident now.</summary>

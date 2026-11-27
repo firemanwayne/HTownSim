@@ -12,8 +12,8 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class AiEmergencyLights : MonoBehaviour
     {
-        /// <summary>Alternations per second of a computer-driven unit's warning lights. Raise it for faster flashing; lower it for slower.</summary>
-        private const float FlashHertz = 3f;
+        /// <summary>How this kind of unit flashes (rate, pulses, pulse length): the same definition the player's truck of this kind uses, set by <see cref="Configure"/>.</summary>
+        private UnitBehavior _behavior = UnitBehavior.Engine;
 
         /// <summary>How bright a lit lens glows (HDR emission, so the bloom picks it up). Raise it for a stronger glow; lower it for a dull one.</summary>
         private const float FlashEmission = 6f;
@@ -36,6 +36,9 @@ namespace HTownSim.Runtime
 
         /// <summary>True while the lights are flashing.</summary>
         internal bool IsOn => _on;
+
+        /// <summary>True while the siren is meant to sound (a spectator mirrors it from the server).</summary>
+        internal bool SirenOn { get; private set; }
 
         private void Awake()
         {
@@ -69,10 +72,23 @@ namespace HTownSim.Runtime
             _offset = Random.value;
         }
 
+        /// <summary>Gives the lights and siren the flash pattern, siren tones and volume of the unit's kind.</summary>
+        internal void Configure(UnitBehavior behavior)
+        {
+            _behavior = behavior;
+
+            if (_siren != null)
+            {
+                _siren.Configure(behavior);
+            }
+        }
+
         /// <summary>Turns the flashing and the siren on or off.</summary>
         internal void Set(bool on, bool siren)
         {
             _on = on;
+
+            SirenOn = siren;
 
             if (!on)
             {
@@ -94,11 +110,16 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            var first = Mathf.Repeat((Time.time * FlashHertz) + _offset, 1f) < 0.5f;
+            // The player's pattern: group A in the first half of the cycle, group B in the second, each pulsing twice in its half.
+            var phase = Mathf.Repeat((Time.time * _behavior.FlashHertz) + _offset, 1f);
 
-            Apply(_groupA, _colourA, first);
+            var half = phase < 0.5f ? phase * 2f : (phase - 0.5f) * 2f;
 
-            Apply(_groupB, _colourB, !first);
+            var pulse = FlashPattern.IsLit(half, _behavior.FlashPulses, _behavior.FlashPulseDuty);
+
+            Apply(_groupA, _colourA, phase < 0.5f && pulse);
+
+            Apply(_groupB, _colourB, phase >= 0.5f && pulse);
         }
 
         private static void Apply(List<Material> materials, List<Color> colours, bool lit)

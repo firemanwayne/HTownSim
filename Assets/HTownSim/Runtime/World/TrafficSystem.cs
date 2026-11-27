@@ -400,9 +400,58 @@ namespace HTownSim.Runtime
             public float KnockTime;
         }
 
+        /// <summary>The scene's traffic, so a computer-driven unit can ask whether a car is in its way.</summary>
+        private static TrafficSystem? _current;
+
+        /// <summary>
+        /// True when a traffic car is ahead of a point within <paramref name="range"/> metres and no more than <paramref name="halfWidth"/>
+        /// metres to either side of its line (a car in the way of a unit driving along <paramref name="forward"/>).
+        /// </summary>
+        internal static bool CarAhead(Vector3 position, Vector3 forward, float range, float halfWidth)
+        {
+            if (_current == null)
+            {
+                return false;
+            }
+
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+
+            forward.Normalize();
+
+            var right = Vector3.Cross(Vector3.up, forward);
+
+            foreach (var car in _current._cars)
+            {
+                if (car.Knocked || car.Transform == null || !car.Transform.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                var delta = car.Transform.position - position;
+
+                delta.y = 0f;
+
+                var ahead = Vector3.Dot(delta, forward);
+
+                if (ahead > 1f && ahead < range && Mathf.Abs(Vector3.Dot(delta, right)) < halfWidth)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Builds the street model and the agent pools.</summary>
         private void Start()
         {
+            _current = this;
+
             _frame = Quaternion.Euler(0f, _frameYawDegrees, 0f);
 
             _frameInverse = Quaternion.Inverse(_frame);
@@ -950,7 +999,15 @@ namespace HTownSim.Runtime
         {
             if (_brakeMaterial == null)
             {
-                _brakeMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "BrakeLight" };
+                // Dedicated server builds strip shaders; there is nothing to draw, so skip the lamps.
+                var shader = Shader.Find("Universal Render Pipeline/Lit");
+
+                if (shader == null)
+                {
+                    return new Renderer[0];
+                }
+
+                _brakeMaterial = new Material(shader) { name = "BrakeLight" };
 
                 _brakeMaterial.SetColor("_BaseColor", new Color(0.6f, 0f, 0f));
 
@@ -1938,6 +1995,11 @@ namespace HTownSim.Runtime
         /// <summary>Releases the generated impact sound.</summary>
         private void OnDestroy()
         {
+            if (_current == this)
+            {
+                _current = null;
+            }
+
             foreach (var ped in _pedestrians)
             {
                 if (ped.Rigged && ped.Graph.IsValid())

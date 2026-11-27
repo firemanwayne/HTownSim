@@ -9,11 +9,11 @@ namespace HTownSim.Runtime
     /// </summary>
     internal sealed class ApparatusLights : MonoBehaviour
     {
-        /// <summary>Flash rate of the engine's emergency lights, in cycles per second (about the same as the roof beacons). Raise it for faster, more frantic flashing; lower it for a calmer rate.</summary>
-        private const float FlashHertz = 1.8f;
+        /// <summary>Flash rate of the engine's emergency lights, in cycles per second: an engine's own, defined in <see cref="UnitBehavior.Engine"/>.</summary>
+        private static float FlashHertz => UnitBehavior.Engine.FlashHertz;
 
         /// <summary>A slower flash rate (cycles per second) for the front light bar, the rear lamps and the road light pools; the side markers keep FlashHertz. Raise it to speed those lights up; lower it to slow them.</summary>
-        private const float FrontRearHertz = 1.15f;
+        private static float FrontRearHertz => UnitBehavior.Engine.FrontRearHertz;
 
         /// <summary>Lenses with this in their name are the roof light bar.</summary>
         private const string BarLensName = "TwinLED";
@@ -155,6 +155,13 @@ namespace HTownSim.Runtime
         /// <summary>Allocates the per-lens state cache.</summary>
         private void Awake()
         {
+            // Headless servers have no graphics device and strip shaders, so the lamp visuals cannot be built.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                enabled = false;
+                return;
+            }
+
             _lit = new bool[_lenses.Length];
 
             _flasher = new int[_lenses.Length];

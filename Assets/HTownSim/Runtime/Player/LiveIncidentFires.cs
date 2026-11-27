@@ -70,7 +70,16 @@ namespace HTownSim.Runtime
                 world.y = hit.point.y;
             }
 
-            _fires[incidentId] = new Burning(new LiveFireVfx(_prefab, world, transform.parent));
+            _fires[incidentId] = new Burning(new LiveFireVfx(_prefab, world, transform.parent), world);
+        }
+
+        /// <summary>The fires burning now (id, where, heat and growth, and whether it is out and only smoking), for a spectator to show.</summary>
+        internal IEnumerable<(string Id, Vector3 Position, float Heat, float Growth, bool Out)> Snapshot()
+        {
+            foreach (var pair in _fires)
+            {
+                yield return (pair.Key, pair.Value.Position, pair.Value.Heat, pair.Value.Growth, pair.Value.RemoveIn >= 0f);
+            }
         }
 
         private void OnCleared(string incidentId)
@@ -148,12 +157,16 @@ namespace HTownSim.Runtime
         /// <summary>A fire in progress: its effect, how grown and how hot it is, and the time left before it is removed (negative while it burns).</summary>
         private sealed class Burning
         {
-            internal Burning(LiveFireVfx vfx)
+            internal Burning(LiveFireVfx vfx, Vector3 position)
             {
                 Vfx = vfx;
+
+                Position = position;
             }
 
             internal LiveFireVfx Vfx { get; }
+
+            internal Vector3 Position { get; }
 
             internal float Growth { get; set; }
 

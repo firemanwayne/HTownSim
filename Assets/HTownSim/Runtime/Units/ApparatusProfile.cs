@@ -59,17 +59,28 @@ namespace HTownSim.Runtime
         /// <summary>An EMS unit hears the EMS high/low alert tone for a new call; fire units hear the station ring and the six beeps.</summary>
         [SerializeField] private bool _emsAlert;
 
+        /// <summary>Whether the unit takes patients to a hospital (an ambulance or medic unit).</summary>
+        [SerializeField] private bool _canTransport;
+
+        /// <summary>The riding positions in seat order; the first is the driver.</summary>
+        [SerializeField] private string[] _seats = EngineSeats;
+
+        /// <summary>The riding positions of a fire engine, in seat order (the first drives). Declared before <see cref="Engine"/>, which uses it.</summary>
+        internal static readonly string[] EngineSeats = { "Operator", "Officer", "Firefighter", "Firefighter" };
+
         /// <summary>Engine 07's values, used when the driven object has no profile.</summary>
         internal static readonly ApparatusProfileValues Engine = new ApparatusProfileValues(
             "Engine 07", 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
-            new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true);
+            new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true,
+            seats: EngineSeats);
 
         /// <summary>Engine 07's fit-out under another unit name (Engine 08, Engine 01): the same rig with its own number.</summary>
         internal static ApparatusProfileValues EngineAs(string unitName)
         {
             return new ApparatusProfileValues(
                 unitName, 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
-                new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true);
+                new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true,
+                seats: EngineSeats);
         }
 
         /// <summary>Values supplied at run time by <c>ApparatusLoadout</c>, which win over the serialized fields.</summary>
@@ -84,7 +95,8 @@ namespace HTownSim.Runtime
         /// <summary>This profile's values.</summary>
         internal ApparatusProfileValues Values => _runtimeValues ?? new ApparatusProfileValues(
             _unitName, _wheelRadius, _wheelbase, _frontWheelPrefixes, _rearWheelPrefixes, _turnRate, _cameraDistanceScale,
-            _waterOrigin, _sceneLight, _rearLamps, _flashGroupA, _flashGroupB, _steadyLenses, _airHorn, _canSprayWater, _lensHalos, _emsAlert);
+            _waterOrigin, _sceneLight, _rearLamps, _flashGroupA, _flashGroupB, _steadyLenses, _airHorn, _canSprayWater, _lensHalos, _emsAlert,
+            canTransport: _canTransport, seats: _seats);
 
         /// <summary>The profile on a driven object, or Engine 07's values.</summary>
         internal static ApparatusProfileValues For(GameObject apparatus)

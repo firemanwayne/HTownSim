@@ -17,6 +17,13 @@ namespace HTownSim.Runtime
         /// <summary>Scheduling lead so both sources are queued on the audio clock before the blast starts.</summary>
         private const double ScheduleLead = 0.03;
 
+        /// <summary>Distance (metres) within which a computer-driven unit's horn is at full volume, and beyond which it cannot be heard (the same as its siren).</summary>
+        private const float SpatialMinimumDistance = 15f;
+
+        private const float SpatialMaximumDistance = 320f;
+
+        private bool _spatial;
+
         private AudioSource _start = null!;
 
         private AudioSource _loop = null!;
@@ -34,8 +41,10 @@ namespace HTownSim.Runtime
         internal bool Held => _held;
 
         /// <summary>Builds the two sources (2D, for the player's own truck).</summary>
-        internal void Initialize(AudioClip start, AudioClip loop, float volume, float releaseSeconds = 0.3f)
+        internal void Initialize(AudioClip start, AudioClip loop, float volume, float releaseSeconds = 0.3f, bool spatial = false)
         {
+            _spatial = spatial;
+
             _volume = volume;
 
             _releaseSeconds = releaseSeconds;
@@ -55,7 +64,17 @@ namespace HTownSim.Runtime
 
             source.playOnAwake = false;
 
-            source.spatialBlend = 0f;
+            // The player's own horn is 2D; a computer-driven unit's is heard from where the unit is, fading with distance like its siren.
+            source.spatialBlend = _spatial ? 1f : 0f;
+
+            if (_spatial)
+            {
+                source.rolloffMode = AudioRolloffMode.Logarithmic;
+
+                source.minDistance = SpatialMinimumDistance;
+
+                source.maxDistance = SpatialMaximumDistance;
+            }
 
             source.volume = _volume;
 

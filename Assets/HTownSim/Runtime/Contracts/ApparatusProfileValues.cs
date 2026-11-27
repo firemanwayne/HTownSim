@@ -24,8 +24,14 @@ namespace HTownSim.Runtime
             bool canSprayWater = true,
             string lensHalos = "",
             bool emsAlert = false,
-            bool emergencyEquipment = true)
+            bool emergencyEquipment = true,
+            bool canTransport = false,
+            string[]? seats = null)
         {
+            CanTransport = canTransport;
+
+            Seats = seats ?? new[] { "Driver" };
+
             UnitName = unitName;
 
             WheelRadius = wheelRadius;
@@ -62,6 +68,15 @@ namespace HTownSim.Runtime
 
             EmergencyEquipment = emergencyEquipment;
         }
+
+        /// <summary>True when the unit takes patients to a hospital (an ambulance or medic unit). Any other unit leaves a medical call for its station from the scene.</summary>
+        internal bool CanTransport { get; }
+
+        /// <summary>The riding positions in seat order, the first being the driver; its length is how many people the unit carries (Engine: operator, officer, two firefighters).</summary>
+        internal string[] Seats { get; }
+
+        /// <summary>How this kind of vehicle flashes its lights, which siren tones it has and how it drives (one set for every unit of its kind).</summary>
+        internal UnitBehavior Behavior => UnitBehavior.For(UnitName);
 
         /// <summary>False for a citizen car: no siren, lightbar or horn tones, just headlights, blinkers and the pedal lamps.</summary>
         internal bool EmergencyEquipment { get; }

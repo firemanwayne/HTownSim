@@ -188,6 +188,12 @@ namespace HTownSim.Runtime
         /// <summary>True while the third-person follow camera is the live camera.</summary>
         private bool IsThirdPersonLive()
         {
+            // A spectator flies the main camera itself, with the brain off, and still wants the map.
+            if (StartingTruckMenu.CitySpectatorRequested)
+            {
+                return true;
+            }
+
             return _brain != null && _brain.ActiveVirtualCamera is CinemachineCamera active && active == _thirdPersonCamera;
         }
 

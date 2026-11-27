@@ -106,11 +106,25 @@ namespace HTownSim.Runtime
         /// <summary>The supervisor pickup's cab-roof light bar (7 cm lower than District Chief 08's).</summary>
         private static readonly Vector3 SuvBeacon = new Vector3(0.6f, 2.23f, 0.9f);
 
+        /// <summary>The riding positions of each kind of unit, in seat order (the first drives); declared before the fit-outs that use them.</summary>
+        private static readonly string[] LadderSeats = { "Operator", "Officer", "Firefighter", "Firefighter" };
+
+        private static readonly string[] AmbulanceSeats = { "Driver", "Attendant" };
+
+        private static readonly string[] ChiefSeats = { "Chief", "Aide" };
+
+        private static readonly string[] SupervisorSeats = { "Supervisor" };
+
+        private static readonly string[] PatrolSeats = { "Officer" };
+
+        private static readonly string[] CitizenSeats = { "Driver", "Passenger" };
+
         /// <summary>Ladder 07's fit-out (0.558 m tyres, front axle +3.80, tandem -1.76/-3.13).</summary>
         private static readonly ApparatusProfileValues LadderValues = new ApparatusProfileValues(
             "Ladder 07", 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
             new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
-            new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
+            new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false,
+            seats: LadderSeats);
 
         /// <summary>Ladder 07's fit-out under another unit name (Ladder 16): the same aerial rig.</summary>
         private static ApparatusProfileValues LadderAs(string unitName)
@@ -118,7 +132,8 @@ namespace HTownSim.Runtime
             return new ApparatusProfileValues(
                 unitName, 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
                 new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
-                new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false);
+                new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false,
+                seats: LadderSeats);
         }
 
         /// <summary>
@@ -131,7 +146,8 @@ namespace HTownSim.Runtime
                 unitName, 0.525f, 4.2f, new[] { "DC08_WheelFront" }, new[] { "DC08_WheelRear" }, 6.5f, 0.9f,
                 new Vector3(0f, 2.1f, -2f), new Vector3(0.95f, 2.0f, -1f), false,
                 new[] { "DC08_Flash_RedA" }, new[] { "DC08_Flash_RedB" }, new[] { "DC08_Steady_Headlight", "DC08_Steady_Fog" },
-                false, false, "AS016Lenses", true);
+                false, false, "AS016Lenses", true,
+                seats: SupervisorSeats);
         }
 
         /// <summary>
@@ -145,7 +161,8 @@ namespace HTownSim.Runtime
                 unitName, 0.525f, 4.2f, new[] { "DC08_WheelFront" }, new[] { "DC08_WheelRear" }, 6.5f, 0.9f,
                 new Vector3(0f, 2.2f, -2f), new Vector3(0.95f, 2.1f, -1f), false,
                 new[] { "DC08_Flash_RedA" }, new[] { "DC08_Flash_RedB" }, new[] { "DC08_Steady_Headlight", "DC08_Steady_Fog", "DC08_Steady_Command" },
-                false, false, "DC08Lenses", false);
+                false, false, "DC08Lenses", false,
+                seats: ChiefSeats);
         }
 
         /// <summary>Which apparatus the driven object currently is: a run-time profile names a Station 8 unit, else the fitted model decides.</summary>
@@ -426,7 +443,8 @@ namespace HTownSim.Runtime
                 unitName, 0.395f, 2.86f, new[] { "HPD_WheelFront" }, new[] { "HPD_WheelRear" }, 10f, 0.75f,
                 new Vector3(0f, 1.5f, 1f), new Vector3(0.95f, 1.5f, -0.9f), false,
                 new[] { "HPD_Flash_Red" }, new[] { "HPD_Flash_Blue" }, new[] { "HPD_Steady_Headlight", "HPD_Steady_Fog" },
-                false, false, "HpdLenses", false);
+                false, false, "HpdLenses", false,
+                seats: PatrolSeats);
         }
 
         /// <summary>
@@ -438,7 +456,8 @@ namespace HTownSim.Runtime
             return new ApparatusProfileValues(
                 unitName, 0.38f, 3.0f, new[] { "Wheel_F" }, new[] { "Wheel_R" }, 8f, 0.8f,
                 new Vector3(0f, 1.5f, 1f), new Vector3(0.95f, 1.5f, -0.9f), true,
-                new string[0], new string[0], new string[0], false, false, "", false, false);
+                new string[0], new string[0], new string[0], false, false, "", false, false,
+                seats: CitizenSeats);
         }
 
         /// <summary>Engine to a Station 16 apparatus: Engine 07 is parked at Station 7 and the driven object takes the Station 16 unit's bay and look.</summary>
@@ -784,7 +803,42 @@ namespace HTownSim.Runtime
                 unitName, 0.41f, 4.18f, new[] { "WheelFront" }, new[] { "WheelRear" }, 5.5f, 0.95f,
                 new Vector3(0f, 3f, 3f), new Vector3(0.9f, 2.1f, 3f), false,
                 new[] { "Amb07_LensRedWarn", "Amb07_LensAmberWarn" }, new[] { "Amb07_LensRedWarn2" },
-                new[] { "Amb07_LensAmber", "Amb07_LensRed", "Amb07_LensClear" }, false, false, "Amb07Lenses", true);
+                new[] { "Amb07_LensAmber", "Amb07_LensRed", "Amb07_LensClear" }, false, false, "Amb07Lenses", true,
+                canTransport: true, seats: AmbulanceSeats);
+        }
+
+        /// <summary>
+        /// The fit-out of the kind of unit a radio name belongs to (Engine 07, Ladder 16, Medic 08, District Chief 08, HPD Unit 1), the same
+        /// values the player gets when driving it. A computer-driven unit reads its transport and seats from here, so it matches the player's truck.
+        /// </summary>
+        internal static ApparatusProfileValues ProfileFor(string unitName)
+        {
+            if (unitName.StartsWith("Ladder", StringComparison.OrdinalIgnoreCase))
+            {
+                return LadderAs(unitName);
+            }
+
+            if (unitName.StartsWith("Ambulance", StringComparison.OrdinalIgnoreCase) || unitName.StartsWith("Medic", StringComparison.OrdinalIgnoreCase))
+            {
+                return AmbulanceAs(unitName);
+            }
+
+            if (unitName.StartsWith("Supervisor", StringComparison.OrdinalIgnoreCase))
+            {
+                return SupervisorAs(unitName);
+            }
+
+            if (unitName.StartsWith("District Chief", StringComparison.OrdinalIgnoreCase) || unitName.StartsWith("Battalion", StringComparison.OrdinalIgnoreCase))
+            {
+                return DistrictChiefAs(unitName);
+            }
+
+            if (unitName.StartsWith("HPD", StringComparison.OrdinalIgnoreCase) || unitName.StartsWith("Patrol", StringComparison.OrdinalIgnoreCase))
+            {
+                return PatrolAs(unitName);
+            }
+
+            return ApparatusProfile.EngineAs(unitName);
         }
 
         /// <summary>Gives the driven object a profile (adding the component when the scene has none) carrying the apparatus's values.</summary>
