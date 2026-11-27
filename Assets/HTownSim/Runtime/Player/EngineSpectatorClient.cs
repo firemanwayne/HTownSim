@@ -335,6 +335,12 @@ namespace HTownSim.Runtime
                 _message = fields[1];
                 _messageUntil = Time.unscaledTime + MessageSeconds;
 
+                // A player the server has not seated (the unit is taken or out on a call) is told so and it stays on screen, not only for a few seconds.
+                if (_player != null && _seat.Length == 0)
+                {
+                    _status = "Not seated: " + fields[1];
+                }
+
                 return true;
             }
 
