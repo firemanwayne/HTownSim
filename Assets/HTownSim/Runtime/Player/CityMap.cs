@@ -102,6 +102,9 @@ namespace HTownSim.Runtime
 
         private CinemachineBrain? _brain;
 
+        /// <summary>The whole-screen map (N key); made the first time it is opened.</summary>
+        private FullScreenMap? _full;
+
         /// <summary>The computer-driven units' markers; made once the fleet exists (it is made after the map).</summary>
         private FleetMapMarkers? _fleetMarkers;
 
@@ -183,6 +186,42 @@ namespace HTownSim.Runtime
             _panel.SetActive(_userVisible && IsThirdPersonLive());
 
             UpdateMarkers();
+
+            UpdateFullScreenMap(keyboard);
+        }
+
+        /// <summary>N opens the whole-screen map and N or Esc closes it; it only opens while the city is live (not under a menu).</summary>
+        private void UpdateFullScreenMap(Keyboard? keyboard)
+        {
+            var live = IsThirdPersonLive();
+
+            if (keyboard is not null && live && keyboard.nKey.wasPressedThisFrame)
+            {
+                _full ??= new FullScreenMap(_mapImage.texture, _mapImage.uvRect, _worldMin, _worldSize, _playerMarker, _incidentMarker, _stationMarker);
+
+                _full.Visible = !_full.Visible;
+            }
+            else if (keyboard is not null && _full is not null && _full.Visible && keyboard.escapeKey.wasPressedThisFrame)
+            {
+                _full.Visible = false;
+            }
+
+            if (_full is null || !_full.Visible)
+            {
+                return;
+            }
+
+            if (!live)
+            {
+                _full.Visible = false;
+
+                return;
+            }
+
+            // A spectator has no unit of its own: the arrow is the free camera.
+            var focus = StartingTruckMenu.CitySpectatorRequested && Camera.main != null ? Camera.main.transform : _player;
+
+            _full.Update(focus, _response.IncidentActive, _incident.position, _stationPosition, _response != null ? _response.Fleet : null, _mapRect);
         }
 
         /// <summary>True while the third-person follow camera is the live camera.</summary>
@@ -407,6 +446,8 @@ namespace HTownSim.Runtime
             RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
 
             RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+
+            _full?.Destroy();
 
             foreach (var asset in _generated)
             {
