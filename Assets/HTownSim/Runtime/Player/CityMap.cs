@@ -105,6 +105,9 @@ namespace HTownSim.Runtime
         /// <summary>The whole-screen map (N key); made the first time it is opened.</summary>
         private FullScreenMap? _full;
 
+        /// <summary>The spectator's client (found when spectating), which holds the streamed units.</summary>
+        private EngineSpectatorClient? _spectator;
+
         /// <summary>The computer-driven units' markers; made once the fleet exists (it is made after the map).</summary>
         private FleetMapMarkers? _fleetMarkers;
 
@@ -221,7 +224,7 @@ namespace HTownSim.Runtime
             // A spectator has no unit of its own: the arrow is the free camera.
             var focus = StartingTruckMenu.CitySpectatorRequested && Camera.main != null ? Camera.main.transform : _player;
 
-            _full.Update(focus, _response.IncidentActive, _incident.position, _stationPosition, _response != null ? _response.Fleet : null, _mapRect);
+            _full.Update(focus, _response.IncidentActive, _incident.position, _stationPosition, MapUnits(), ViewerSeesPolice(), _mapRect);
         }
 
         /// <summary>True while the third-person follow camera is the live camera.</summary>
@@ -381,17 +384,38 @@ namespace HTownSim.Runtime
 
             _stationMarker.rectTransform.anchoredPosition = ToMap(_stationPosition);
 
-            if (_fleetMarkers == null)
-            {
-                var fleet = _response != null ? _response.Fleet : null;
+            var units = MapUnits();
 
-                if (fleet != null && fleet.Units.Count > 0 && _stationMarker.sprite != null)
-                {
-                    _fleetMarkers = new FleetMapMarkers(fleet, _mapRect, _stationMarker.sprite);
-                }
+            if (_fleetMarkers == null && units != null && units.Count > 0 && _stationMarker.sprite != null)
+            {
+                _fleetMarkers = new FleetMapMarkers(_mapRect, _stationMarker.sprite, ViewerSeesPolice());
             }
 
-            _fleetMarkers?.Update(ToMap);
+            if (units != null)
+            {
+                _fleetMarkers?.Update(units, ToMap);
+            }
+        }
+
+        /// <summary>The units the map draws: the fleet's, or, for a spectator, every unit the server streams.</summary>
+        private IReadOnlyList<MapUnit>? MapUnits()
+        {
+            if (StartingTruckMenu.CitySpectatorRequested)
+            {
+                _spectator ??= FindAnyObjectByType<EngineSpectatorClient>();
+
+                return _spectator != null ? _spectator.MapUnits : null;
+            }
+
+            var fleet = _response != null ? _response.Fleet : null;
+
+            return fleet?.MapUnits;
+        }
+
+        /// <summary>A spectator and the police see every unit on the map; fire and EMS see only fire and EMS units.</summary>
+        private bool ViewerSeesPolice()
+        {
+            return FleetMapMarkers.SeesPolice(StartingTruckMenu.CitySpectatorRequested ? null : ApparatusProfile.For(_player.gameObject).UnitName);
         }
 
         /// <summary>Converts a world position to a position inside the map rect.</summary>

@@ -74,6 +74,16 @@ namespace HTownSim.Runtime
         }
 
         private readonly Dictionary<string, Proxy> _proxies = new Dictionary<string, Proxy>();
+
+        private readonly List<MapUnit> _mapUnits = new List<MapUnit>();
+
+        /// <summary>Every unit the server has streamed so far, for the city map (a spectator sees them all).</summary>
+        internal IReadOnlyList<MapUnit> MapUnits => _mapUnits;
+
+        private void AddMapUnit(Proxy proxy)
+        {
+            _mapUnits.Add(new MapUnit(proxy.UnitName, proxy.Transform, () => proxy.LightFlags != 0));
+        }
         private readonly HashSet<string> _unknown = new HashSet<string>();
         private readonly Dictionary<string, LiveFireVfx> _fires = new Dictionary<string, LiveFireVfx>();
         private GameObject? _firePrefab;
@@ -98,6 +108,7 @@ namespace HTownSim.Runtime
             _roots = engine.gameObject.scene.GetRootGameObjects();
             _beforeConnectionSeconds = CityJoinMenu.ElapsedSeconds;
             _proxies[EngineName] = new Proxy(engine) { UnitName = EngineName };
+            AddMapUnit(_proxies[EngineName]);
             TakeOverCamera();
 
             using var connection = new TcpClient();
@@ -366,6 +377,7 @@ namespace HTownSim.Runtime
 
             var proxy = new Proxy(found) { UnitName = unit };
             _proxies[unit] = proxy;
+            AddMapUnit(proxy);
 
             return proxy;
         }

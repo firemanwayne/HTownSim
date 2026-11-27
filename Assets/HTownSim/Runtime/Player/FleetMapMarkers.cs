@@ -9,6 +9,25 @@ using UnityEngine.UI;
 
 namespace HTownSim.Runtime
 {
+    /// <summary>A unit to show on the map, whoever drives it or wherever it comes from (the local fleet, or a spectator's streamed units): its name, the object to follow and whether it is out on a call.</summary>
+    internal sealed class MapUnit
+    {
+        internal MapUnit(string name, Transform transform, Func<bool> busy)
+        {
+            Name = name;
+
+            Transform = transform;
+
+            Busy = busy;
+        }
+
+        internal string Name { get; }
+
+        internal Transform Transform { get; }
+
+        internal Func<bool> Busy { get; }
+    }
+
     /// <summary>
     /// The computer-driven units on the city map: a small square for each, coloured by kind (fire red, police blue, EMS white, chief
     /// orange). A unit that is out on a call is bright, larger and carries its short name (E16, A16, P2); a parked one is dim with no
@@ -39,71 +58,106 @@ namespace HTownSim.Runtime
 
         private static readonly Color Chief = new Color(1f, 0.6f, 0.15f, 1f);
 
-        private readonly List<Marker> _markers = new List<Marker>();
+        private readonly Dictionary<string, Marker> _markers = new Dictionary<string, Marker>();
 
-        /// <summary>Makes a marker for each of the fleet's units inside <paramref name="parent"/>, the rectangle the map's markers are placed in.</summary>
-        internal FleetMapMarkers(AiFleet fleet, RectTransform parent, Sprite square)
+        private readonly RectTransform _parent;
+
+        private readonly Sprite _square;
+
+        private readonly bool _seesPolice;
+
+        /// <summary>
+        /// Makes the markers inside <paramref name="parent"/>, the rectangle the map's markers are placed in. A marker is made the first
+        /// time its unit is seen in <see cref="Update"/>. <paramref name="seesPolice"/> is whether the viewer may see police units: a
+        /// spectator and the police see every unit; fire and EMS see only fire and EMS units.
+        /// </summary>
+        internal FleetMapMarkers(RectTransform parent, Sprite square, bool seesPolice)
         {
-            foreach (var unit in fleet.Units)
-            {
-                var image = new GameObject("Unit " + unit.UnitName, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            _parent = parent;
 
-                image.rectTransform.SetParent(parent, false);
+            _square = square;
 
-                image.rectTransform.anchorMin = Vector2.zero;
-
-                image.rectTransform.anchorMax = Vector2.zero;
-
-                image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-
-                image.sprite = square;
-
-                image.raycastTarget = false;
-
-                var label = new GameObject("Label " + unit.UnitName, typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
-
-                label.rectTransform.SetParent(parent, false);
-
-                label.rectTransform.anchorMin = Vector2.zero;
-
-                label.rectTransform.anchorMax = Vector2.zero;
-
-                label.rectTransform.pivot = new Vector2(0f, 0.5f);
-
-                label.rectTransform.sizeDelta = new Vector2(60f, 16f);
-
-                label.text = ShortName(unit.UnitName);
-
-                label.fontSize = LabelSize;
-
-                label.fontStyle = FontStyles.Bold;
-
-                label.alignment = TextAlignmentOptions.MidlineLeft;
-
-                label.textWrappingMode = TextWrappingModes.NoWrap;
-
-                label.raycastTarget = false;
-
-                _markers.Add(new Marker(unit, image, label, ColourOf(unit.UnitName)));
-            }
-
-            // Under the player's marker and the incident marker, which were there first.
-            foreach (var marker in _markers)
-            {
-                marker.Label.rectTransform.SetAsFirstSibling();
-
-                marker.Image.rectTransform.SetAsFirstSibling();
-            }
+            _seesPolice = seesPolice;
         }
 
-        /// <summary>Moves every marker to its unit; <paramref name="toMap"/> turns a world position into a map position.</summary>
-        internal void Update(Func<Vector3, Vector2> toMap)
+        /// <summary>True when a viewer of this kind of unit (or a spectator, with no unit) may see every unit on the map.</summary>
+        internal static bool SeesPolice(string? viewerUnitName)
         {
-            foreach (var marker in _markers)
-            {
-                var out_ = marker.Unit.Busy;
+            return viewerUnitName == null || LiveDispatchRule.KindOf(viewerUnitName) == LiveUnitKind.Police;
+        }
 
-                var position = toMap(marker.Unit.transform.position);
+        private Marker Create(MapUnit unit)
+        {
+            var image = new GameObject("Unit " + unit.Name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+
+            image.rectTransform.SetParent(_parent, false);
+
+            image.rectTransform.anchorMin = Vector2.zero;
+
+            image.rectTransform.anchorMax = Vector2.zero;
+
+            image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
+            image.sprite = _square;
+
+            image.raycastTarget = false;
+
+            var label = new GameObject("Label " + unit.Name, typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
+
+            label.rectTransform.SetParent(_parent, false);
+
+            label.rectTransform.anchorMin = Vector2.zero;
+
+            label.rectTransform.anchorMax = Vector2.zero;
+
+            label.rectTransform.pivot = new Vector2(0f, 0.5f);
+
+            label.rectTransform.sizeDelta = new Vector2(60f, 16f);
+
+            label.text = ShortName(unit.Name);
+
+            label.fontSize = LabelSize;
+
+            label.fontStyle = FontStyles.Bold;
+
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+
+            label.raycastTarget = false;
+
+            // Under the player's marker and the incident marker, which were there first.
+            label.rectTransform.SetAsFirstSibling();
+
+            image.rectTransform.SetAsFirstSibling();
+
+            return new Marker(unit, image, label, ColourOf(unit.Name), _seesPolice || LiveDispatchRule.KindOf(unit.Name) != LiveUnitKind.Police);
+        }
+
+        /// <summary>Moves every marker to its unit (making the ones it has not seen yet); <paramref name="toMap"/> turns a world position into a map position.</summary>
+        internal void Update(IReadOnlyList<MapUnit> units, Func<Vector3, Vector2> toMap)
+        {
+            foreach (var unit in units)
+            {
+                if (!_markers.TryGetValue(unit.Name, out var marker))
+                {
+                    marker = Create(unit);
+
+                    _markers[unit.Name] = marker;
+                }
+
+                marker.Image.gameObject.SetActive(marker.Visible);
+
+                if (!marker.Visible)
+                {
+                    marker.Label.gameObject.SetActive(false);
+
+                    continue;
+                }
+
+                var out_ = unit.Busy();
+
+                var position = toMap(unit.Transform.position);
 
                 var colour = marker.Colour;
 
@@ -161,7 +215,7 @@ namespace HTownSim.Runtime
 
         private sealed class Marker
         {
-            internal Marker(AiUnit unit, Image image, TextMeshProUGUI label, Color colour)
+            internal Marker(MapUnit unit, Image image, TextMeshProUGUI label, Color colour, bool visible)
             {
                 Unit = unit;
 
@@ -170,9 +224,14 @@ namespace HTownSim.Runtime
                 Label = label;
 
                 Colour = colour;
+
+                Visible = visible;
             }
 
-            internal AiUnit Unit { get; }
+            internal MapUnit Unit { get; }
+
+            /// <summary>False for a unit this viewer may not see (a police unit, for fire and EMS).</summary>
+            internal bool Visible { get; }
 
             internal Image Image { get; }
 

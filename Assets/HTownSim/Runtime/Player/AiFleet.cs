@@ -74,6 +74,11 @@ namespace HTownSim.Runtime
         /// <summary>The units, parked or out.</summary>
         internal IReadOnlyList<AiUnit> Units => _units;
 
+        private readonly List<MapUnit> _mapUnits = new List<MapUnit>();
+
+        /// <summary>The units as the city map draws them (made once, when the fleet is set up).</summary>
+        internal IReadOnlyList<MapUnit> MapUnits => _mapUnits;
+
         /// <summary>A unit finished its part of an incident: the incident id and whether it took a patient to a hospital.</summary>
         internal event Action<string, bool>? UnitFinished;
 
@@ -131,6 +136,13 @@ namespace HTownSim.Runtime
             SpawnPatrols(graph);
 
             RestoreCarryOver();
+
+            foreach (var unit in _units)
+            {
+                var captured = unit;
+
+                _mapUnits.Add(new MapUnit(unit.UnitName, unit.transform, () => captured.Busy));
+            }
 
             Debug.Log("AI fleet: " + _units.Count + " units (" + string.Join(", ", _units.Select(unit => unit.UnitName)) + "), " + graph.NodeCount + " street nodes, " + _hospitals.Count + " hospital bays.");
         }

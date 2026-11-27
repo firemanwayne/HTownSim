@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -131,9 +132,10 @@ namespace HTownSim.Runtime
 
         /// <summary>
         /// Moves the markers. <paramref name="hudMap"/> is the HUD map's image rectangle, whose station squares and labels are copied
-        /// across the first time; <paramref name="fleet"/> may be null (a spectator has none).
+        /// across the first time; <paramref name="units"/> are the units to draw (null until they exist), of which a viewer who
+        /// <paramref name="seesPolice"/> sees all and any other sees only fire and EMS.
         /// </summary>
-        internal void Update(Transform focus, bool callActive, Vector3 callPosition, Vector3 stationPosition, AiFleet? fleet, RectTransform hudMap)
+        internal void Update(Transform focus, bool callActive, Vector3 callPosition, Vector3 stationPosition, IReadOnlyList<MapUnit>? units, bool seesPolice, RectTransform hudMap)
         {
             if (_map.rect.width <= 0f)
             {
@@ -154,14 +156,17 @@ namespace HTownSim.Runtime
 
             _station.rectTransform.anchoredPosition = ToMap(stationPosition);
 
-            if (_fleet == null && fleet != null && fleet.Units.Count > 0 && _square != null)
+            if (_fleet == null && units != null && units.Count > 0 && _square != null)
             {
-                _fleet = new FleetMapMarkers(fleet, _map, _square);
-
-                _player.rectTransform.SetAsLastSibling();
+                _fleet = new FleetMapMarkers(_map, _square, seesPolice);
             }
 
-            _fleet?.Update(ToMap);
+            if (units != null)
+            {
+                _fleet?.Update(units, ToMap);
+            }
+
+            _player.rectTransform.SetAsLastSibling();
         }
 
         /// <summary>Copies the HUD map's authored station squares and labels onto the big map, scaled from the HUD image's size to this one.</summary>
