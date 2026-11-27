@@ -1,29 +1,29 @@
 # HTownSim task board
 
-The project's issue tracker, kept in Git so it moves with the code. One row per task. To work the board: move a row between sections (Backlog, In progress, Done), keep its ID, and commit the change with the work. New tasks take the next free ID.
+The project's task list, kept in Git so it moves with the code; each open task is also a GitHub issue (the Issue column), and the issues carry the same priority and kind labels. One row per task. To work the board: move a row between sections (Backlog, In progress, Done), keep its ID, and commit the change with the work. New tasks take the next free ID.
 
 Priority: **P1** blocks testing or players, **P2** should happen soon, **P3** when convenient.
 Kind: `bug`, `feature`, `ops` (build, deploy, tooling), `debt` (cleanup, noise).
 
 ## In progress
 
-| ID | Pri | Kind | Task | Notes |
-|---|---|---|---|---|
-| T-001 | P1 | ops | Deploy the batched server changes to Docker and test everything against the real server | Waiting on: ViewerRole enforcement, AI lights, Ambulance 07 fleet unit, incident-service container. Docker builds are paused until enough changes pile up (decided 2026-11-27). Run `Tools/CityServer/build-server.ps1`. |
-| T-002 | P1 | bug | Test pass of everything that compiles but has not been seen running | Full-screen map (N), unit-visibility roles (`-city-view-as Fire`), AI ladder/ambulance/chief lights, AI horn, per-kind driving numbers, bay-apron exit and spacing, unit-switch carry-over. |
+| ID | Pri | Kind | Task | Notes | Issue |
+|---|---|---|---|---|---|
+| T-001 | P1 | ops | Deploy the batched server changes to Docker and test everything against the real server | Waiting on: ViewerRole enforcement, AI lights, Ambulance 07 fleet unit, incident-service container. Docker builds are paused until enough changes pile up (decided 2026-11-27). Run `Tools/CityServer/build-server.ps1`. | [#3](https://github.com/firemanwayne/HTownSim/issues/3) |
+| T-002 | P1 | bug | Test pass of everything that compiles but has not been seen running | Full-screen map (N), unit-visibility roles (`-city-view-as Fire`), AI ladder/ambulance/chief lights, AI horn, per-kind driving numbers, bay-apron exit and spacing, unit-switch carry-over. | [#4](https://github.com/firemanwayne/HTownSim/issues/4) |
 
 ## Backlog
 
-| ID | Pri | Kind | Task | Notes |
-|---|---|---|---|---|
-| T-003 | P2 | bug | Spectator "Join City" button does not respond to a click | Worked around with Enter/Space and `-city-autojoin`. Root cause not found: the window rendered a dark frame with no panel when the click was tried. Synthetic key presses reach the game; the physical click did not. |
-| T-004 | P2 | feature | Authenticated viewer roles | Today every connection is granted Spectator (sees every unit) and may ask for less (`ROLE Fire`). When player connections exist, the server must assign the role from the unit the player drives. Rule lives in `Contracts/ViewerRole.cs`. |
-| T-005 | P2 | feature | Server-authoritative incidents and unit control | Roadmap item. Unit-switch carry-over (`CityCarryOver`) is a single-player stopgap; with the city on the server a switch would not reload anything. |
-| T-006 | P2 | feature | Multiplayer seating | `Seats` in `ApparatusProfileValues` are data only (EO, Officer, FF, FF; ambulance EO, FF, Patient, Patient). Nothing seats anyone yet. |
-| T-007 | P3 | bug | A spectator keeps stale units when its role narrows mid-session | Units already shown stay at their last pose. Only matters if roles can change after connecting. |
-| T-008 | P3 | feature | Lens glow halos on the AI ambulance (and the steady headlamps) | The player's ambulance has them (`Amb07Lenses`); the AI copy does not. |
-| T-009 | P3 | debt | 320 "Trying to access a shader but no shaders were included" lines in the Linux server log | Harmless. Not from the AI lights (checked). Printed right after the six audio clips are set up. No managed stack trace, so it needs another approach to find (`HTOWNSIM_SERVER_TRACE=1` adds script traces to a server build, which did not help). |
-| T-010 | P3 | feature | Show the spectator and map units for chiefs and EMS supervisors separately | Chiefs and supervisors share one `UnitBehavior` row, so both count as fire for visibility. |
+| ID | Pri | Kind | Task | Notes | Issue |
+|---|---|---|---|---|---|
+| T-003 | P2 | bug | Spectator "Join City" button does not respond to a click | Worked around with Enter/Space and `-city-autojoin`. Root cause not found: the window rendered a dark frame with no panel when the click was tried. Synthetic key presses reach the game; the physical click did not. | [#11](https://github.com/firemanwayne/HTownSim/issues/11) |
+| T-004 | P2 | feature | Authenticated viewer roles | Today every connection is granted Spectator (sees every unit) and may ask for less (`ROLE Fire`). When player connections exist, the server must assign the role from the unit the player drives. Rule lives in `Contracts/ViewerRole.cs`. | [#5](https://github.com/firemanwayne/HTownSim/issues/5) |
+| T-005 | P2 | feature | Server-authoritative incidents and unit control | Roadmap item. Unit-switch carry-over (`CityCarryOver`) is a single-player stopgap; with the city on the server a switch would not reload anything. | [#6](https://github.com/firemanwayne/HTownSim/issues/6) |
+| T-006 | P2 | feature | Multiplayer seating | `Seats` in `ApparatusProfileValues` are data only (EO, Officer, FF, FF; ambulance EO, FF, Patient, Patient). Nothing seats anyone yet. | [#7](https://github.com/firemanwayne/HTownSim/issues/7) |
+| T-007 | P3 | bug | A spectator keeps stale units when its role narrows mid-session | Units already shown stay at their last pose. Only matters if roles can change after connecting. | [#8](https://github.com/firemanwayne/HTownSim/issues/8) |
+| T-008 | P3 | feature | Lens glow halos on the AI ambulance (and the steady headlamps) | The player's ambulance has them (`Amb07Lenses`); the AI copy does not. | [#9](https://github.com/firemanwayne/HTownSim/issues/9) |
+| T-009 | P3 | debt | 320 "Trying to access a shader but no shaders were included" lines in the Linux server log | Harmless. Not from the AI lights (checked). Printed right after the six audio clips are set up. No managed stack trace, so it needs another approach to find (`HTOWNSIM_SERVER_TRACE=1` adds script traces to a server build, which did not help). | [#12](https://github.com/firemanwayne/HTownSim/issues/12) |
+| T-010 | P3 | feature | Show the spectator and map units for chiefs and EMS supervisors separately | Chiefs and supervisors share one `UnitBehavior` row, so both count as fire for visibility. | [#10](https://github.com/firemanwayne/HTownSim/issues/10) |
 
 ## Done
 
