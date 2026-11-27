@@ -1,6 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Linq;
+using HTownSim.Runtime.Incidents.Models;
 using HTownSim.Runtime.Incidents.Sources;
 using UnityEngine;
 
@@ -87,6 +88,11 @@ namespace HTownSim.Runtime
 
         internal static HashSet<string> Matched { get; } = new HashSet<string>();
 
+        /// <summary>The active-incidents board (newest first) and the incidents still waiting to be released onto it.</summary>
+        internal static List<LiveBoardEntry> Board { get; } = new List<LiveBoardEntry>();
+
+        internal static List<LiveIncidentRecord> Waiting { get; } = new List<LiveIncidentRecord>();
+
         /// <summary>Saves the running city, if there is one (a scene with no fleet saves nothing).</summary>
         internal static void Capture()
         {
@@ -110,6 +116,10 @@ namespace HTownSim.Runtime
             }
 
             feed.SaveTo(Assigned, Pending, Matched);
+
+            Board.AddRange(feed.Queue.Board);
+
+            Waiting.AddRange(feed.Queue.WaitingRecords);
 
             var fires = Object.FindAnyObjectByType<LiveIncidentFires>();
 
@@ -144,6 +154,10 @@ namespace HTownSim.Runtime
             Pending.Clear();
 
             Matched.Clear();
+
+            Board.Clear();
+
+            Waiting.Clear();
         }
     }
 }

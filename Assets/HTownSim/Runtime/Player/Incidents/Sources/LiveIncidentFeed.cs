@@ -196,6 +196,9 @@ namespace HTownSim.Runtime.Incidents.Sources
                 return;
             }
 
+            // The board and the waiting list come back first, so the service's next answer finds each incident as it was (no second release, no second dispatch).
+            _queue.Restore(CityCarryOver.Board, CityCarryOver.Waiting);
+
             foreach (var pair in CityCarryOver.Assigned)
             {
                 _assigned[pair.Key] = pair.Value;

@@ -62,6 +62,21 @@ namespace HTownSim.Runtime.Incidents.Managers
         /// <summary>How many harvested incidents are still waiting.</summary>
         internal int Waiting => _waiting.Count;
 
+        /// <summary>The harvested incidents not released yet, for a scene reload to carry over.</summary>
+        internal IReadOnlyList<LiveIncidentRecord> WaitingRecords => _waiting;
+
+        /// <summary>Puts back a board and waiting list saved before a scene reload. Nothing is released or updated, so nothing is dispatched again.</summary>
+        internal void Restore(IEnumerable<LiveBoardEntry> board, IEnumerable<LiveIncidentRecord> waiting)
+        {
+            _board.Clear();
+
+            _board.AddRange(board);
+
+            _waiting.Clear();
+
+            _waiting.AddRange(waiting);
+        }
+
         /// <summary>Takes in one feed file.</summary>
         internal void Ingest(LiveFeedFile feed)
         {
