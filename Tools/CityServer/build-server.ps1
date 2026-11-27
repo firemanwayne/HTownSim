@@ -17,12 +17,18 @@ if (-not $SkipUnityBuild) {
     $logFile = Join-Path $env:TEMP 'htownsim-server-build.log'
     Write-Host 'Building Linux city server in Unity...'
     # The CLI exits 0 even when the player build fails, so judge by the log and by fresh output.
+    # Unity writes licensing notices to stderr; in Windows PowerShell 5.1 that would stop the script, so it is not treated as an error here.
+    $ErrorActionPreference = 'Continue'
     & unity build --target StandaloneLinux64 --execute-method HTownSim.EditorTools.BuildGame.BuildCityServer $project *> $logFile
+    $ErrorActionPreference = 'Stop'
     if (Select-String -Path $logFile -Pattern 'Error building Player|Build Failed' -Quiet) {
         Select-String -Path $logFile -Pattern 'Error building Player|error CS' | Select-Object -First 5 | ForEach-Object { Write-Host $_.Line }
         throw "Unity build failed. Full log: $logFile"
     }
-    if (-not (Test-Path $serverDll) -or (Get-Item $serverDll).LastWriteTime -lt $started) {
+    # A change to editor code or a player setting leaves the runtime DLLs alone, so look at the player settings file as well.
+    $settings = Join-Path $project 'Builds\CityServer\HTownSimServer_Data\globalgamemanagers'
+    $fresh = (Test-Path $serverDll) -and (Test-Path $settings) -and ((Get-Item $serverDll).LastWriteTime -ge $started -or (Get-Item $settings).LastWriteTime -ge $started)
+    if (-not $fresh) {
         throw "Unity did not produce a fresh server build. Full log: $logFile"
     }
 }

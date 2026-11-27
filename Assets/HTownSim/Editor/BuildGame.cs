@@ -56,7 +56,38 @@ namespace HTownSim.EditorTools
                 options = BuildOptions.None,
             };
 
-            var summary = BuildPipeline.BuildPlayer(options).summary;
+            // The server talks to the incident service over plain http on the private container network (not localhost), which Unity blocks by default; allow it for this build only.
+            var insecureHttp = PlayerSettings.insecureHttpOption;
+            PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
+
+            // HTOWNSIM_SERVER_TRACE=1 gives every server log line a script stack trace, to find where a message comes from (it makes the log much longer).
+            var trace = System.Environment.GetEnvironmentVariable("HTOWNSIM_SERVER_TRACE") == "1";
+            var traceTypes = new[] { LogType.Log, LogType.Warning, LogType.Error };
+            var previousTraces = traceTypes.Select(PlayerSettings.GetStackTraceLogType).ToArray();
+
+            if (trace)
+            {
+                foreach (var type in traceTypes)
+                {
+                    PlayerSettings.SetStackTraceLogType(type, StackTraceLogType.ScriptOnly);
+                }
+            }
+
+            UnityEditor.Build.Reporting.BuildSummary summary;
+            try
+            {
+                summary = BuildPipeline.BuildPlayer(options).summary;
+            }
+            finally
+            {
+                PlayerSettings.insecureHttpOption = insecureHttp;
+
+                for (var i = 0; i < traceTypes.Length; i++)
+                {
+                    PlayerSettings.SetStackTraceLogType(traceTypes[i], previousTraces[i]);
+                }
+            }
+
             if (summary.result != BuildResult.Succeeded)
             {
                 throw new System.InvalidOperationException("Linux city server build " + summary.result + ".");
