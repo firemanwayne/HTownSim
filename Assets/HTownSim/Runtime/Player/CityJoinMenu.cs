@@ -12,6 +12,26 @@ namespace HTownSim.Runtime
 
         private bool _loading;
 
+        private void Start()
+        {
+            // "-city-autojoin" joins without waiting for the button.
+            if (System.Array.Exists(System.Environment.GetCommandLineArgs(), argument => string.Equals(argument, "-city-autojoin", System.StringComparison.OrdinalIgnoreCase)))
+            {
+                BeginJoin();
+            }
+        }
+
+        private void Update()
+        {
+            // Enter or Space joins too, for when the button cannot be clicked.
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+
+            if (keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame))
+            {
+                BeginJoin();
+            }
+        }
+
         internal void BeginJoin()
         {
             if (_loading)
@@ -56,7 +76,7 @@ namespace HTownSim.Runtime
             {
                 GUILayout.Label("Loading Houston...");
             }
-            else if (GUILayout.Button("Join City", GUILayout.Height(38f)))
+            else if (GUILayout.Button("Join City (Enter)", GUILayout.Height(38f)))
             {
                 BeginJoin();
             }
