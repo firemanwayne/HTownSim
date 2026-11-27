@@ -66,7 +66,7 @@ namespace HTownSim.Runtime
         [SerializeField] private string[] _seats = EngineSeats;
 
         /// <summary>The riding positions of a fire engine, in seat order (the first drives). Declared before <see cref="Engine"/>, which uses it.</summary>
-        internal static readonly string[] EngineSeats = { "Operator", "Officer", "Firefighter", "Firefighter" };
+        internal static readonly string[] EngineSeats = { "EO", "Officer", "FF", "FF" };
 
         /// <summary>Engine 07's values, used when the driven object has no profile.</summary>
         internal static readonly ApparatusProfileValues Engine = new ApparatusProfileValues(

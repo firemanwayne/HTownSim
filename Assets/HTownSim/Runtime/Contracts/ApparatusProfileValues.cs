@@ -72,7 +72,7 @@ namespace HTownSim.Runtime
         /// <summary>True when the unit takes patients to a hospital (an ambulance or medic unit). Any other unit leaves a medical call for its station from the scene.</summary>
         internal bool CanTransport { get; }
 
-        /// <summary>The riding positions in seat order, the first being the driver; its length is how many people the unit carries (Engine: operator, officer, two firefighters).</summary>
+        /// <summary>The riding positions in seat order, the first being the driver; its length is how many people the unit carries (Engine: EO, officer, two FF; Ambulance: EO, FF and two patient positions), as in the roadmap's confirmed staffing.</summary>
         internal string[] Seats { get; }
 
         /// <summary>How this kind of vehicle flashes its lights, which siren tones it has and how it drives (one set for every unit of its kind).</summary>

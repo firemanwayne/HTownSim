@@ -106,16 +106,16 @@ namespace HTownSim.Runtime
         /// <summary>The supervisor pickup's cab-roof light bar (7 cm lower than District Chief 08's).</summary>
         private static readonly Vector3 SuvBeacon = new Vector3(0.6f, 2.23f, 0.9f);
 
-        /// <summary>The riding positions of each kind of unit, in seat order (the first drives); declared before the fit-outs that use them.</summary>
-        private static readonly string[] LadderSeats = { "Operator", "Officer", "Firefighter", "Firefighter" };
+        /// <summary>The riding positions of each kind of unit, in seat order (the first drives), as in the roadmap's confirmed staffing (EO = engineer/operator, FF = firefighter); declared before the fit-outs that use them.</summary>
+        private static readonly string[] LadderSeats = { "EO", "Officer", "FF", "FF" };
 
-        private static readonly string[] AmbulanceSeats = { "Driver", "Attendant" };
+        private static readonly string[] AmbulanceSeats = { "EO", "FF", "Patient", "Patient" };
 
-        private static readonly string[] ChiefSeats = { "Chief", "Aide" };
+        private static readonly string[] ChiefSeats = { "EO", "Chief" };
 
         private static readonly string[] SupervisorSeats = { "Supervisor" };
 
-        private static readonly string[] PatrolSeats = { "Officer" };
+        private static readonly string[] PatrolSeats = { "Patrolman", "Patrolman" };
 
         private static readonly string[] CitizenSeats = { "Driver", "Passenger" };
 
