@@ -41,6 +41,15 @@ public static class InstallSpartanLadder
 
     private const string Ladder16Unit = "Ladder16";
 
+    /// <summary>The lightbar LED panels' materials (Spartan_LB_Red_Driver ...) and the colours they are given; see <see cref="BuildMaterial"/>.</summary>
+    private const string LedRedPrefix = "Spartan_LB_Red";
+
+    private const string LedWhitePrefix = "Spartan_LB_White";
+
+    private static readonly Color LedRed = new Color(0.9f, 0.015f, 0.01f, 1f);
+
+    private static readonly Color LedWhite = new Color(1f, 0.96f, 0.88f, 1f);
+
     /// <summary>An alpha under this makes a Blender material a transparent one (the lightbar's clear lens is 0.13).</summary>
     private const float OpaqueAlpha = 0.99f;
 
@@ -83,6 +92,37 @@ public static class InstallSpartanLadder
         EditorSceneManager.OpenScene(scene.path, OpenSceneMode.Single);
 
         return string.Join(" ", report) + " Scene saved.";
+    }
+
+    /// <summary>Gives the four lightbar LED materials their LED colours without touching the scene or the models.</summary>
+    public static string TuneLeds()
+    {
+        var done = new List<string>();
+
+        foreach (var side in new[] { "Driver", "Officer" })
+        {
+            foreach (var (kind, colour) in new[] { ("Red", LedRed), ("White", LedWhite) })
+            {
+                var name = "Spartan_LB_" + kind + "_" + side;
+
+                var material = AssetDatabase.LoadAssetAtPath<Material>(Folder + "Materials/" + name + ".mat");
+
+                if (material == null)
+                {
+                    throw new InvalidOperationException(name + " is not imported; run Apply first.");
+                }
+
+                material.SetColor("_BaseColor", colour);
+
+                EditorUtility.SetDirty(material);
+
+                done.Add(name);
+            }
+        }
+
+        AssetDatabase.SaveAssets();
+
+        return "Set the colour of " + string.Join(", ", done) + ".";
     }
 
     private static Transform Find(GameObject[] roots, string name)
@@ -219,6 +259,17 @@ public static class InstallSpartanLadder
 
         // Blender stores linear colours; Unity material colours are sRGB.
         var colour = info.Colour.gamma;
+
+        // The lightbar LEDs are the exception: the game lights a flashing lens with this colour times a strong glow, so it has to be a
+        // pure saturated red (the converted Blender red is pink and glows hot pink).
+        if (info.Name.StartsWith(LedRedPrefix, StringComparison.Ordinal))
+        {
+            colour = LedRed;
+        }
+        else if (info.Name.StartsWith(LedWhitePrefix, StringComparison.Ordinal))
+        {
+            colour = LedWhite;
+        }
 
         colour.a = info.Texture is null ? info.Alpha : 1f;
 

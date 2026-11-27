@@ -80,6 +80,22 @@
     0
    ]
   },
+  "Spartan_LB_Red_Driver": {
+   "color": [
+    0.6200000047683716,
+    0.020999999716877937,
+    0.02800000086426735
+   ],
+   "metallic": 0.0,
+   "roughness": 0.2199999988079071,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ]
+  },
   "L07_Reflective_white": {
    "color": [
     0.9200000166893005,
@@ -169,6 +185,22 @@
    ],
    "metallic": 0.2199999988079071,
    "roughness": 0.27000001072883606,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ]
+  },
+  "Spartan_LB_White_Officer": {
+   "color": [
+    0.8700000047683716,
+    0.8999999761581421,
+    0.8899999856948853
+   ],
+   "metallic": 0.0,
+   "roughness": 0.2199999988079071,
    "alpha": 1.0,
    "texture": null,
    "emission": [
@@ -273,22 +305,6 @@
     0
    ]
   },
-  "Spartan_LB_Red_Officer": {
-   "color": [
-    0.6200000047683716,
-    0.020999999716877937,
-    0.02800000086426735
-   ],
-   "metallic": 0.0,
-   "roughness": 0.2199999988079071,
-   "alpha": 1.0,
-   "texture": null,
-   "emission": [
-    0,
-    0,
-    0
-   ]
-  },
   "L07_Blue_green_cab_glazing": {
    "color": [
     0.013000000268220901,
@@ -321,7 +337,7 @@
     0
    ]
   },
-  "Spartan_LB_Red_Driver": {
+  "Spartan_LB_Red_Officer": {
    "color": [
     0.6200000047683716,
     0.020999999716877937,
@@ -386,7 +402,7 @@
     0
    ]
   },
-  "Spartan_LB_White_Officer": {
+  "Spartan_LB_White_Driver": {
    "color": [
     0.8700000047683716,
     0.8999999761581421,
@@ -432,22 +448,6 @@
     0.12240000615119939,
     0.0014400001256167916,
     0.0025200001779198677
-   ]
-  },
-  "Spartan_LB_White_Driver": {
-   "color": [
-    0.8700000047683716,
-    0.8999999761581421,
-    0.8899999856948853
-   ],
-   "metallic": 0.0,
-   "roughness": 0.2199999988079071,
-   "alpha": 1.0,
-   "texture": null,
-   "emission": [
-    0,
-    0,
-    0
    ]
   },
   "Front_lightbar_Clear_polycarbonate": {

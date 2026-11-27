@@ -345,6 +345,36 @@ def validate(scene, rig, numbers, logos):
     print(f"Verified {len(numbers)} number locations at 07, 16, 00 and 99, all LODs, and two shared-logo doors.")
 
 
+def tighten_stowed_outriggers(rig):
+    # The body sill starts at 0.55 m. Leave 10 mm above the stowed plates.
+    for x in (-1.65, 4.56):
+        for side in (-1, 1):
+            suffix = f"{x}_{side}"
+            control = bpy.data.objects[f"CTRL_Outrigger_{suffix}"]
+            for curve in control.animation_data.drivers:
+                if curve.data_path == "location" and curve.array_index == 2:
+                    curve.driver.expression = "0.2475-0.495*v"
+                    break
+            else:
+                raise ValueError(f"Missing vertical driver for {control.name}")
+
+            for level in range(3):
+                beam = bpy.data.objects[f"L07_OutriggerBeam_{suffix}_LOD{level}"]
+                sleeve = bpy.data.objects[f"L07_JackSleeve_{suffix}_LOD{level}"]
+                for obj, path, expression in (
+                    (beam, "location", "0.63-0.10*v"),
+                    (sleeve, "location", "0.60-0.12*v"),
+                    (sleeve, "scale", "0.3125+0.6875*v"),
+                ):
+                    driver = obj.driver_add(path, 2).driver
+                    variable = driver.variables.new()
+                    variable.name = "v"
+                    variable.type = "SINGLE_PROP"
+                    variable.targets[0].id = rig
+                    variable.targets[0].data_path = '["Stabilizers"]'
+                    driver.expression = expression
+
+
 def connect_aerial_tip():
     # The cage is wider than the last fly. Tie it into both upper and lower chords.
     pivot = Vector((4.24, 0, 3.16))
@@ -547,6 +577,7 @@ def main():
     numbers_only = [mark for mark in markings if mark[0].startswith(NUMBER_NAMES)]
     assert len(numbers_only) == 10 and len(markings) == 28, [mark[0] for mark in markings]
     remove_baked_markings(rig, markings)
+    tighten_stowed_outriggers(rig)
     connect_aerial_tip()
     install_front_lightbars(scene, rig)
     livery = bpy.data.collections.new("Spartan | Reusable Livery")
