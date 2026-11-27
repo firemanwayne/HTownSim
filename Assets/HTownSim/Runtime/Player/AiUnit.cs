@@ -227,7 +227,7 @@ namespace HTownSim.Runtime
 
             _lights = gameObject.AddComponent<AiEmergencyLights>();
 
-            _lights.Configure(_behavior);
+            _lights.Configure(_behavior, profile);
 
             _horn = gameObject.AddComponent<AiHorn>();
 

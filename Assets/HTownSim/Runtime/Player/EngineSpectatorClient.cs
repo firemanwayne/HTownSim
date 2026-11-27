@@ -325,7 +325,7 @@ namespace HTownSim.Runtime
                 if (proxy.Lights == null)
                 {
                     proxy.Lights = proxy.Transform.gameObject.AddComponent<AiEmergencyLights>();
-                    proxy.Lights.Configure(UnitBehavior.For(proxy.UnitName));
+                    proxy.Lights.Configure(UnitBehavior.For(proxy.UnitName), ApparatusLoadout.ProfileFor(proxy.UnitName));
                 }
             }
 

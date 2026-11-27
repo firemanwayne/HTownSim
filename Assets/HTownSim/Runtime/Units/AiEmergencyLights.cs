@@ -42,21 +42,49 @@ namespace HTownSim.Runtime
 
         private void Awake()
         {
-            // A headless server draws nothing and has its shaders stripped, so copying the lens materials would only log errors; it still tracks on/off and siren state.
-            var headless = SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null;
+            _siren = gameObject.AddComponent<AiSiren>();
 
-            foreach (var renderer in headless ? new Renderer[0] : GetComponentsInChildren<Renderer>(true))
+            _offset = Random.value;
+        }
+
+        /// <summary>
+        /// Gives the lights and siren the flash pattern, siren tones and volume of the unit's kind, and takes over the unit's lenses: the
+        /// ones its profile lists as the two flash groups (the same lists the player's truck of this kind flashes), or, for a kind with
+        /// no lists (an engine), the lens materials recognised by name.
+        /// </summary>
+        internal void Configure(UnitBehavior behavior, ApparatusProfileValues profile)
+        {
+            _behavior = behavior;
+
+            if (_siren != null)
+            {
+                _siren.Configure(behavior);
+            }
+
+            // A headless server draws nothing and has its shaders stripped, so copying the lens materials would only log errors; it still tracks on/off and siren state.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                return;
+            }
+
+            var listed = profile.FlashGroupA.Length > 0 || profile.FlashGroupB.Length > 0;
+
+            foreach (var renderer in GetComponentsInChildren<Renderer>(true))
             {
                 if (TryAddBarLens(renderer))
                 {
                     continue;
                 }
 
+                var shared = renderer.sharedMaterials;
+
                 var materials = renderer.materials;
 
-                foreach (var material in materials)
+                for (var i = 0; i < materials.Length && i < shared.Length; i++)
                 {
-                    var group = GroupOf(material.name);
+                    var material = materials[i];
+
+                    var group = listed ? ListedGroup(shared[i], profile) : GroupOf(material.name);
 
                     if (group == 0)
                     {
@@ -67,28 +95,30 @@ namespace HTownSim.Runtime
 
                     var colour = material.HasProperty("_BaseColor") ? material.GetColor("_BaseColor") : material.color;
 
-                    var lit = colour * (FlashEmission / Mathf.Max(0.05f, colour.maxColorComponent));
+                    // The player's truck lights a lens with its own colour times the flash brightness; a unit with no lists keeps the normalised glow.
+                    var lit = listed ? colour * FlashEmission : colour * (FlashEmission / Mathf.Max(0.05f, colour.maxColorComponent));
 
                     (group == 1 ? _groupA : _groupB).Add(material);
 
                     (group == 1 ? _colourA : _colourB).Add(lit);
                 }
             }
-
-            _siren = gameObject.AddComponent<AiSiren>();
-
-            _offset = Random.value;
         }
 
-        /// <summary>Gives the lights and siren the flash pattern, siren tones and volume of the unit's kind.</summary>
-        internal void Configure(UnitBehavior behavior)
+        /// <summary>1 or 2 when the profile lists the lens material in its first or second flash group, 0 otherwise (steady lenses and every other material).</summary>
+        private static int ListedGroup(Material? source, ApparatusProfileValues profile)
         {
-            _behavior = behavior;
-
-            if (_siren != null)
+            if (source == null)
             {
-                _siren.Configure(behavior);
+                return 0;
             }
+
+            if (System.Array.IndexOf(profile.FlashGroupA, source.name) >= 0)
+            {
+                return 1;
+            }
+
+            return System.Array.IndexOf(profile.FlashGroupB, source.name) >= 0 ? 2 : 0;
         }
 
         /// <summary>Turns the flashing and the siren on or off.</summary>
