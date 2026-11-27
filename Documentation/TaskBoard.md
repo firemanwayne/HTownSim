@@ -1,6 +1,6 @@
 # HTownSim task board
 
-The project's task list, kept in Git so it moves with the code; each open task is also a GitHub issue (the Issue column), and the issues carry the same priority and kind labels. One row per task. To work the board: move a row between sections (Backlog, In progress, Done), keep its ID, and commit the change with the work. New tasks take the next free ID.
+The project's task list, kept in Git so it moves with the code; each open task is also a GitHub issue (the Issue column), carrying the same priority and kind labels, on the [HTownSim Task Board](https://github.com/users/firemanwayne/projects/2) project (Todo, In Progress, Done). One row per task. To work the board: move a row between sections (Backlog, In progress, Done), keep its ID, and commit the change with the work. New tasks take the next free ID.
 
 Priority: **P1** blocks testing or players, **P2** should happen soon, **P3** when convenient.
 Kind: `bug`, `feature`, `ops` (build, deploy, tooling), `debt` (cleanup, noise).
