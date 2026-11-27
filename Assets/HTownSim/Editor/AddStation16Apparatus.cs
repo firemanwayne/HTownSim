@@ -35,7 +35,8 @@ public static class AddStation16Apparatus
 
     private const string MaterialFolder = Station16Folder + "/Materials";
 
-    private const string LadderModel = VehicleRoot + "/Ladder07/Ladder07.fbx";
+    /// <summary>The Spartan rear-mount ladder numbered 16 (exported with HFD_UNIT_NUMBER=16 by ArtSource/Ladder07/export_spartan_unity.py; installed by AgentScripts/InstallSpartanLadder.cs).</summary>
+    private const string LadderModel = VehicleRoot + "/SpartanLadder/SpartanLadder16.fbx";
 
     private const string SupervisorModel = VehicleRoot + "/Supervisor16/AS016.fbx";
 
@@ -233,6 +234,14 @@ public static class AddStation16Apparatus
 
         model.transform.localScale = source.localScale;
 
+        if (unit.Name == "Ladder16")
+        {
+            // The Spartan ladder numbered 16 brings its own materials and its number; it only has to stand where Ladder 07's model stands.
+            FitCollider(root);
+
+            return;
+        }
+
         var sourceRenderers = source.GetComponentsInChildren<Renderer>(true)
             .GroupBy(renderer => renderer.name)
             .ToDictionary(group => group.Key, group => group.First());
@@ -254,12 +263,6 @@ public static class AddStation16Apparatus
         }
 
         FitCollider(root);
-
-        if (unit.Name == "Ladder16")
-        {
-            // Ladder 07's "07" is modelled into the chassis; cut it out and letter the copy 16.
-            Debug.Log(LadderNumbering.Apply(model.transform, "16", Station16Folder + "/Ladder16Meshes"));
-        }
     }
 
     /// <summary>Gives a model with no existing look to copy (the Suburban) universal-pipeline Lit materials in the colours of its imported ones; lens materials glow.</summary>

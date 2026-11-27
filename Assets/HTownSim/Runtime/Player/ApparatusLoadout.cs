@@ -76,11 +76,6 @@ namespace HTownSim.Runtime
 
         private const string Supervisor16Unit = "Supervisor16";
 
-        /// <summary>The renumbered meshes (chassis and aerial, with "07" cut out) and the number lettering the Station 16 tool adds (see LadderNumbering).</summary>
-        private const string RenumberedMeshPrefix = "L16_";
-
-        private const string NumberLabelPrefix = "UnitNumber_";
-
         /// <summary>The visuals' drop below the driven object, so every apparatus's tyres sit on the floor the same way.</summary>
         private const float VisualDrop = -0.15f;
 
@@ -119,11 +114,21 @@ namespace HTownSim.Runtime
 
         private static readonly string[] CitizenSeats = { "Driver", "Passenger" };
 
+        /// <summary>
+        /// The Spartan rear-mount ladder's lenses, for every ladder (the asset is one model with a unit number): the body's red and clear
+        /// LED lenses, and the two front roof lightbars, which flash in turn. The driver's-side bar's red panel and the officer's-side
+        /// bar's white panel light together in the first half of each cycle, the other two in the second half, so the bars wig-wag.
+        /// The names are the materials' (the Blender export, ArtSource/Ladder07/export_spartan_unity.py, gives each bar its own).
+        /// </summary>
+        private static readonly string[] LadderFlashA = { "L07_Red_lenses", "Spartan_LB_Red_Driver", "Spartan_LB_White_Officer" };
+
+        private static readonly string[] LadderFlashB = { "L07_Clear_LED_lenses", "Spartan_LB_Red_Officer", "Spartan_LB_White_Driver" };
+
         /// <summary>Ladder 07's fit-out (0.558 m tyres, front axle +3.80, tandem -1.76/-3.13).</summary>
         private static readonly ApparatusProfileValues LadderValues = new ApparatusProfileValues(
             "Ladder 07", 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
             new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
-            new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false,
+            LadderFlashA, LadderFlashB, new[] { "L07_Amber_lenses" }, true, true, "", false,
             seats: LadderSeats);
 
         /// <summary>Ladder 07's fit-out under another unit name (Ladder 16): the same aerial rig.</summary>
@@ -132,7 +137,7 @@ namespace HTownSim.Runtime
             return new ApparatusProfileValues(
                 unitName, 0.558f, 6.25f, new[] { "L07_wheel_0_" }, new[] { "L07_wheel_1_", "L07_wheel_2_" }, 2.5f, 1.25f,
                 new Vector3(0f, 3.5f, 5.8f), new Vector3(0.85f, 2.8f, 5.85f), false,
-                new[] { "L07_Red_lenses" }, new[] { "L07_Clear_LED_lenses" }, new[] { "L07_Amber_lenses" }, true, true, "", false,
+                LadderFlashA, LadderFlashB, new[] { "L07_Amber_lenses" }, true, true, "", false,
                 seats: LadderSeats);
         }
 
@@ -479,12 +484,8 @@ namespace HTownSim.Runtime
 
             if (request.Target == StartingTruck.Ladder16)
             {
-                // The aerial rig of Ladder 07 moves to the Ladder 16 bay and takes the Station 16 unit's name.
-                ApplyLadder(request, unit, "Ladder 16");
-
-                var ladder = driven.Find(LadderVisual) ?? throw new InvalidOperationException("Not driving Ladder 07.");
-
-                CopyNumbering(ladder, unit);
+                // Ladder 16 is the same Spartan ladder as Ladder 07 with its own number modelled in: the driven object takes its model.
+                ApplyLadder16(request, unit);
 
                 unit.gameObject.SetActive(false);
 
@@ -526,35 +527,36 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>
-        /// Gives the driven ladder the parked Ladder 16's number: its chassis meshes (with Ladder 07's "07" cut out) and its UnitNumber_
-        /// lettering, both made by HTownSim > Station 16 > Add Apparatus (LadderNumbering).
+        /// Engine to Ladder 16: Engine 07 is parked at Station 7 and the driven object takes the Station 16 ladder's bay and its own model (the
+        /// Spartan ladder numbered 16), leaving Station 7's Ladder 07 where it stands.
         /// </summary>
-        private static void CopyNumbering(Transform target, Transform source)
+        private static void ApplyLadder16(LoadoutRequest request, Transform unit)
         {
-            var meshes = source.GetComponentsInChildren<MeshFilter>(true)
-                .Where(filter => filter.sharedMesh != null && filter.sharedMesh.name.StartsWith(RenumberedMeshPrefix, StringComparison.Ordinal))
-                .GroupBy(filter => filter.name)
-                .ToDictionary(group => group.Key, group => group.First().sharedMesh);
+            var driven = request.Apparatus.transform;
 
-            var targets = target.GetComponentsInChildren<Transform>(true);
+            var model = unit.Find(LadderVisual) ?? (unit.childCount > 0 ? unit.GetChild(0) : throw new InvalidOperationException(unit.name + " has no model."));
 
-            foreach (var filter in target.GetComponentsInChildren<MeshFilter>(true))
-            {
-                if (meshes.TryGetValue(filter.name, out var mesh))
-                {
-                    filter.sharedMesh = mesh;
-                }
-            }
+            var source = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
 
-            foreach (var label in source.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith(NumberLabelPrefix, StringComparison.Ordinal)).ToList())
-            {
-                var parent = targets.FirstOrDefault(t => t.name == label.parent.name);
+            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
 
-                if (parent != null)
-                {
-                    UnityEngine.Object.Instantiate(label.gameObject, parent, false).name = label.name;
-                }
-            }
+            ParkEngine(driven);
+
+            driven.SetPositionAndRotation(unit.position, unit.rotation);
+
+            source.gameObject.SetActive(false);
+
+            MoveBeacons(new BeaconMove(request.Apparatus, LadderBeacon));
+
+            oldVisual.gameObject.SetActive(false);
+
+            model.SetParent(driven, false);
+
+            model.localPosition = new Vector3(0f, VisualDrop, 0f);
+
+            model.localRotation = Quaternion.identity;
+
+            SetProfile(driven, LadderAs("Ladder 16"));
         }
 
         /// <summary>Gives the renderers of one model the materials of the same-named renderers of another (the other unit's livery and number).</summary>

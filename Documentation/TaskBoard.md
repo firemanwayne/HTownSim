@@ -42,6 +42,7 @@ Kind: `bug`, `feature`, `ops` (build, deploy, tooling), `debt` (cleanup, noise).
 | T-110 | 2026-11-27 | Whole-screen city map (N) |
 | T-111 | 2026-11-27 | Unit-location visibility is a server-enforced permission (`ViewerRole`): spectator and police see all, fire and EMS see fire and EMS |
 | T-112 | 2026-11-27 | Join the city with Enter/Space or `-city-autojoin`; build script tolerates Unity's stderr notice |
+| T-113 | 2026-11-27 | Spartan rear-mount ladder on every ladder: one Blender asset exported per unit number (`export_spartan_unity.py`, `HFD_UNIT_NUMBER` 07 and 16), installed by `AgentScripts/InstallSpartanLadder.cs`; new roof lightbars flash as two alternating groups (driver red + officer white, officer red + driver white); Ladder 16 has its own model, replacing the cut-out-and-overlay renumbering |
 
 ## Dropped
 

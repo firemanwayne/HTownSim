@@ -1,0 +1,274 @@
+fileFormatVersion: 2
+guid: df4a132ce9374524dbaa1ec4b6950c99
+ModelImporter:
+  serializedVersion: 24600
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_Black_mount_and_gasket
+    second: {fileID: 2100000, guid: 75104b62b7714484b99361b2c5f67a72, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_Brushed_aluminum_lid
+    second: {fileID: 2100000, guid: 183f687a465c88341a2e07500bed5641, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_Brushed_tray
+    second: {fileID: 2100000, guid: 061b237c4277b1e48a7f6adccc8da3c4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_Clear_polycarbonate
+    second: {fileID: 2100000, guid: 59af2bcab749f29448d5645eb17a34e1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_LED_optics
+    second: {fileID: 2100000, guid: d18005f24b98eb9438a2f2e04eb953ca, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Front_lightbar_Stainless_lens_screws
+    second: {fileID: 2100000, guid: b0627fce47103e74c9ab36e151154008, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: HFD_Official_Door_Logo
+    second: {fileID: 2100000, guid: 9466771dd5d15d445abdca3e2fa11473, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Aerial_white_powder_coat
+    second: {fileID: 2100000, guid: 4dda5100e63878148a320c55d691c976, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Amber_lenses
+    second: {fileID: 2100000, guid: e4f1d400a6b73d845b4f633848cbcab4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Blue_green_cab_glazing
+    second: {fileID: 2100000, guid: 6d3c97caabe9b6044933637f55ccbb16, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Brushed_aluminum
+    second: {fileID: 2100000, guid: ed4efeb33b08fa4418251b516cea81a5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Clear_LED_lenses
+    second: {fileID: 2100000, guid: b504726e8cb8f2944bb2b5b68ef4448f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Fire_red_enamel
+    second: {fileID: 2100000, guid: 04ee093f48d01ea4bb1c94cf26126a24, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Fire_red_enamel_001
+    second: {fileID: 2100000, guid: 49bd2b8057a63ad4dbb698e3906fecb8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Fluorescent_rear_chevron
+    second: {fileID: 2100000, guid: d139e57deb427ca49a731ddf179deca7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Gold_graphics
+    second: {fileID: 2100000, guid: 58a7b1c6d2426854796993487f65ed7b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Gold_graphics_001
+    second: {fileID: 2100000, guid: ddc1ca880ccee6b4794da69ecea186cd, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Grille_recess
+    second: {fileID: 2100000, guid: 5ae27dd7ec2c9f444b4b494bad54512a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Houston_badge_blue
+    second: {fileID: 2100000, guid: 63f3f845c1a21f94fb15ebda848abe7f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Polished_stainless
+    second: {fileID: 2100000, guid: ff85370c85f4c134f96fb97ef743845a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Red_lenses
+    second: {fileID: 2100000, guid: a2409c1ef83775545ada45d07e724fa0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Reflective_white
+    second: {fileID: 2100000, guid: 647a6e1e55f472b42a4d75bd8ffa15ba, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Reflective_white_001
+    second: {fileID: 2100000, guid: af9880d81912b92488a9c0e44c08baed, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Rubber_and_seals
+    second: {fileID: 2100000, guid: deb58743d3e6024428605ef4b5d1458e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: L07_Tire_rubber
+    second: {fileID: 2100000, guid: 60a5c3a4910042847aacfee0aa49a9ab, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Spartan_LB_Red_Driver
+    second: {fileID: 2100000, guid: ad35ed894f278bc45a07c8bdffacf63f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Spartan_LB_Red_Officer
+    second: {fileID: 2100000, guid: 757b1b1df12b6c54ab2bb14d3f7da459, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Spartan_LB_White_Driver
+    second: {fileID: 2100000, guid: 672c7b7e0a9bb944aaee6f96fab56bf1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Spartan_LB_White_Officer
+    second: {fileID: 2100000, guid: 5c93a327a6d30f341bdd7fafef06efa9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Station_Logo_Both_Crew_Doors
+    second: {fileID: 2100000, guid: 639a0aef8147a2c4896b12fd15820108, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Texas_Cab_Artwork
+    second: {fileID: 2100000, guid: e06bbcbcd14f537438debc0106dca610, type: 2}
+  materials:
+    materialImportMode: 1
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+    searchTexturesGlobally: 0
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    removeConstantScaleCurves: 0
+    motionNodeName: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations: []
+    isReadable: 0
+  meshes:
+    lODScreenPercentages:
+    - 0.25
+    - 0.125
+    - 0.01
+    globalScale: 1
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    sortHierarchyByName: 1
+    preBakeConvexCollisionMesh: 0
+    preBakeTriangleCollisionMesh: 0
+    importPhysicalCameras: 1
+    importVisibility: 1
+    importBlendShapes: 0
+    importCameras: 0
+    importLights: 0
+    nodeNameCollisionStrategy: 1
+    fileIdsGeneration: 2
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    keepQuads: 0
+    weldVertices: 1
+    bakeAxisConversion: 1
+    preserveHierarchy: 0
+    skinWeightsMode: 0
+    maxBonesPerVertex: 4
+    minBoneWeight: 0.001
+    optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
+    importUVs: -1
+    importVertexColors: 1
+    meshOptimizationFlags: -1
+    indexFormat: 0
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVMarginMethod: 1
+    secondaryUVMinLightmapResolution: 40
+    secondaryUVMinObjectScale: 1
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+    strictVertexDataChecks: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+    normalCalculationMode: 4
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+    calculateBlendshapeNormalsDeltaFromImportedNormals: 0
+  referencedClips: []
+  importAnimation: 0
+  humanDescription:
+    serializedVersion: 3
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    globalScale: 1
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+    hasExtraRoot: 0
+    skeletonHasParents: 1
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  autoGenerateAvatarMappingIfUnspecified: 1
+  animationType: 0
+  humanoidOversampling: 1
+  avatarSetup: 0
+  addHumanoidExtraRootOnlyWhenUsingAvatar: 1
+  importBlendShapeDeformPercent: 1
+  remapMaterialsIfMaterialImportModeIsNone: 0
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
