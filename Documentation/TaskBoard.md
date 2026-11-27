@@ -43,6 +43,7 @@ Kind: `bug`, `feature`, `ops` (build, deploy, tooling), `debt` (cleanup, noise).
 | T-111 | 2026-11-27 | Unit-location visibility is a server-enforced permission (`ViewerRole`): spectator and police see all, fire and EMS see fire and EMS |
 | T-112 | 2026-11-27 | Join the city with Enter/Space or `-city-autojoin`; build script tolerates Unity's stderr notice |
 | T-113 | 2026-11-27 | Spartan rear-mount ladder on every ladder: one Blender asset exported per unit number (`export_spartan_unity.py`, `HFD_UNIT_NUMBER` 07 and 16), installed by `AgentScripts/InstallSpartanLadder.cs`; new roof lightbars flash as two alternating groups (driver red + officer white, officer red + driver white); Ladder 16 has its own model, replacing the cut-out-and-overlay renumbering |
+| T-114 | 2026-11-27 | Reusable Spartan engine and Frazer ambulance on every engine and ambulance: one Blender asset each, exported once per unit with the number baked into its paint (`Blender/HFD Apparatus/export_reusable_unity.py`; `HFD_UNIT_NUMBER`, `HFD_MEDIC_LABEL` for Medic 08), installed by `AgentScripts/InstallReusableApparatus.cs`; engines flash by lens material like the ladders; old Engine43/Hi3D/Ambulance07/Ladder07 art, the Station 8/16 livery folders, the hidden legacy scene visuals, `ApparatusLights` and the old one-off installers removed (`RetireLegacyVehicleVisuals`) |
 
 ## Dropped
 

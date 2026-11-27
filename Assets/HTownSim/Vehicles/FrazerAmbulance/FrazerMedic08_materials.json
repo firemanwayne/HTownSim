@@ -1,0 +1,244 @@
+{
+ "materials": {
+  "Amb07_LensRed": {
+   "color": [
+    0.44999998807907104,
+    0.019999999552965164,
+    0.019999999552965164
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_LensRedWarn2": {
+   "color": [
+    0.44999998807907104,
+    0.019999999552965164,
+    0.019999999552965164
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_LensAmberWarn": {
+   "color": [
+    0.75,
+    0.3499999940395355,
+    0.029999999329447746
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "FrazerMedic08_Paint": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.30000001192092896,
+   "alpha": 1.0,
+   "texture": "FrazerMedic08_Paint.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_Interior": {
+   "color": [
+    0.029999999329447746,
+    0.03500000014901161,
+    0.03999999910593033
+   ],
+   "metallic": 0.0,
+   "roughness": 0.800000011920929,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_WhiteTrim": {
+   "color": [
+    0.6200000047683716,
+    0.6399999856948853,
+    0.6600000262260437
+   ],
+   "metallic": 0.0,
+   "roughness": 0.4000000059604645,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_Glass": {
+   "color": [
+    0.05000000074505806,
+    0.07000000029802322,
+    0.07999999821186066
+   ],
+   "metallic": 0.0,
+   "roughness": 0.05000000074505806,
+   "alpha": 0.44999998807907104,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_Chrome": {
+   "color": [
+    0.800000011920929,
+    0.800000011920929,
+    0.8199999928474426
+   ],
+   "metallic": 1.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_Rubber": {
+   "color": [
+    0.02500000037252903,
+    0.02500000037252903,
+    0.02500000037252903
+   ],
+   "metallic": 0.0,
+   "roughness": 0.8500000238418579,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_LensAmber": {
+   "color": [
+    0.75,
+    0.3499999940395355,
+    0.029999999329447746
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_Logo": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.4000000059604645,
+   "alpha": 1.0,
+   "texture": "HFD_Logo.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": true
+  },
+  "Amb07_LensClear": {
+   "color": [
+    0.75,
+    0.75,
+    0.7200000286102295
+   ],
+   "metallic": 0.0,
+   "roughness": 0.10000000149011612,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_LensRedWarn": {
+   "color": [
+    0.44999998807907104,
+    0.019999999552965164,
+    0.019999999552965164
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Amb07_DarkTrim": {
+   "color": [
+    0.03999999910593033,
+    0.04500000178813934,
+    0.05000000074505806
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  }
+ },
+ "unit_number": 8,
+ "medic": true
+}

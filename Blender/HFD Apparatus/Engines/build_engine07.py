@@ -22,7 +22,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 try:
-    HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:  # exec()'d from Blender's console, where __file__ is not defined
     HERE = r"J:\Unity\projects\HTownSim\Blender\HFD Apparatus\Engines"
 SCENE = "Engine07Clean"
@@ -70,10 +70,10 @@ CAB_BROW = ((-3.90, ROOF_Z), (-4.05, ROOF_Z), (-4.17, 2.76), (-4.235, 2.64))   #
 # Texas state flag: centred on the cab panel between the doors, above the front wheel, at window height (photo).
 # Each decal: (material, texture, centre y, centre z, height); width follows the texture's aspect. The Unity installer
 # maps Engine07_Decals' material slots in this same order.
-DECAL_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D"
+DECAL_DIR = os.path.abspath(os.path.join(HERE, "../../../Assets/HTownSim/Vehicles/Engine07Hi3D"))
 DECALS = (
-    ("Engine07_Logo", DECAL_DIR + r"\HFD_Logo.png", (-4.02 + -3.04) / 2, (1.19 + 1.725) / 2, 0.46),
-    ("Engine07_Texas", DECAL_DIR + r"\Texas_Flag.png", (-3.04 + -1.92) / 2, 2.10, 0.44),
+    ("Engine07_Logo", "HFD_Logo.png", (-4.02 + -3.04) / 2, (1.19 + 1.725) / 2, 0.46),
+    ("Engine07_Texas", "Texas_Flag.png", (-3.04 + -1.92) / 2, 2.10, 0.44),
 )
 # Door outlines for the livery: front door, crew door (y0, y1, z0, z1); doors open 32 in above the ground.
 DOORS = ((-4.02, -3.04, 0.81, 2.62), (-1.92, -0.98, 0.81, 2.74))
@@ -267,7 +267,7 @@ def atlas_uv(region, a, b):
     return ((px + a * PPM) / ATLAS[0], 1 - (py + b * PPM) / ATLAS[1])
 
 
-def assign_uvs(shell):
+def assign_uvs(shell, write_metadata=True):
     """Planar UVs by dominant face normal, so livery drawn in side/top/front/rear views lands exactly."""
     me = shell.data
     uv = me.uv_layers.get("UVMap") or me.uv_layers.new(name="UVMap")
@@ -293,9 +293,10 @@ def assign_uvs(shell):
             else:
                 u = atlas_uv("front", co.x + 1.45, 3.2 - co.z) if n.y < 0 else atlas_uv("rear", 1.45 - co.x, 3.2 - co.z)
             uv.data[li].uv = u
-    json.dump({"atlas": ATLAS, "ppm": PPM, "regions": REGIONS, "windows": WINDOWS, "doors": DOORS,
-               "cab": CAB, "pump": PUMP, "body": BODY, "axles": [FRONT_AXLE, REAR_AXLE, AXLE_Z]},
-              open(os.path.join(HERE, "livery_layout.json"), "w"), indent=1)
+    if write_metadata:
+        json.dump({"atlas": ATLAS, "ppm": PPM, "regions": REGIONS, "windows": WINDOWS, "doors": DOORS,
+                   "cab": CAB, "pump": PUMP, "body": BODY, "axles": [FRONT_AXLE, REAR_AXLE, AXLE_Z]},
+                  open(os.path.join(HERE, "livery_layout.json"), "w"), indent=1)
 
 
 def build_glass(scn, mats):
@@ -523,14 +524,15 @@ def build_trim(scn, mats):
 # ------------------------------------------------------------------------------------------------ wheels
 
 
-def build_decals(scn):
+def build_decals(scn, asset_dir=DECAL_DIR, *, decals=DECALS, name="Engine07_Decals"):
     """Cab-side decals on both sides (driver's and passenger's), one material slot each, in DECALS order:
     one quad per side just proud of the cab skin, UVs covering the whole texture, never mirrored."""
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
     mats = []
-    for slot, (name, path, y, z, h) in enumerate(DECALS):
-        mats.append(decal_material(name, path))
+    for slot, (material_name, filename, y, z, h) in enumerate(decals):
+        path = os.path.join(asset_dir, filename)
+        mats.append(decal_material(material_name, path))
         px_w, px_h = bpy.data.images.load(path, check_existing=True).size
         w = h * px_w / px_h
         for s in (1, -1):
@@ -542,7 +544,7 @@ def build_decals(scn):
             f.material_index = slot
             for loop, (_, t) in zip(f.loops, corners):
                 loop[uv].uv = t
-    return mesh_object(scn, "Engine07_Decals", bm, mats)
+    return mesh_object(scn, name, bm, mats)
 
 
 def decal_material(name, path):
@@ -673,7 +675,7 @@ def bumper_lens(index):
     return u, normal, M6, "LensRed"
 
 
-def build_lights(scn, mats):
+def build_lights(scn, mats, write_metadata=True):
     lenses = json.load(open(os.path.join(HERE, "lenses_engine07.json")))
     groups = {}
     for lens in lenses:
@@ -737,11 +739,12 @@ def build_lights(scn, mats):
         cyl(bm, (s * 1.24, 4.30, 2.93), 0.075, 0.14, "Z", order.index("LensClear"), 20, 0.06)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     o = mesh_object(scn, "Engine07_Lights", bm, [mats[m] for m in order])
-    json.dump(targets, open(os.path.join(HERE, "lens_targets_engine07.json"), "w"), indent=1)
+    if write_metadata:
+        json.dump(targets, open(os.path.join(HERE, "lens_targets_engine07.json"), "w"), indent=1)
     return o, len(targets)
 
 
-def build():
+def build(*, asset_dir=DECAL_DIR, write_metadata=True):
     scn = new_scene()
     mats = {
         "Paint": material("Engine07_Paint", (0.55, 0.05, 0.04), rough=0.35),
@@ -759,17 +762,21 @@ def build():
         "LensAmber": material("Engine07_LensAmber", (0.75, 0.35, 0.03), rough=0.15),
     }
     shell = build_shell(scn, mats)
-    assign_uvs(shell)
+    assign_uvs(shell, write_metadata)
     build_glass(scn, mats)
     build_trim(scn, mats)
-    build_decals(scn)
+    build_decals(scn, asset_dir)
     build_roof_lenses(scn, mats)
     for name, y, x, out, dual in (("WheelFrontLeft", FRONT_AXLE, 1.27, 1, False), ("WheelFrontRight", FRONT_AXLE, -1.27, -1, False),
                                   ("WheelRearLeft", REAR_AXLE, 1.10, 1, True), ("WheelRearRight", REAR_AXLE, -1.10, -1, True)):
         build_wheel(scn, mats, name, Vector((x, y, AXLE_Z)), out, dual)
-    _, n = build_lights(scn, mats)
+    _, n = build_lights(scn, mats, write_metadata)
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in scn.objects if o.type == "MESH")
     print("built", [o.name for o in scn.objects], "lens fixtures", n, "triangles", tris)
 
 
-build()
+    return scn
+
+
+if __name__ == "__main__":
+    build()

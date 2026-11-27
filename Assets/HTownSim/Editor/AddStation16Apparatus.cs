@@ -43,15 +43,10 @@ public static class AddStation16Apparatus
     /// <summary>District Chief 08's game materials, which the supervisor pickup (the same truck) shares by name.</summary>
     private const string PickupMaterials = VehicleRoot + "/DistrictChief08/Materials";
 
-    private const string EngineModel = VehicleRoot + "/Engine07Hi3D/Engine07Clean.fbx";
+    /// <summary>The reusable Spartan engine and Frazer ambulance, exported once per unit with the number in the paint (Blender/HFD Apparatus/export_reusable_unity.py; installed by AgentScripts/InstallReusableApparatus.cs).</summary>
+    private const string Engine16Model = VehicleRoot + "/SpartanEngine/SpartanEngine16.fbx";
 
-    private const string AmbulanceModel = VehicleRoot + "/Ambulance07/Ambulance07.fbx";
-
-    private const string EngineLivery = VehicleRoot + "/Engine07Hi3D/Engine07_Livery.png";
-
-    private const string EngineDecals = VehicleRoot + "/Engine07Hi3D/Engine07_Decals.png";
-
-    private const string AmbulanceLivery = VehicleRoot + "/Ambulance07/Ambulance07_Livery.png";
+    private const string Ambulance16Model = VehicleRoot + "/FrazerAmbulance/FrazerAmbulance16.fbx";
 
     /// <summary>Station 7's bay x positions (left, middle, right from the street) </summary>
     private const float LeftBay = 20.3f;
@@ -94,9 +89,9 @@ public static class AddStation16Apparatus
 
     private static readonly Unit[] Units =
     {
-        new Unit("Ambulance16", LeftBay, AmbulanceModel, "Ambulance07Visual", new[] { AmbulanceLivery, Station16Folder + "/Medic16_Livery.png" }),
+        new Unit("Ambulance16", LeftBay, Ambulance16Model, "Ambulance07Visual", new string[0]),
         new Unit("Ladder16", MiddleBay, LadderModel, "Ladder07Visual", new string[0]),
-        new Unit("Engine16", RightBay, EngineModel, "Engine07CleanVisual", new[] { EngineLivery, Station16Folder + "/Engine16_Livery.png", EngineDecals, Station16Folder + "/Engine16_Decals.png" }),
+        new Unit("Engine16", RightBay, Engine16Model, "Engine07CleanVisual", new string[0]),
         new Unit("Supervisor16", ApronBay, SupervisorModel, string.Empty, new string[0]),
     };
 
@@ -234,9 +229,9 @@ public static class AddStation16Apparatus
 
         model.transform.localScale = source.localScale;
 
-        if (unit.Name == "Ladder16")
+        if (unit.TextureSwaps.Length == 0)
         {
-            // The Spartan ladder numbered 16 brings its own materials and its number; it only has to stand where Ladder 07's model stands.
+            // The reusable models (the Spartan ladder, engine and ambulance numbered for this unit) bring their own materials and their number; they only have to stand where the old model stood.
             FitCollider(root);
 
             return;

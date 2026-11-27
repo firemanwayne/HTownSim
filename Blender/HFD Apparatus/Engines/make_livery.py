@@ -23,6 +23,8 @@ import os
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REUSABLE_DIR = os.environ.get("HFD_REUSABLE_LIVERY_DIR")
+UNIT_MARKINGS = []
 NUMBER = os.environ.get("HFD_UNIT_NUMBER", "07")  # the unit number drawn on the truck; other numbers go to the Station8 folder
 OUT_DIR = os.environ.get("HFD_OUT_DIR", r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Station8")
 ORIGINAL_DIR = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D"
@@ -94,8 +96,15 @@ def rear_rect(x0, x1, z0, z1, fill, outline=None, width=1):
     rect_px("rear", 1.45 - max(x0, x1), 3.2 - z1, 1.45 - min(x0, x1), 3.2 - z0, fill, outline, width)
 
 
-def text_box(text, font_path, box, fill, stroke=None, stroke_w=0, rotate=0):
+def text_box(text, font_path, box, fill, stroke=None, stroke_w=0, rotate=0, *, unit_prefix=None):
     """Draws text centred and fitted in a pixel box (x0, y0, x1, y1), never mirrored."""
+    if REUSABLE_DIR and unit_prefix is not None:
+        UNIT_MARKINGS.append((unit_prefix, font_path, box, fill, stroke, stroke_w, rotate))
+        return
+    paste_text(img, text, font_path, box, fill, stroke, stroke_w, rotate)
+
+
+def paste_text(target, text, font_path, box, fill, stroke, stroke_w, rotate):
     x0, y0, x1, y1 = box
     bw, bh = x1 - x0, y1 - y0
     if rotate in (90, 270):
@@ -112,12 +121,16 @@ def text_box(text, font_path, box, fill, stroke=None, stroke_w=0, rotate=0):
     if rotate:
         layer = layer.rotate(rotate, expand=True, resample=Image.BICUBIC)
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    img.paste(layer, (int(cx - layer.width / 2), int(cy - layer.height / 2)), layer)
+    origin = (int(cx - layer.width / 2), int(cy - layer.height / 2))
+    if target.mode == "RGBA":
+        target.alpha_composite(layer, origin)
+    else:
+        target.paste(layer, origin, layer)
 
 
-def side_text(side, text, font, y0, y1, z0, z1, fill, stroke=None, stroke_w=0):
+def side_text(side, text, font, y0, y1, z0, z1, fill, stroke=None, stroke_w=0, *, unit_prefix=None):
     a, b = side_px(side, y0, z1), side_px(side, y1, z0)
-    text_box(text, font, (min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]), fill, stroke, stroke_w)
+    text_box(text, font, (min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]), fill, stroke, stroke_w, unit_prefix=unit_prefix)
 
 
 def diamond_plate(x0, y0, x1, y1):
@@ -286,7 +299,8 @@ def draw_side(side):
         side_rect(side, y0 - 0.035, y1 + 0.035, z0 - 0.035, z1 + 0.035, BLACK)
     # Patches: the HFD logo on the front doors and the Texas state flag over the front wheel are separate decals
     # (Engine07_Decals) so they stay sharp; the station patch is on the crew door below the window (photos).
-    patch_station(side, -1.42, 1.48, 0.17)
+    if not REUSABLE_DIR:
+        patch_station(side, -1.42, 1.48, 0.17)
     # Body: red roll-up doors (slats), compartment dividers, the Z, motto, number, rub rail.
     side_rect(side, body["y0"], body["y1"], 0.55, 2.70, RED)
     zz = 0.58
@@ -298,13 +312,13 @@ def draw_side(side):
     side_rect(side, BODY_DIVIDERS[0], BODY_DIVIDERS[1], 1.42, 1.47, STEEL)      # drip rail over the rear wheel bay
     speed_line_z(side)
     side_text(side, "Courage, Commitment and Compassion", FONT_SCRIPT, 1.95, 3.20, 2.33, 2.47, GOLD, RED_DARK, 1)
-    side_text(side, NUMBER, FONT_BOLD, 3.62, 4.22, 1.02, 1.72, WHITE)
+    side_text(side, NUMBER, FONT_BOLD, 3.62, 4.22, 1.02, 1.72, WHITE, unit_prefix="")
     side_rect(side, body["y0"], body["y1"], 2.72, 2.78, CHROME)                 # diamond-plate top rail edge
     side_rect(side, body["y0"], body["y1"], 0.48, 0.58, CHROME)                 # rub rail
     side_rect(side, body["y0"], body["y1"], 0.515, 0.545, (200, 20, 28))         # red reflective strip
     pump_panel(side)
     # "07" on the bumper's angled end (photos).
-    side_text(side, NUMBER, FONT_BOLD, -4.975, -4.86, 0.60, 0.81, WHITE)
+    side_text(side, NUMBER, FONT_BOLD, -4.975, -4.86, 0.60, 0.81, WHITE, unit_prefix="")
 
 
 # ------------------------------------------------------------------------------------------------ top, front, rear
@@ -325,7 +339,7 @@ def draw_top():
         col = ((214, 40, 40), (232, 200, 40))[k % 2]
         d.rectangle([p0[0] + 10, yy, p1[0] - 10, yy + (p1[1] - p0[1]) / 8 - 8], fill=col)
     c0, c1 = region_px("top", -3.0 + 5.05, 1.45 - 0.62), region_px("top", -1.6 + 5.05, 1.45 + 0.62)
-    text_box(NUMBER, FONT_BLOCK, (c0[0], c0[1], c1[0], c1[1]), WHITE, RED_DARK, 4, rotate=90)
+    text_box(NUMBER, FONT_BLOCK, (c0[0], c0[1], c1[0], c1[1]), WHITE, RED_DARK, 4, rotate=90, unit_prefix="")
 
 
 def draw_front():
@@ -367,7 +381,7 @@ def draw_rear():
     diamond_plate(t0[0], t0[1], t1[0], t1[1])
     rear_rect(-1.02, -0.66, 1.56, 2.38, RED, RED_DARK, 3)
     p0, p1 = region_px("rear", 1.45 + 0.70, 3.2 - 2.30), region_px("rear", 1.45 + 0.98, 3.2 - 1.94)
-    text_box(NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), WHITE)
+    text_box(NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), WHITE, unit_prefix="")
     c = region_px("rear", 1.45 + 0.84, 3.2 - 1.75)
     d.ellipse([c[0] - 12, c[1] - 12, c[0] + 12, c[1] + 12], fill=CHROME, outline=(90, 90, 95), width=2)
     # Lower centre compartment: stainless frame around the door.
@@ -379,7 +393,7 @@ def draw_rear():
     # Licence plate, lower left.
     rear_rect(0.69, 1.04, 0.84, 1.01, (236, 236, 232), (60, 60, 60), 2)
     p0, p1 = region_px("rear", 1.45 - 1.02, 3.2 - 0.98), region_px("rear", 1.45 - 0.71, 3.2 - 0.88)
-    text_box("HFD " + NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), (30, 30, 30))
+    text_box("HFD " + NUMBER, FONT_BOLD, (p0[0], p0[1], p1[0], p1[1]), (30, 30, 30), unit_prefix="HFD ")
     # Tailboard face: tread plate.
     t0, t1 = region_px("rear", 1.45 - 1.30, 3.2 - 0.76), region_px("rear", 1.45 + 1.30, 3.2 - 0.48)
     diamond_plate(t0[0], t0[1], t1[0], t1[1])
@@ -392,6 +406,26 @@ draw_front()
 draw_rear()
 rect_px("under", 0, 0, 0.5, 0.5, (30, 30, 32))
 img = img.filter(ImageFilter.SMOOTH)
+if REUSABLE_DIR:
+    os.makedirs(REUSABLE_DIR, exist_ok=True)
+    img.save(os.path.join(REUSABLE_DIR, "Engine_Base_Livery.png"))
+    markings = []
+    for i, (prefix, font, box, fill, stroke, stroke_width, rotation) in enumerate(UNIT_MARKINGS):
+        x0, y0 = math.floor(box[0]) - 6, math.floor(box[1]) - 6
+        width, height = math.ceil(box[2]) + 6 - x0, math.ceil(box[3]) + 6 - y0
+        local_box = (box[0] - x0, box[1] - y0, box[2] - x0, box[3] - y0)
+        sheet = Image.new("RGBA", (10 * width, 10 * height))
+        for number in range(100):
+            tile = Image.new("RGBA", (width, height))
+            paste_text(tile, f"{prefix}{number:02}", font, local_box, fill, stroke, stroke_width, rotation)
+            sheet.paste(tile, ((number % 10) * width, (number // 10) * height))
+        filename = f"Engine_Unit_Marking_{i + 1}.png"
+        sheet.save(os.path.join(REUSABLE_DIR, filename))
+        markings.append({"image": filename, "rect": [x0, y0, width, height]})
+    with open(os.path.join(REUSABLE_DIR, "engine_unit_markings.json"), "w") as output:
+        json.dump({"atlas": [W, H], "markings": markings}, output, indent=2)
+    raise SystemExit
+
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 img.save(OUT)
 print("wrote", OUT, img.size)

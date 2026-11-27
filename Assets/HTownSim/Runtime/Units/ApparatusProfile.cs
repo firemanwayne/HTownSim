@@ -68,10 +68,21 @@ namespace HTownSim.Runtime
         /// <summary>The riding positions of a fire engine, in seat order (the first drives). Declared before <see cref="Engine"/>, which uses it.</summary>
         internal static readonly string[] EngineSeats = { "EO", "Officer", "FF", "FF" };
 
+        /// <summary>
+        /// The Spartan engine's lens materials, for every engine (the asset is one model with a unit number, like the ladder): the red lenses
+        /// and the clear ones flash in turn, the amber ones (markers, turn and clearance lights) burn with the headlights. An engine driven by
+        /// the computer finds the same lenses by name (see AiEmergencyLights).
+        /// </summary>
+        private static readonly string[] EngineFlashA = { "Engine07_LensRed" };
+
+        private static readonly string[] EngineFlashB = { "Engine07_LensClear" };
+
+        private static readonly string[] EngineSteady = { "Engine07_LensAmber" };
+
         /// <summary>Engine 07's values, used when the driven object has no profile.</summary>
         internal static readonly ApparatusProfileValues Engine = new ApparatusProfileValues(
             "Engine 07", 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
-            new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true,
+            new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, EngineFlashA, EngineFlashB, EngineSteady, true,
             seats: EngineSeats);
 
         /// <summary>Engine 07's fit-out under another unit name (Engine 08, Engine 01): the same rig with its own number.</summary>
@@ -79,7 +90,7 @@ namespace HTownSim.Runtime
         {
             return new ApparatusProfileValues(
                 unitName, 0.54f, 5.05f, new[] { "WheelFront" }, new[] { "WheelRear" }, 4f, 1f,
-                new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, new string[0], new string[0], new string[0], true,
+                new Vector3(0f, 3.15f, 0.98f), new Vector3(0.86f, 2.72f, 4.25f), true, EngineFlashA, EngineFlashB, EngineSteady, true,
                 seats: EngineSeats);
         }
 

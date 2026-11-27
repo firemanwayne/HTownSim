@@ -41,10 +41,6 @@ namespace HTownSim.Runtime
 
         private const string EngineCleanVisual = "Engine07CleanVisual";
 
-        private const string EngineOldVisual = "Engine43Visual";
-
-        private const string EngineLighting = "EmergencyLighting";
-
         /// <summary>The group AddStation8Apparatus fills, and the unit names inside it.</summary>
         private const string Station8Group = "Station8Apparatus";
 
@@ -378,13 +374,9 @@ namespace HTownSim.Runtime
             {
                 engineVisual.gameObject.SetActive(false);
 
-                var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
                 var chief = request.Target == StartingTruck.DistrictChief08;
 
                 MoveBeacons(new BeaconMove(request.Apparatus, chief ? PickupBeacon : AmbulanceBeacon));
-
-                oldVisual.gameObject.SetActive(false);
 
                 model.SetParent(driven, true);
 
@@ -424,11 +416,7 @@ namespace HTownSim.Runtime
 
             engineVisual.gameObject.SetActive(false);
 
-            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
             MoveBeacons(new BeaconMove(request.Apparatus, patrol ? PatrolBeacon : CitizenBeacon));
-
-            oldVisual.gameObject.SetActive(false);
 
             model.SetParent(driven, true);
 
@@ -510,13 +498,9 @@ namespace HTownSim.Runtime
             {
                 engineVisual.gameObject.SetActive(false);
 
-                var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
                 var suburban = request.Target == StartingTruck.Supervisor16;
 
                 MoveBeacons(new BeaconMove(request.Apparatus, suburban ? SuvBeacon : AmbulanceBeacon));
-
-                oldVisual.gameObject.SetActive(false);
 
                 model.SetParent(driven, true);
 
@@ -538,8 +522,6 @@ namespace HTownSim.Runtime
 
             var source = driven.Find(EngineCleanVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineCleanVisual + ".");
 
-            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
             ParkEngine(driven);
 
             driven.SetPositionAndRotation(unit.position, unit.rotation);
@@ -547,8 +529,6 @@ namespace HTownSim.Runtime
             source.gameObject.SetActive(false);
 
             MoveBeacons(new BeaconMove(request.Apparatus, LadderBeacon));
-
-            oldVisual.gameObject.SetActive(false);
 
             model.SetParent(driven, false);
 
@@ -611,11 +591,7 @@ namespace HTownSim.Runtime
 
             source.gameObject.SetActive(false);
 
-            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
             MoveBeacons(new BeaconMove(request.Apparatus, LadderBeacon));
-
-            oldVisual.gameObject.SetActive(false);
 
             ladder.SetParent(driven, false);
 
@@ -664,26 +640,17 @@ namespace HTownSim.Runtime
 
             ladder.localRotation = Quaternion.identity;
 
-            var oldVisual = driven.Find(EngineOldVisual) ?? throw new InvalidOperationException("Engine07 has no " + EngineOldVisual + ".");
-
-            oldVisual.gameObject.SetActive(true);
-
+            // The beacons stay under their root, back at the engine's roof positions.
             var beaconRoot = driven.Find(BeaconsName);
-
-            var lighting = oldVisual.Find(EngineLighting);
 
             if (beaconRoot != null)
             {
-                foreach (var beacon in beaconRoot.Cast<Transform>().ToList())
+                foreach (Transform beacon in beaconRoot)
                 {
                     var side = Mathf.Sign(beacon.localPosition.x);
 
-                    beacon.SetParent(lighting, false);
-
-                    beacon.position = driven.TransformPoint(new Vector3(side * EngineBeacon.x, EngineBeacon.y, EngineBeacon.z));
+                    beacon.localPosition = new Vector3(side * EngineBeacon.x, EngineBeacon.y, EngineBeacon.z);
                 }
-
-                UnityEngine.Object.DestroyImmediate(beaconRoot.gameObject);
             }
 
             driven.Find(EngineCleanVisual)?.gameObject.SetActive(true);
