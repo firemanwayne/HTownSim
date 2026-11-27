@@ -2,3 +2,6 @@ bin/
 obj/
 .vs/
 *.user
+!/IncidentService.slnx
+!/src/Api/IncidentService.Api.csproj
+!/src/Api.UnitTests/IncidentService.Api.UnitTests.csproj

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Api/IncidentService.Api.csproj" />
+  <Project Path="src/Api.UnitTests/IncidentService.Api.UnitTests.csproj" />
+</Solution>

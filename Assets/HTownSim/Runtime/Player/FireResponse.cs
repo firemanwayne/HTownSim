@@ -343,7 +343,7 @@ namespace HTownSim.Runtime
         {
             _controller = GetComponent<CharacterController>();
 
-            if (StartingTruckMenu.CityServerRequested)
+            if (StartingTruckMenu.CityServerRequested || StartingTruckMenu.CitySpectatorRequested)
             {
                 return;
             }
@@ -444,6 +444,24 @@ namespace HTownSim.Runtime
         /// <summary>Sounds the first dispatch shortly after the scene starts.</summary>
         private void Start()
         {
+            if (StartingTruckMenu.CitySpectatorRequested)
+            {
+                var engine = gameObject.scene.GetRootGameObjects()
+                    .FirstOrDefault(root => root.name == "Engine07Parked");
+                if (engine != null)
+                {
+                    var spectator = new GameObject("Engine 07 Spectator").AddComponent<EngineSpectatorClient>();
+                    spectator.Begin(engine.transform, FindAnyObjectByType<CinemachineCamera>());
+                }
+                else
+                {
+                    Debug.LogError("The spectator scene is missing Engine07Parked.");
+                }
+
+                gameObject.SetActive(false);
+                return;
+            }
+
             if (StartingTruckMenu.CityServerRequested)
             {
                 StartCity(null);
@@ -487,6 +505,16 @@ namespace HTownSim.Runtime
 
             // Police calls on the board get an HPD patrol unit parked at the scene, lightbar flashing.
             cityFleet.AddComponent<LiveIncidentPolice>().Initialize(_liveFeed);
+
+            if (player == null)
+            {
+                cityFleet.AddComponent<CityReadinessListener>();
+                var engine = _liveFeed.Fleet.Find("Engine 07");
+                if (engine != null)
+                {
+                    cityFleet.AddComponent<EngineSpectatorServer>().Begin(engine);
+                }
+            }
         }
 
         private void StartPlayerPresentation()

@@ -36,6 +36,9 @@ namespace HTownSim.Runtime
         internal static bool CityServerRequested { get; } = System.Array.Exists(System.Environment.GetCommandLineArgs(),
             argument => string.Equals(argument, "-city-server", System.StringComparison.OrdinalIgnoreCase));
 
+        internal static bool CitySpectatorRequested { get; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
+            argument => string.Equals(argument, "-city-spectator", System.StringComparison.OrdinalIgnoreCase));
+
         /// <summary>The layout is designed for a 1080 pixel high screen and scaled from there.</summary>
         private const float DesignHeight = 1080f;
 
@@ -139,7 +142,7 @@ namespace HTownSim.Runtime
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Show()
         {
-            if (CityServerRequested)
+            if (CityServerRequested || CitySpectatorRequested)
             {
                 if (SceneManager.GetActiveScene().name == StartScene)
                 {
