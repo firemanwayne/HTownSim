@@ -1,0 +1,3 @@
+# Debug symbols and Unity's backup folder are not needed to run the server.
+*_BackUpThisFolder_ButDontShipItWithYourGame
+*_BurstDebugInformation_DoNotShip

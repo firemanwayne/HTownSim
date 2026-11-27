@@ -13,6 +13,11 @@ namespace HTownSim.Runtime
     {
         internal const int Port = 7777;
 
+        // Containers opt in to binding their network interface. Desktop runs stay local.
+        internal static IPAddress BindAddress => Environment.GetEnvironmentVariable("HTOWNSIM_BIND_ALL") == "1"
+            ? IPAddress.Any
+            : IPAddress.Loopback;
+
         private static readonly byte[] ReadyMessage = System.Text.Encoding.ASCII.GetBytes("HTOWNSIM READY 1\n");
 
         private TcpListener? _listener;
@@ -21,7 +26,8 @@ namespace HTownSim.Runtime
 
         private void OnEnable()
         {
-            var listener = new TcpListener(IPAddress.Loopback, Port);
+            var address = BindAddress;
+            var listener = new TcpListener(address, Port);
 
             try
             {
@@ -30,13 +36,13 @@ namespace HTownSim.Runtime
             catch (SocketException exception)
             {
                 listener.Stop();
-                Debug.LogError("City readiness listener could not bind to 127.0.0.1:" + Port + ": " + exception.Message);
+                Debug.LogError("City readiness listener could not bind to " + address + ":" + Port + ": " + exception.Message);
                 return;
             }
 
             _listener = listener;
             _shutdown = new CancellationTokenSource();
-            Debug.Log("City readiness listener is accepting connections on 127.0.0.1:" + Port);
+            Debug.Log("City readiness listener is accepting connections on " + address + ":" + Port);
             Serve(listener, _shutdown.Token);
         }
 

@@ -36,6 +36,35 @@ namespace HTownSim.EditorTools
             Debug.Log(Build());
         }
 
+        /// <summary>Builds the Linux city server used by the Docker deployment.</summary>
+        [MenuItem("HTownSim/Build/Linux City Server")]
+        public static void BuildCityServer()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                throw new System.InvalidOperationException("Stop Play Mode before building the city server.");
+            }
+
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "Builds", "CityServer");
+            Directory.CreateDirectory(folder);
+            var options = new BuildPlayerOptions
+            {
+                scenes = new[] { CityScene },
+                locationPathName = Path.Combine(folder, "HTownSimServer.x86_64"),
+                target = BuildTarget.StandaloneLinux64,
+                subtarget = (int)StandaloneBuildSubtarget.Server,
+                options = BuildOptions.None,
+            };
+
+            var summary = BuildPipeline.BuildPlayer(options).summary;
+            if (summary.result != BuildResult.Succeeded)
+            {
+                throw new System.InvalidOperationException("Linux city server build " + summary.result + ".");
+            }
+
+            Debug.Log("Built city server at " + options.locationPathName);
+        }
+
         /// <summary>Builds the Windows player and returns a summary; leaves the editor's open scene alone.</summary>
         public static string Build()
         {
@@ -58,6 +87,7 @@ namespace HTownSim.EditorTools
                 scenes = new[] { StartScene, CityScene },
                 locationPathName = Path.Combine(folder, ExecutableName),
                 target = BuildTarget.StandaloneWindows64,
+                subtarget = (int)StandaloneBuildSubtarget.Player,
                 options = BuildOptions.None,
             };
 
