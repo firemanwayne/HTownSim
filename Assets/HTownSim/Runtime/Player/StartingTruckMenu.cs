@@ -40,6 +40,10 @@ namespace HTownSim.Runtime
         internal static bool CitySpectatorRequested { get; private set; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
             argument => string.Equals(argument, "-city-spectator", System.StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>True when the player joins the city server's city with a unit of their own: the "-city-player" switch. The unit is picked on the start screen as usual.</summary>
+        internal static bool CityPlayerRequested { get; } = !CityServerRequested && System.Array.Exists(System.Environment.GetCommandLineArgs(),
+            argument => string.Equals(argument, "-city-player", System.StringComparison.OrdinalIgnoreCase));
+
         /// <summary>True while the start screen is on screen, so a spectator does not fly under it.</summary>
         internal static bool IsOpen { get; private set; }
 

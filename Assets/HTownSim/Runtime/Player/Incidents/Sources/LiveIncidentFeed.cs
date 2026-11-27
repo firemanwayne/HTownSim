@@ -433,7 +433,8 @@ namespace HTownSim.Runtime.Incidents.Sources
 
             foreach (var unit in _fleet.Units)
             {
-                candidates.Add(new FleetCandidate(unit.UnitName, LiveDispatchRule.KindOf(unit.UnitName), unit.Position, unit.Busy, false));
+                // A seated unit is free until it has a call; its player drives it there.
+                candidates.Add(new FleetCandidate(unit.UnitName, LiveDispatchRule.KindOf(unit.UnitName), unit.Position, unit.Seated ? unit.SeatIncident.Length > 0 : unit.Busy, false));
             }
 
             return candidates;
@@ -479,6 +480,16 @@ namespace HTownSim.Runtime.Incidents.Sources
 
                 if (driver == null)
                 {
+                    continue;
+                }
+
+                if (driver.Seated)
+                {
+                    // A connected player drives this unit: its client is told the call and drives there.
+                    driver.AssignSeat(record.IncidentId, target.Value, call, JsonUtility.ToJson(record));
+
+                    names.Add(unit.Name);
+
                     continue;
                 }
 
@@ -555,7 +566,7 @@ namespace HTownSim.Runtime.Incidents.Sources
         }
 
         /// <summary>The player's rig in payload terms, so the call shows them assigned.</summary>
-        private static string RequiredUnit(string unitName, LiveUnitKind kind)
+        internal static string RequiredUnit(string unitName, LiveUnitKind kind)
         {
             return kind switch
             {

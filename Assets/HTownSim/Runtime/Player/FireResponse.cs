@@ -76,6 +76,9 @@ namespace HTownSim.Runtime
         /// <summary>The one door every call comes through: standard incident JSON in, queued calls out.</summary>
         private IncidentManager _incidents = null!;
 
+        /// <summary>True when the city is the server's: calls come from it (through <see cref="EngineSpectatorClient"/>), and there is no local fleet, feed or made-up call.</summary>
+        private bool _remoteCity;
+
         /// <summary>The live City of Houston incident feed (harvester files to the board and to dispatches).</summary>
         private LiveIncidentFeed? _liveFeed;
         /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
@@ -491,6 +494,15 @@ namespace HTownSim.Runtime
 
             _firstSiteIndex = PickFirstSite();
 
+            if (StartingTruckMenu.CityPlayerRequested)
+            {
+                StartRemoteCity();
+
+                StartPlayerPresentation();
+
+                return;
+            }
+
             StartCity(transform);
 
             StartPlayerPresentation();
@@ -526,6 +538,25 @@ namespace HTownSim.Runtime
 
             _status.gameObject.SetActive(false);
             _telemetry.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Joins the city server as this unit's driver: only the incident manager is local (the server's calls for this unit arrive in it); the
+        /// rest of the city, the other units and the fires, is the server's and is shown from its stream.
+        /// </summary>
+        private void StartRemoteCity()
+        {
+            _remoteCity = true;
+
+            var link = new GameObject("City Client");
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(link, gameObject.scene);
+
+            _incidents = link.AddComponent<IncidentManager>();
+
+            _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), System.IO.Path.Combine(Application.persistentDataPath, "Incidents")));
+
+            link.AddComponent<EngineSpectatorClient>().BeginAsPlayer(this, _incidents, _fireVfxMain);
         }
 
         private void StartCity(Transform? player)
@@ -1341,6 +1372,12 @@ namespace HTownSim.Runtime
 
             // A call from an outside source is dispatched soon after the last one clears; a made-up one waits out the roam delay.
             var external = _incidents.HasPending;
+
+            // In the server's city only the server sends calls: nothing is made up here.
+            if (_remoteCity && !external)
+            {
+                return;
+            }
 
             if (!external && _incidentSites.Length < 2)
             {

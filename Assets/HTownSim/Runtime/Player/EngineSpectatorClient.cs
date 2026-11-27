@@ -5,6 +5,9 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using HTownSim.Runtime.Incidents.Managers;
+using HTownSim.Runtime.Incidents.Models;
+using HTownSim.Runtime.Incidents.Sources;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -102,6 +105,35 @@ namespace HTownSim.Runtime
         private bool _menuWasOpen;
         private bool _hasPose;
 
+        /// <summary>Set when the client is a player's: the truck they drive (reported to the server) and the manager the server's calls go into.</summary>
+        private FireResponse? _player;
+
+        private IncidentManager? _incidents;
+
+        private float _nextPose;
+
+        /// <summary>How often (seconds) a player's pose is sent. Lower it for smoother motion for others; raise it to send less.</summary>
+        private const float PoseInterval = 0.1f;
+
+        /// <summary>The unit the server has seated this client in (empty when none).</summary>
+        private string _seat = "";
+
+        /// <summary>The server's address: the <c>-city-host</c> argument, else this machine.</summary>
+        private static string Host()
+        {
+            var args = Environment.GetCommandLineArgs();
+
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], "-city-host", StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[i + 1];
+                }
+            }
+
+            return IPAddress.Loopback.ToString();
+        }
+
         /// <summary>What this spectator may see of other units' locations: everything, or less when started with <c>-city-view-as Fire</c> (or Ems, Police); the server enforces it.</summary>
         internal ViewerRole Role { get; private set; } = ViewerRole.Spectator;
 
@@ -134,12 +166,12 @@ namespace HTownSim.Runtime
             _connection = connection;
             try
             {
-                await connection.ConnectAsync(IPAddress.Loopback, EngineSpectatorServer.Port);
+                await connection.ConnectAsync(Host(), EngineSpectatorServer.Port);
                 var stream = connection.GetStream();
                 using var reader = new StreamReader(stream);
                 _writer = new StreamWriter(stream) { AutoFlush = true };
                 var header = await reader.ReadLineAsync();
-                if (header != EngineSpectatorServer.Header && header != EngineSpectatorServer.LegacyHeader)
+                if (header != EngineSpectatorServer.Header && header != EngineSpectatorServer.PreviousHeader && header != EngineSpectatorServer.LegacyHeader)
                 {
                     _status = "City server protocol mismatch.";
                     return;
@@ -164,13 +196,107 @@ namespace HTownSim.Runtime
             }
             catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
             {
-                _status = "City server unavailable at 127.0.0.1:" + EngineSpectatorServer.Port;
+                _status = "City server unavailable at " + Host() + ":" + EngineSpectatorServer.Port;
             }
             finally
             {
                 _writer = null;
                 _connection = null;
             }
+        }
+
+        /// <summary>
+        /// Joins the city as the driver of <paramref name="player"/>'s unit: asks the server for its seat, then reports where the truck is
+        /// and drives the calls the server sends it. Every other unit is shown from the stream, as for a spectator.
+        /// </summary>
+        internal async void BeginAsPlayer(FireResponse player, IncidentManager incidents, GameObject? firePrefab)
+        {
+            _player = player;
+            _incidents = incidents;
+            _firePrefab = firePrefab;
+            _roots = player.gameObject.scene.GetRootGameObjects();
+            _status = "Joining the city as " + player.Profile.UnitName + "...";
+            incidents.Completed += OnPlayerCallDone;
+
+            using var connection = new TcpClient();
+            _connection = connection;
+            try
+            {
+                await connection.ConnectAsync(Host(), EngineSpectatorServer.Port);
+                var stream = connection.GetStream();
+                using var reader = new StreamReader(stream);
+                _writer = new StreamWriter(stream) { AutoFlush = true };
+                var header = await reader.ReadLineAsync();
+
+                // Seats came with the third stream; an older server cannot seat a player.
+                if (header != EngineSpectatorServer.Header)
+                {
+                    _status = "City server cannot seat a player (protocol mismatch).";
+                    return;
+                }
+
+                await _writer.WriteLineAsync(EngineSpectatorServer.SeatCommand + player.Profile.UnitName);
+
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    if (!Receive(line))
+                    {
+                        _status = "City server sent an invalid line.";
+                        return;
+                    }
+                }
+
+                _status = "Disconnected from city server.";
+            }
+            catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+            {
+                _status = "City server unavailable at " + Host() + ":" + EngineSpectatorServer.Port;
+            }
+            finally
+            {
+                _writer = null;
+                _connection = null;
+            }
+        }
+
+        /// <summary>The server sent this unit to a call: it goes into the incident manager like any call, and the truck's own logic takes it from there.</summary>
+        private void ReceiveCall(string json)
+        {
+            if (_player == null || _incidents == null)
+            {
+                return;
+            }
+
+            var record = JsonUtility.FromJson<LiveIncidentRecord>(json);
+            if (record == null)
+            {
+                return;
+            }
+
+            var name = _player.Profile.UnitName;
+            var payload = LivePayloadBuilder.Build(record, LiveIncidentFeed.RequiredUnit(name, LiveDispatchRule.KindOf(name)));
+            _incidents.Submit(JsonUtility.ToJson(payload), LivePayloadBuilder.SourceName);
+        }
+
+        /// <summary>The player finished a call: the server is told, which frees the unit and clears the incident when it was the last unit on it.</summary>
+        private void OnPlayerCallDone(Incident incident, IncidentOutcome outcome)
+        {
+            _writer?.WriteLine(EngineSpectatorServer.DoneCommand + incident.Id + "\t0");
+        }
+
+        /// <summary>Tells the server where the player's truck is, a few times a second.</summary>
+        private void SendPose()
+        {
+            if (_player == null || _seat.Length == 0 || _writer == null || Time.unscaledTime < _nextPose)
+            {
+                return;
+            }
+
+            _nextPose = Time.unscaledTime + PoseInterval;
+            var position = _player.transform.position;
+            var yaw = _player.transform.eulerAngles.y;
+            var flags = (_player.LightsOn ? 1 : 0) | (_player.SirenOn ? 2 : 0) | (_player.HornSounding ? 4 : 0);
+            _writer.WriteLine(FormattableString.Invariant($"P\t{position.x:R}\t{position.y:R}\t{position.z:R}\t{yaw:R}\t{flags}"));
         }
 
         /// <summary>
@@ -208,6 +334,24 @@ namespace HTownSim.Runtime
             {
                 _message = fields[1];
                 _messageUntil = Time.unscaledTime + MessageSeconds;
+
+                return true;
+            }
+
+            if (fields.Length == 2 && fields[0] == "S")
+            {
+                _seat = fields[1];
+                if (_player != null)
+                {
+                    _status = _seat.Length > 0 ? "Driving " + _seat + " in the city" : "Not seated in the city";
+                }
+
+                return true;
+            }
+
+            if (fields.Length == 2 && fields[0] == EngineSpectatorServer.DispatchLine.TrimEnd('\t'))
+            {
+                ReceiveCall(fields[1]);
 
                 return true;
             }
@@ -314,7 +458,7 @@ namespace HTownSim.Runtime
                 proxy.Placed = true;
             }
 
-            if (!_hasPose && unit == EngineName)
+            if (!_hasPose && unit == EngineName && _player == null)
             {
                 _hasPose = true;
                 _joinSeconds = CityJoinMenu.ElapsedSeconds;
@@ -381,7 +525,7 @@ namespace HTownSim.Runtime
                 return null;
             }
 
-            var found = AiFleet.FindParkedObject(_roots, unit);
+            var found = AiFleet.FindParkedObject(_roots, unit, _player != null ? _player.transform : null);
             if (found == null && unit.StartsWith(PatrolPrefix, StringComparison.Ordinal))
             {
                 var prefab = Resources.Load<GameObject>(PatrolPrefab);
@@ -415,7 +559,7 @@ namespace HTownSim.Runtime
 
         private void Update()
         {
-            if (HandleMenu())
+            if (_player == null && HandleMenu())
             {
                 return;
             }
@@ -447,6 +591,8 @@ namespace HTownSim.Runtime
                 _message = "Asking the server for a test fire...";
                 _messageUntil = Time.unscaledTime + MessageSeconds;
             }
+
+            SendPose();
 
             Fly();
         }
@@ -575,6 +721,11 @@ namespace HTownSim.Runtime
 
         private void OnDisable()
         {
+            if (_incidents != null)
+            {
+                _incidents.Completed -= OnPlayerCallDone;
+            }
+
             if (_flying)
             {
                 SetCursorCaptured(false);

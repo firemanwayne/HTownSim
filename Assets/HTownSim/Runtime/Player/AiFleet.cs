@@ -298,13 +298,19 @@ namespace HTownSim.Runtime
         }
 
         /// <summary>The scene object for a parked unit's name (as the fleet finds it), or null; a spectator uses it to pose the unit it sees streamed.</summary>
-        internal static Transform? FindParkedObject(GameObject[] roots, string unitName)
+        internal static Transform? FindParkedObject(GameObject[] roots, string unitName, Transform? exclude = null)
         {
             foreach (var (objectName, group, name) in Parked)
             {
                 if (string.Equals(name, unitName, StringComparison.OrdinalIgnoreCase))
                 {
-                    return Find(roots, objectName, group);
+                    var found = Find(roots, objectName, group);
+
+                    // A player's own vehicle is one of these objects: it is never another unit's stand-in.
+                    if (found != null && found != exclude)
+                    {
+                        return found;
+                    }
                 }
             }
 
