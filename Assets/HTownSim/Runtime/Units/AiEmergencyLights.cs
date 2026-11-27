@@ -42,7 +42,10 @@ namespace HTownSim.Runtime
 
         private void Awake()
         {
-            foreach (var renderer in GetComponentsInChildren<Renderer>(true))
+            // A headless server draws nothing and has its shaders stripped, so copying the lens materials would only log errors; it still tracks on/off and siren state.
+            var headless = SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null;
+
+            foreach (var renderer in headless ? new Renderer[0] : GetComponentsInChildren<Renderer>(true))
             {
                 if (TryAddBarLens(renderer))
                 {
