@@ -362,15 +362,35 @@ namespace HTownSim.Runtime
                 return;
             }
 
-            var unit = fleet.Find(unitName.Trim());
-            if (unit == null)
+            var wanted = unitName.Trim();
+            var unit = fleet.Find(wanted);
+
+            // A player's patrol car has its own name (HPD Patrol 46837); the server's patrol units are HPD Unit 1, 2 ...: the first free one is theirs.
+            if (unit == null && wanted.StartsWith("HPD", StringComparison.OrdinalIgnoreCase))
             {
-                await session.SendAsync("M\tNo such unit: " + unitName.Trim(), true);
+                var patrols = fleet.Units.Where(candidate => candidate != null && candidate.UnitName.StartsWith("HPD Unit", StringComparison.OrdinalIgnoreCase)).ToList();
+                if (patrols.Count == 0)
+                {
+                    await session.SendAsync("M\tThe city has no patrol units", true);
+
+                    return;
+                }
+
+                unit = patrols.FirstOrDefault(candidate => candidate.Seat());
+                if (unit == null)
+                {
+                    await session.SendAsync("M\tEvery patrol unit is taken or out on a call", true);
+
+                    return;
+                }
+            }
+            else if (unit == null)
+            {
+                await session.SendAsync("M\tNo such unit: " + wanted, true);
 
                 return;
             }
-
-            if (!unit.Seat())
+            else if (!unit.Seat())
             {
                 await session.SendAsync("M\t" + unit.UnitName + " is taken or out on a call", true);
 
