@@ -1,0 +1,278 @@
+{
+ "materials": {
+  "Engine07_BarDome": {
+   "color": [
+    0.9200000166893005,
+    0.9399999976158142,
+    0.9599999785423279
+   ],
+   "metallic": 0.0,
+   "roughness": 0.05000000074505806,
+   "alpha": 0.2199999988079071,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_Logo": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.3499999940395355,
+   "alpha": 1.0,
+   "texture": "HFD_Logo.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": true
+  },
+  "Engine07_LensClear": {
+   "color": [
+    0.75,
+    0.75,
+    0.7200000286102295
+   ],
+   "metallic": 0.0,
+   "roughness": 0.10000000149011612,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_DarkTrim": {
+   "color": [
+    0.03999999910593033,
+    0.04500000178813934,
+    0.05000000074505806
+   ],
+   "metallic": 0.0,
+   "roughness": 0.5,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_SceneLens": {
+   "color": [
+    0.800000011920929,
+    0.8199999928474426,
+    0.8399999737739563
+   ],
+   "metallic": 0.0,
+   "roughness": 0.10000000149011612,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_Interior": {
+   "color": [
+    0.029999999329447746,
+    0.03500000014901161,
+    0.03999999910593033
+   ],
+   "metallic": 0.0,
+   "roughness": 0.800000011920929,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_RedTrim": {
+   "color": [
+    0.550000011920929,
+    0.03999999910593033,
+    0.03999999910593033
+   ],
+   "metallic": 0.0,
+   "roughness": 0.30000001192092896,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_WhiteTrim": {
+   "color": [
+    0.8600000143051147,
+    0.8700000047683716,
+    0.8799999952316284
+   ],
+   "metallic": 0.0,
+   "roughness": 0.30000001192092896,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Station_Logo_Both_Crew_Doors": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.3499999940395355,
+   "alpha": 1.0,
+   "texture": "HFD_Logo.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": true
+  },
+  "Engine07_Glass": {
+   "color": [
+    0.05000000074505806,
+    0.07000000029802322,
+    0.07999999821186066
+   ],
+   "metallic": 0.0,
+   "roughness": 0.05000000074505806,
+   "alpha": 0.44999998807907104,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_Texas": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.3499999940395355,
+   "alpha": 1.0,
+   "texture": "Texas_Flag.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": true
+  },
+  "Engine07_LensRed": {
+   "color": [
+    0.44999998807907104,
+    0.019999999552965164,
+    0.019999999552965164
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_LensAmber": {
+   "color": [
+    0.75,
+    0.3499999940395355,
+    0.029999999329447746
+   ],
+   "metallic": 0.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_Chrome": {
+   "color": [
+    0.800000011920929,
+    0.800000011920929,
+    0.8199999928474426
+   ],
+   "metallic": 1.0,
+   "roughness": 0.15000000596046448,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "Engine07_Rubber": {
+   "color": [
+    0.02500000037252903,
+    0.02500000037252903,
+    0.02500000037252903
+   ],
+   "metallic": 0.0,
+   "roughness": 0.8500000238418579,
+   "alpha": 1.0,
+   "texture": null,
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  },
+  "SpartanEngine16_Paint": {
+   "color": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metallic": 0.0,
+   "roughness": 0.3499999940395355,
+   "alpha": 1.0,
+   "texture": "SpartanEngine16_Paint.png",
+   "emission": [
+    0,
+    0,
+    0
+   ],
+   "cutout": false
+  }
+ },
+ "unit_number": 16,
+ "medic": false
+}

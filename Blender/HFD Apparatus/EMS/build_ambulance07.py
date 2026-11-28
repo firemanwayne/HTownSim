@@ -335,7 +335,7 @@ AXES = {"-y": (Vector((0, -1, 0)), Vector((1, 0, 0)), Vector((0, 0, 1))),
         "-x": (Vector((-1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))}
 
 
-def build_lights(mats):
+def build_lights(mats, write_metadata=True):
     define_lenses()
     order = ["LensRed", "LensClear", "LensAmber", "LensRedWarn", "LensRedWarn2", "LensAmberWarn", "DarkTrim"]
     bm = bmesh.new()
@@ -364,7 +364,8 @@ def build_lights(mats):
                             normal=list(n), size=[w, h, depth], round=L["round"]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     o = mesh_object("Amb07_Lights", bm, [mats[m] for m in order])
-    json.dump(targets, open(os.path.join(HERE, "lens_targets_amb07.json"), "w"), indent=1)
+    if write_metadata:
+        json.dump(targets, open(os.path.join(HERE, "lens_targets_amb07.json"), "w"), indent=1)
     return o, len(targets)
 
 
@@ -431,7 +432,7 @@ def build_wheel(mats, name, centre, outward, dual):
 # ------------------------------------------------------------------------------------------------ build
 
 
-def build():
+def build(*, livery=LIVERY, logo=LOGO, write_metadata=True):
     mats = {
         "Paint": material("Amb07_Paint", (0.55, 0.05, 0.04), rough=0.3),
         "Interior": material("Amb07_Interior", (0.03, 0.035, 0.04), rough=0.8),
@@ -453,7 +454,9 @@ def build():
         if os.path.exists(path):
             return bpy.data.images.load(path)
         return bpy.data.images.new(os.path.basename(path), *size)
-    for key, path, size in (("Paint", LIVERY, A.ATLAS), ("Logo", LOGO, (64, 64))):
+    for key, path, size in (("Paint", livery, A.ATLAS), ("Logo", logo, (64, 64))):
+        if path is None:
+            continue
         nt = mats[key].node_tree
         b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
         t = nt.nodes.new("ShaderNodeTexImage")
@@ -465,7 +468,7 @@ def build():
     assign_uvs(shell)
     build_glass(mats)
     build_trim(mats)
-    _, count = build_lights(mats)
+    _, count = build_lights(mats, write_metadata)
     build_decals(mats)
     for name, x, ay, z, out, dual in (("WheelFrontLeft", A.FRONT_WHEEL_X, A.AX_F, A.WR, 1, False), ("WheelFrontRight", -A.FRONT_WHEEL_X, A.AX_F, A.WR, -1, False),
                                       ("WheelRearLeft", A.REAR_WHEEL_X, A.AX_R, A.WR, 1, True), ("WheelRearRight", -A.REAR_WHEEL_X, A.AX_R, A.WR, -1, True)):
@@ -511,10 +514,11 @@ def export():
     print("EXPORTED", FBX)
 
 
-build()
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Ambulance07_Clean.blend"), copy=True)
-if PREVIEWS:
-    previews()
-if "export" in sys.argv:
-    export()
-print("ALL DONE")
+if __name__ == "__main__":
+    build()
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Ambulance07_Clean.blend"), copy=True)
+    if PREVIEWS:
+        previews()
+    if "export" in sys.argv:
+        export()
+    print("ALL DONE")

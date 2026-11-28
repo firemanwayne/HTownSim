@@ -76,6 +76,12 @@ namespace HTownSim.Runtime
         /// <summary>The one door every call comes through: standard incident JSON in, queued calls out.</summary>
         private IncidentManager _incidents = null!;
 
+        /// <summary>True when the city is the server's: calls come from it (through <see cref="EngineSpectatorClient"/>), and there is no local fleet, feed or made-up call.</summary>
+        private bool _remoteCity;
+
+        /// <summary>The incident board the city server streams to this player (null in a city of one's own).</summary>
+        private RemoteIncidentBoard? _remoteBoard;
+
         /// <summary>The live City of Houston incident feed (harvester files to the board and to dispatches).</summary>
         private LiveIncidentFeed? _liveFeed;
         /// <summary>The call being worked, and the first call of the session (which R retries).</summary>
@@ -208,7 +214,6 @@ namespace HTownSim.Runtime
         private bool _leftSignal;
         private bool _rightSignal;
         private bool _hazards;
-        private ApparatusLights? _apparatus;
         /// <summary>Orbit rig and accumulated mouse angles.</summary>
         private CinemachineFollow _follow = null!;
         private Vector3 _initialCameraOffset;
@@ -491,6 +496,15 @@ namespace HTownSim.Runtime
 
             _firstSiteIndex = PickFirstSite();
 
+            if (StartingTruckMenu.CityPlayerRequested)
+            {
+                StartRemoteCity();
+
+                StartPlayerPresentation();
+
+                return;
+            }
+
             StartCity(transform);
 
             StartPlayerPresentation();
@@ -526,6 +540,29 @@ namespace HTownSim.Runtime
 
             _status.gameObject.SetActive(false);
             _telemetry.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Joins the city server as this unit's driver: only the incident manager is local (the server's calls for this unit arrive in it); the
+        /// rest of the city, the other units and the fires, is the server's and is shown from its stream.
+        /// </summary>
+        private void StartRemoteCity()
+        {
+            _remoteCity = true;
+
+            var link = new GameObject("City Client");
+
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(link, gameObject.scene);
+
+            _incidents = link.AddComponent<IncidentManager>();
+
+            _incidents.Initialize(new IncidentManagerSettings(PlayableArea(), System.IO.Path.Combine(Application.persistentDataPath, "Incidents")));
+
+            var client = link.AddComponent<EngineSpectatorClient>();
+
+            _remoteBoard = client.Board;
+
+            client.BeginAsPlayer(this, _incidents, _fireVfxMain);
         }
 
         private void StartCity(Transform? player)
@@ -583,6 +620,10 @@ namespace HTownSim.Runtime
             if (_liveFeed != null && boardCanvas != null)
             {
                 new GameObject("ActiveIncidentsHud").AddComponent<ActiveIncidentsHud>().Initialize(_liveFeed, boardCanvas);
+            }
+            else if (_remoteBoard != null && boardCanvas != null)
+            {
+                new GameObject("ActiveIncidentsHud").AddComponent<ActiveIncidentsHud>().Initialize(_remoteBoard, boardCanvas);
             }
 
             gameObject.AddComponent<EngineSound>().Initialize(this);
@@ -1216,11 +1257,6 @@ namespace HTownSim.Runtime
                 _spread.Tick(_paused ? 0f : Time.deltaTime, _heat, _water.enabled);
             }
 
-            if (_apparatus == null)
-            {
-                _apparatus = FindAnyObjectByType<ApparatusLights>();
-            }
-
             if (_beaconPhase.Length != _beacons.Length)
             {
                 _beaconPhase = new float[_beacons.Length];
@@ -1237,7 +1273,7 @@ namespace HTownSim.Runtime
 
                 _beaconPhase[i] = Mathf.Repeat(_beaconPhase[i] + hertz * Time.deltaTime, 1f);
 
-                var lit = _apparatus != null && i < 2 ? _apparatus.BarLit(i) : _beaconPhase[i] < BeaconDuty;
+                var lit = _beaconPhase[i] < BeaconDuty;
 
                 _beacons[i].intensity = _lightsEnabled && lit ? BeaconIntensity : 0f;
             }
@@ -1341,6 +1377,12 @@ namespace HTownSim.Runtime
 
             // A call from an outside source is dispatched soon after the last one clears; a made-up one waits out the roam delay.
             var external = _incidents.HasPending;
+
+            // In the server's city only the server sends calls: nothing is made up here.
+            if (_remoteCity && !external)
+            {
+                return;
+            }
 
             if (!external && _incidentSites.Length < 2)
             {

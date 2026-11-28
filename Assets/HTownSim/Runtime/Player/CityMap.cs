@@ -400,7 +400,7 @@ namespace HTownSim.Runtime
         /// <summary>The units the map draws: the fleet's, or, for a spectator, every unit the server streams.</summary>
         private IReadOnlyList<MapUnit>? MapUnits()
         {
-            if (StartingTruckMenu.CitySpectatorRequested)
+            if (StartingTruckMenu.CitySpectatorRequested || StartingTruckMenu.CityPlayerRequested)
             {
                 _spectator ??= FindAnyObjectByType<EngineSpectatorClient>();
 

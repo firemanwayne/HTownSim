@@ -190,8 +190,26 @@ namespace HTownSim.Runtime
         /// <summary>True when the unit is on a call (it is not sent again until it is back at its station).</summary>
         internal bool Busy => Current != Phase.Parked;
 
+        /// <summary>True while a connected player drives this unit (see <see cref="Seat"/>): the computer leaves it alone and the server only places it where the player says.</summary>
+        internal bool Seated { get; private set; }
+
+        private int _seatFlags;
+
+        private Vector2 _seatTarget;
+
+        private Call _seatCall;
+
+        /// <summary>The incident a seated unit was sent to (empty when it has none): its player drives to it.</summary>
+        internal string SeatIncident { get; private set; } = "";
+
+        /// <summary>The call's record as JSON, for the player's client to rebuild it; empty once sent.</summary>
+        internal string SeatRecordJson { get; private set; } = "";
+
+        /// <summary>The call is sent to the player's client once; this is true after.</summary>
+        internal bool SeatNotified { get; set; }
+
         /// <summary>Lights, siren and horn as flags for a spectator: 1 when the lights flash, 2 when the siren sounds, 4 when the horn sounds.</summary>
-        internal int LightFlags => (_lights == null ? 0 : (_lights.IsOn ? 1 : 0) | (_lights.SirenOn ? 2 : 0)) | (_horn != null && _horn.Sounding ? 4 : 0);
+        internal int LightFlags => Seated ? _seatFlags : (_lights == null ? 0 : (_lights.IsOn ? 1 : 0) | (_lights.SirenOn ? 2 : 0)) | (_horn != null && _horn.Sounding ? 4 : 0);
 
         /// <summary>Where the unit is now (ground x, z).</summary>
         internal Vector2 Position => new Vector2(transform.position.x, transform.position.z);
@@ -285,6 +303,126 @@ namespace HTownSim.Runtime
 
         /// <summary>True when the unit was sent (a route was found).</summary>
         internal bool Sent => Busy;
+
+        /// <summary>A player takes the unit. Only a parked unit can be taken; the computer then stops driving it and it is not sent to calls (the player is).</summary>
+        internal bool Seat()
+        {
+            // A unit driving home has no call to keep, so a player may take it where it is; one still out on a call may not.
+            if (Seated || (Busy && Current != Phase.Returning))
+            {
+                return false;
+            }
+
+            Seated = true;
+
+            if (Current == Phase.Returning)
+            {
+                Current = Phase.Parked;
+
+                _speed = 0f;
+
+                EmergencyTraffic.Unregister(transform);
+            }
+
+            _seatFlags = 0;
+
+            SeatIncident = "";
+
+            SeatRecordJson = "";
+
+            SeatNotified = false;
+
+            _lights?.Set(false, false);
+
+            return true;
+        }
+
+        /// <summary>The player left: the computer takes the unit over where it stands and drives it back to its bay.</summary>
+        internal void Unseat()
+        {
+            if (!Seated)
+            {
+                return;
+            }
+
+            Seated = false;
+
+            _speed = 0f;
+
+            // A call the player had not finished carries on as a computer-driven unit from where the player left it.
+            var incident = SeatIncident;
+
+            SeatIncident = "";
+
+            SeatRecordJson = "";
+
+            if (incident.Length > 0)
+            {
+                ContinueFromPlayer(new CityCarryOver.PlayerUnit
+                {
+                    Name = UnitName,
+                    Position = transform.position,
+                    Yaw = transform.eulerAngles.y,
+                    IncidentId = incident,
+                    Target = _seatTarget,
+                    Call = _seatCall,
+                });
+
+                if (Busy)
+                {
+                    return;
+                }
+            }
+
+            GoHome();
+        }
+
+        /// <summary>Sends a seated unit to a call: its player's client is told, and the player drives there. The dispatcher counts the unit as sent.</summary>
+        internal void AssignSeat(string incidentId, Vector2 scene, Call call, string recordJson)
+        {
+            if (!Seated || SeatIncident.Length > 0)
+            {
+                return;
+            }
+
+            SeatIncident = incidentId;
+
+            SeatRecordJson = recordJson;
+
+            SeatNotified = false;
+
+            _seatTarget = scene;
+
+            _seatCall = call;
+        }
+
+        /// <summary>The player finished the call it was sent to (the incident id must match): the unit is free for another and the dispatcher is told.</summary>
+        internal void CompleteSeatCall(string incidentId, bool transported)
+        {
+            if (!Seated || SeatIncident.Length == 0 || SeatIncident != incidentId)
+            {
+                return;
+            }
+
+            SeatIncident = "";
+
+            SeatRecordJson = "";
+
+            Finished?.Invoke(incidentId, transported);
+        }
+
+        /// <summary>Places a seated unit where its player reports it (the player's client moves the vehicle; the server only mirrors it).</summary>
+        internal void ApplySeatPose(Vector3 position, float yaw, int lightFlags)
+        {
+            if (!Seated)
+            {
+                return;
+            }
+
+            transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+
+            _seatFlags = lightFlags;
+        }
 
         /// <summary>The unit's state for a scene reload (see <see cref="CityCarryOver"/>), or null when it is parked or a player has taken it over.</summary>
         internal CityCarryOver.UnitState? Capture()
@@ -445,7 +583,7 @@ namespace HTownSim.Runtime
 
         private void Update()
         {
-            if (_playerDriving)
+            if (_playerDriving || Seated)
             {
                 return;
             }

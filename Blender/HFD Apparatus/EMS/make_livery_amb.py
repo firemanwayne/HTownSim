@@ -9,6 +9,7 @@ HFD_Logo.png beside it, in the Unity vehicle folder. Layout follows Ambulance 2,
   "AMBULANCE 07" at the rear of each side; "EMERGENCY 911" in the band; the crest on the curb-side front; diamond-plate
   wheel-well panels; the driver-side condenser grille; red and lime chevrons on the rear with "HFD EMS", "A" and "07".
 """
+import json
 import math
 import os
 import shutil
@@ -21,13 +22,16 @@ sys.path.insert(0, HERE)
 import amb_layout as A  # noqa: E402
 
 UNITY = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Ambulance07"
+REUSABLE_DIR = os.environ.get("HFD_REUSABLE_LIVERY_DIR")
+UNIT_MARKINGS = []
 NUMBER = os.environ.get("HFD_UNIT_NUMBER", "07")  # the unit number drawn on the truck; other numbers go to the Station8 folder
 OUT_DIR = os.environ.get("HFD_OUT_DIR", r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Station8")
 ORIGINAL_DIR = UNITY
 if NUMBER != "07":
     UNITY = OUT_DIR
 OUT = os.path.join(UNITY, ("Ambulance07" if NUMBER == "07" else "Medic" + NUMBER) + "_Livery.png")
-LOGO_SRC = r"J:\Unity\projects\HTownSim\Assets\HTownSim\Vehicles\Engine07Hi3D\HFD_Logo.png"
+LOGO_SRC = os.path.join(os.environ.get("HFD_REPO_ROOT", os.path.join(HERE, "../../..")),
+                        "Assets/HTownSim/Vehicles/Engine07Hi3D/HFD_Logo.png")
 S = A.PPM
 
 RED = (176, 22, 26)
@@ -70,8 +74,15 @@ def line(region, y0, z0, y1, z1, fill, width):
     d.line([P(region, y0, z0), P(region, y1, z1)], fill=fill, width=width)
 
 
-def text_box(text, font_path, box, fill, stroke=None, stroke_w=0):
+def text_box(text, font_path, box, fill, stroke=None, stroke_w=0, *, unit_prefix=None, label_variants=()):
     """Draws text centred and fitted in a pixel box (x0, y0, x1, y1), never mirrored."""
+    if REUSABLE_DIR and (unit_prefix is not None or label_variants):
+        UNIT_MARKINGS.append((unit_prefix, font_path, box, fill, stroke, stroke_w, label_variants))
+        return
+    paste_text(img, text, font_path, box, fill, stroke, stroke_w)
+
+
+def paste_text(target, text, font_path, box, fill, stroke, stroke_w):
     x0, y0, x1, y1 = box
     bw, bh = x1 - x0, y1 - y0
     size = int(bh * 1.3)
@@ -83,12 +94,16 @@ def text_box(text, font_path, box, fill, stroke=None, stroke_w=0):
         size -= 2
     layer = Image.new("RGBA", (tb[2] - tb[0] + 8, tb[3] - tb[1] + 8), (0, 0, 0, 0))
     ImageDraw.Draw(layer).text((4 - tb[0], 4 - tb[1]), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=stroke)
-    img.paste(layer, (int((x0 + x1) / 2 - layer.width / 2), int((y0 + y1) / 2 - layer.height / 2)), layer)
+    origin = (int((x0 + x1) / 2 - layer.width / 2), int((y0 + y1) / 2 - layer.height / 2))
+    if target.mode == "RGBA":
+        target.alpha_composite(layer, origin)
+    else:
+        target.paste(layer, origin, layer)
 
 
-def text_at(region, text, font_path, yc, zc, width_m, height_m, fill, stroke=None, stroke_w=0):
+def text_at(region, text, font_path, yc, zc, width_m, height_m, fill, stroke=None, stroke_w=0, *, unit_prefix=None, label_variants=()):
     a, b = P(region, yc - width_m / 2, zc + height_m / 2), P(region, yc + width_m / 2, zc - height_m / 2)
-    text_box(text, font_path, (min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])), fill, stroke, stroke_w)
+    text_box(text, font_path, (min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])), fill, stroke, stroke_w, unit_prefix=unit_prefix, label_variants=label_variants)
 
 
 def arc_text(text, font_path, centre, radius, cap_px, span_deg, fill, stroke, stroke_w):
@@ -167,8 +182,8 @@ def houston_block(region, yc):
 
 def number_block(region, yc, big=None):
     big = big or NUMBER
-    text_at(region, "AMBULANCE", FONT_BOLD, yc, 2.25, 0.66, 0.085, BLUE, WHITE, 2)
-    text_at(region, big, FONT_BLACK, yc, 1.90, 0.46, 0.34, BLUE, WHITE, 4)
+    text_at(region, "AMBULANCE", FONT_BOLD, yc, 2.25, 0.66, 0.085, BLUE, WHITE, 2, label_variants=("AMBULANCE", "MEDIC"))
+    text_at(region, big, FONT_BLACK, yc, 1.90, 0.46, 0.34, BLUE, WHITE, 4, unit_prefix="" if big == NUMBER else None)
 
 
 def band(region, y0, y1):
@@ -252,8 +267,8 @@ def draw_boxfront():
     rect("boxfront", -1.3, 1.3, 2.0, 3.1, RED)
     # "A" and "07" in white above the light row, as in photo A 68: seen from the front, the A is on the image's left (the
     # truck's right, x < 0) and the number on the image's right (the truck's left, x > 0).
-    text_at("boxfront", "A", FONT_BOLD, -0.45, 2.72, 0.32, 0.22, WHITE)
-    text_at("boxfront", NUMBER, FONT_BOLD, 0.45, 2.72, 0.50, 0.22, WHITE)
+    text_at("boxfront", "A", FONT_BOLD, -0.45, 2.72, 0.32, 0.22, WHITE, label_variants=("A", "M"))
+    text_at("boxfront", NUMBER, FONT_BOLD, 0.45, 2.72, 0.50, 0.22, WHITE, unit_prefix="")
 
 
 def draw_rear():
@@ -283,7 +298,8 @@ def draw_rear():
     text_at(r, "HFD EMS", FONT_BLACK, 0.0, 1.60, 1.30, 0.20, WHITE, BLACK, 3)
     for text, xc, z, ww, hh in (("A", 0.94, 2.05, 0.26, 0.40), (NUMBER, -0.94, 2.05, 0.38, 0.40)):
         a, b = A.pix(r, xc - ww / 2, 0, z + hh / 2), A.pix(r, xc + ww / 2, 0, z - hh / 2)
-        text_box(text, FONT_BOLD, (min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]), WHITE, BLACK, 3)
+        text_box(text, FONT_BOLD, (min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]), WHITE, BLACK, 3, unit_prefix="" if text == NUMBER else None,
+                 label_variants=("A", "M") if text == "A" else ())
     for xc in (0.90,):
         a, b = A.pix(r, xc + 0.25, 0, 1.44), A.pix(r, xc - 0.25, 0, 1.36)
         text_box("EMERGENCY", FONT_BOLD, (a[0], a[1], b[0], b[1]), WHITE, BLACK, 1)
@@ -292,7 +308,7 @@ def draw_rear():
     # Licence plate.
     a, b = A.pix(r, 0.18, 0, 1.02), A.pix(r, -0.18, 0, 0.82)
     d.rectangle([a[0], a[1], b[0], b[1]], fill=(236, 236, 232), outline=(60, 60, 60), width=2)
-    text_box("HFD " + NUMBER, FONT_BOLD, (a[0] + 6, a[1] + 6, b[0] - 6, b[1] - 6), (30, 30, 30))
+    text_box("HFD " + NUMBER, FONT_BOLD, (a[0] + 6, a[1] + 6, b[0] - 6, b[1] - 6), (30, 30, 30), unit_prefix="HFD ")
 
 
 def draw_under():
@@ -308,6 +324,32 @@ draw_right()
 draw_left()
 draw_under()
 img = img.filter(ImageFilter.SMOOTH)
+
+
+if REUSABLE_DIR:
+    os.makedirs(REUSABLE_DIR, exist_ok=True)
+    img.save(os.path.join(REUSABLE_DIR, "Ambulance_Base_Livery.png"))
+    markings = []
+    for i, (prefix, font, box, fill, stroke, stroke_width, variants) in enumerate(UNIT_MARKINGS):
+        x0, y0 = math.floor(box[0]) - 6, math.floor(box[1]) - 6
+        width, height = math.ceil(box[2]) + 6 - x0, math.ceil(box[3]) + 6 - y0
+        local_box = (box[0] - x0, box[1] - y0, box[2] - x0, box[3] - y0)
+        sheet = Image.new("RGBA", (10 * width, 10 * height))
+        values = variants or [f"{prefix}{number:02}" for number in range(100)]
+        for number, text in enumerate(values):
+            tile = Image.new("RGBA", (width, height))
+            paste_text(tile, text, font, local_box, fill, stroke, stroke_width)
+            sheet.paste(tile, ((number % 10) * width, (number // 10) * height))
+        filename = f"Ambulance_Unit_Marking_{i + 1}.png"
+        sheet.save(os.path.join(REUSABLE_DIR, filename))
+        marking = {"image": filename, "rect": [x0, y0, width, height]}
+        if variants:
+            marking["toggle"] = "Medic Label"
+        markings.append(marking)
+    with open(os.path.join(REUSABLE_DIR, "unit_markings.json"), "w") as output:
+        json.dump({"atlas": A.ATLAS, "markings": markings}, output, indent=2)
+    raise SystemExit
+
 os.makedirs(UNITY, exist_ok=True)
 img.save(OUT)
 print("wrote", OUT, img.size)

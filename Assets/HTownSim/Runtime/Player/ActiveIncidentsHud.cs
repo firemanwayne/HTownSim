@@ -32,7 +32,7 @@ namespace HTownSim.Runtime
         /// <summary>Longest line, in characters, before it is shortened with an ellipsis. Raise it to show more of each incident (wide lines); lower it to cut lines sooner.</summary>
         private const int MaxChars = 70;
 
-        private LiveIncidentFeed _feed = null!;
+        private IIncidentBoard _board = null!;
 
         private GameObject _panel = null!;
 
@@ -45,9 +45,15 @@ namespace HTownSim.Runtime
         /// <summary>Builds the panel on the HUD canvas and follows the feed.</summary>
         internal void Initialize(LiveIncidentFeed feed, Canvas canvas)
         {
-            _feed = feed;
+            Initialize(new FeedIncidentBoard(feed), canvas);
+        }
 
-            var lines = feed.Settings.HudLines;
+        /// <summary>Builds the panel on the HUD canvas and follows a board (the city's own, or the one a city server streams).</summary>
+        internal void Initialize(IIncidentBoard board, Canvas canvas)
+        {
+            _board = board;
+
+            var lines = board.HudLines;
 
             _panel = new GameObject("ActiveIncidentsPanel", typeof(RectTransform), typeof(Image));
 
@@ -96,19 +102,10 @@ namespace HTownSim.Runtime
 
             _text.color = new Color(0.9f, 0.85f, 0.72f);
 
-            feed.Queue.Released += OnChanged;
-
-            feed.Queue.Updated += OnChanged;
-
-            feed.Queue.Closed += OnClosed;
+            board.Changed += OnChanged;
         }
 
-        private void OnChanged(LiveBoardEntry entry)
-        {
-            _dirty = true;
-        }
-
-        private void OnClosed(string id)
+        private void OnChanged()
         {
             _dirty = true;
         }
@@ -137,20 +134,18 @@ namespace HTownSim.Runtime
         /// <summary>The panel text: a title line, then one line per incident.</summary>
         private string Compose()
         {
-            var queue = _feed.Queue;
-
             var builder = new StringBuilder();
 
             builder.Append("<color=").Append(Highlight).Append("><b>ACTIVE INCIDENTS</b></color>   ")
-                .Append(queue.Board.Count).Append(" on board, ").Append(queue.Waiting).Append(" waiting")
-                .Append(_feed.IsLive ? "" : "   <color=" + Dim + ">(no feed: run HoustonIncidents)</color>")
+                .Append(_board.Board.Count).Append(" on board, ").Append(_board.Waiting).Append(" waiting")
+                .Append(_board.IsLive ? "" : "   <color=" + Dim + ">(no feed: run HoustonIncidents)</color>")
                 .Append("   <size=12>B HIDE</size>\n");
 
             var shown = 0;
 
-            foreach (var entry in queue.Board)
+            foreach (var entry in _board.Board)
             {
-                if (shown++ >= _feed.Settings.HudLines)
+                if (shown++ >= _board.HudLines)
                 {
                     break;
                 }
@@ -192,13 +187,11 @@ namespace HTownSim.Runtime
 
         private void OnDestroy()
         {
-            if (_feed != null && _feed.Queue != null)
+            if (_board != null)
             {
-                _feed.Queue.Released -= OnChanged;
+                _board.Changed -= OnChanged;
 
-                _feed.Queue.Updated -= OnChanged;
-
-                _feed.Queue.Closed -= OnClosed;
+                (_board as System.IDisposable)?.Dispose();
             }
         }
     }

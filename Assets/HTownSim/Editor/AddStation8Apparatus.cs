@@ -33,15 +33,12 @@ public static class AddStation8Apparatus
 
     private const string MaterialFolder = Station8Folder + "/Materials";
 
-    private const string EngineModel = VehicleRoot + "/Engine07Hi3D/Engine07Clean.fbx";
+    /// <summary>The reusable Spartan engine and Frazer ambulance, exported once per unit with the number in the paint (Blender/HFD Apparatus/export_reusable_unity.py; installed by AgentScripts/InstallReusableApparatus.cs).</summary>
+    private const string Engine01Model = VehicleRoot + "/SpartanEngine/SpartanEngine01.fbx";
 
-    private const string AmbulanceModel = VehicleRoot + "/Ambulance07/Ambulance07.fbx";
+    private const string Engine08Model = VehicleRoot + "/SpartanEngine/SpartanEngine08.fbx";
 
-    private const string EngineLivery = VehicleRoot + "/Engine07Hi3D/Engine07_Livery.png";
-
-    private const string EngineDecals = VehicleRoot + "/Engine07Hi3D/Engine07_Decals.png";
-
-    private const string AmbulanceLivery = VehicleRoot + "/Ambulance07/Ambulance07_Livery.png";
+    private const string Medic08Model = VehicleRoot + "/FrazerAmbulance/FrazerMedic08.fbx";
 
     /// <summary>District Chief 08's model (Blender/HFD Apparatus/Chiefs/export_dc08.py) and where its game materials are written.</summary>
     private const string DistrictChiefModel = VehicleRoot + "/DistrictChief08/DistrictChief08.fbx";
@@ -95,9 +92,9 @@ public static class AddStation8Apparatus
 
     private static readonly Unit[] Units =
     {
-        new Unit("Medic08", LeftBay, AmbulanceModel, "Ambulance07Visual", new[] { AmbulanceLivery, Station8Folder + "/Medic08_Livery.png" }),
-        new Unit("Engine01", MiddleBay, EngineModel, "Engine07CleanVisual", new[] { EngineLivery, Station8Folder + "/Engine01_Livery.png", EngineDecals, Station8Folder + "/Engine01_Decals.png" }),
-        new Unit("Engine08", RightBay, EngineModel, "Engine07CleanVisual", new[] { EngineLivery, Station8Folder + "/Engine08_Livery.png", EngineDecals, Station8Folder + "/Engine08_Decals.png" }),
+        new Unit("Medic08", LeftBay, Medic08Model, "Ambulance07Visual", new string[0]),
+        new Unit("Engine01", MiddleBay, Engine01Model, "Engine07CleanVisual", new string[0]),
+        new Unit("Engine08", RightBay, Engine08Model, "Engine07CleanVisual", new string[0]),
         new Unit("DistrictChief08", ApronBay, DistrictChiefModel, string.Empty, new string[0]),
     };
 
@@ -240,6 +237,14 @@ public static class AddStation8Apparatus
         model.transform.localRotation = source.localRotation;
 
         model.transform.localScale = source.localScale;
+
+        if (unit.TextureSwaps.Length == 0)
+        {
+            // The reusable models bring their own materials and their number; they only have to stand where the old model stood.
+            FitCollider(root);
+
+            return;
+        }
 
         var sourceRenderers = source.GetComponentsInChildren<Renderer>(true)
             .GroupBy(renderer => renderer.name)
