@@ -118,6 +118,9 @@ namespace HTownSim.Runtime
         /// <summary>The unit the server has seated this client in (empty when none).</summary>
         private string _seat = "";
 
+        /// <summary>True when the server speaks a stream that may grow new line types: a line this client does not know is skipped instead of ending the connection.</summary>
+        private bool _modern;
+
         /// <summary>The incident board the server streams to this client (shown by the HUD of a player).</summary>
         internal RemoteIncidentBoard Board { get; } = new RemoteIncidentBoard();
 
@@ -183,6 +186,8 @@ namespace HTownSim.Runtime
                     return;
                 }
 
+                _modern = header != EngineSpectatorServer.LegacyHeader;
+
                 // Ask the server to send only what this view may see; the map filters the same way.
                 if (Role != ViewerRole.Spectator)
                 {
@@ -240,6 +245,8 @@ namespace HTownSim.Runtime
                     _status = "City server cannot seat a player (protocol mismatch).";
                     return;
                 }
+
+                _modern = true;
 
                 await _writer.WriteLineAsync(EngineSpectatorServer.SeatCommand + player.Profile.UnitName);
 
@@ -423,6 +430,12 @@ namespace HTownSim.Runtime
                 return TryPose(fields[2], fields[3], fields[4], fields[5], out var position, out var yaw)
                     && (fields.Length == 6 || int.TryParse(fields[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out flags))
                     && Place(fields[1], position, yaw, flags);
+            }
+
+            // A newer server's line this client does not know is skipped; only the oldest stream has no line types.
+            if (_modern)
+            {
+                return true;
             }
 
             // The older stream: Engine 07 alone, four numbers separated by spaces.

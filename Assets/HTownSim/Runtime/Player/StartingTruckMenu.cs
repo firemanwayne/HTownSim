@@ -243,6 +243,14 @@ namespace HTownSim.Runtime
             // "-autostart" on the command line takes the last pick without asking, for quick starts and for testing a build unattended.
             if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), AutoStartArgument) >= 0)
             {
+                // The server's city has no citizen cars: an online start with that pick asks instead of joining as nobody.
+                if (CityPlayerRequested && StartingTruckChoice.AgencyOf(menu._current) == StartingAgency.Citizen)
+                {
+                    Debug.Log("StartingTruckMenu: -autostart skipped, the city server has no " + StartingTruckChoice.DisplayName(menu._current) + "; pick a unit.");
+
+                    return;
+                }
+
                 menu.Choose(menu._current);
             }
         }
